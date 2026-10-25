@@ -33,7 +33,7 @@ pnpm add @kevinjohn/lucid-soft-deletes
 After install call `configure`:
 
 ```bash
-node ace configure adonis-lucid-soft-deletes
+node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
 ## Usage
@@ -43,7 +43,7 @@ Make sure to register the provider inside `adonisrc.ts` file.
 ```ts
 providers: [
   // ...
-  () => import('adonis-lucid-soft-deletes/provider'),
+  () => import('@kevinjohn/lucid-soft-deletes/provider'),
 ]
 ```
 
@@ -70,7 +70,7 @@ export default class Users extends BaseSchema {
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   // ...columns and props
@@ -129,7 +129,7 @@ export default class UsersController {
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   // ...columns and props
