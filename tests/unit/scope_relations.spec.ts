@@ -1,8 +1,10 @@
 /*
- * adonis-lucid-soft-deletes
+ * @kevinjohn/lucid-soft-deletes
  *
- * Copyright (c) Kevinjohn Gallagher.
- * For the full copyright and license information, please view the LICENSE file.
+ * (c) 2026 Kevinjohn Gallagher
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 import { test } from '@japa/runner'
@@ -76,6 +78,29 @@ test.group('Default soft-delete scope on relations', (group) => {
         .then((posts) => posts.map((post) => post.id)),
       [visiblePost.id]
     )
+  })
+
+  test('omits a has-one relation when its only profile is deleted', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    const user = new RelationUser()
+    user.fill({ username: 'hidden-profile', email: 'hidden-profile@example.com', managerId: null })
+    await user.save()
+
+    const profile = new RelationProfile()
+    profile.fill({ userId: user.id, displayName: 'Deleted profile' })
+    await profile.save()
+    await profile.delete()
+
+    const preloaded = await RelationUser.query()
+      .where('id', user.id)
+      .preload('profile')
+      .firstOrFail()
+    assert.isNull(preloaded.profile)
+
+    await user.load('profile')
+    assert.isNull(user.profile)
   })
 
   test('filters belongs-to relations when preloading and loading', async ({ assert }) => {
