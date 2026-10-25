@@ -1,8 +1,10 @@
 /*
  * @kevinjohn/lucid-soft-deletes
  *
- * Copyright (c) Kevinjohn Gallagher.
- * For the full copyright and license information, please view the LICENSE file.
+ * (c) 2026 Kevinjohn Gallagher
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 import { test } from '@japa/runner'

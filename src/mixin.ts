@@ -96,6 +96,24 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       return this.deletedAt !== null && this.deletedAt !== undefined
     }
 
+    /** Keep the instance aligned with a write that completed before a later hook failed. */
+    async persistDeletedAt(value: DateTime | null, quietly = false): Promise<void> {
+      const previous = this.deletedAt
+      this.deletedAt = value
+      try {
+        if (quietly) await this.saveQuietly()
+        else await this.save()
+      } catch (error) {
+        const original = this.$original.deletedAt
+        const persisted =
+          value === null
+            ? original === null
+            : DateTime.isDateTime(original) && original.equals(value)
+        if (!persisted) this.deletedAt = previous
+        throw error
+      }
+    }
+
     /**
      * Override default $getQueryFor method
      */
@@ -106,16 +124,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       /**
        * Soft Delete
        */
-      const softDelete = async (): Promise<void> => {
-        const previous = this.deletedAt
-        this.deletedAt = DateTime.local()
-        try {
-          await this.save()
-        } catch (error) {
-          this.deletedAt = previous
-          throw error
-        }
-      }
+      const softDelete = (): Promise<void> => this.persistDeletedAt(DateTime.local())
 
       if (action === 'delete' && !this.$forceDelete) {
         return { del: softDelete, delete: softDelete }
@@ -151,14 +160,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
         return
       }
       if (this.trashed && !('deletedAt' in this.$dirty)) return
-      const previous = this.deletedAt
-      this.deletedAt = DateTime.local()
-      try {
-        await this.saveQuietly()
-      } catch (error) {
-        this.deletedAt = previous
-        throw error
-      }
+      await this.persistDeletedAt(DateTime.local(), true)
     }
 
     /**
@@ -171,8 +173,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       if (!this.trashed) {
         return this
       }
-      this.deletedAt = null
-      await this.save()
+      await this.persistDeletedAt(null)
 
       return this
     }

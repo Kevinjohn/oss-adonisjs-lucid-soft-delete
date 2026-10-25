@@ -73,3 +73,9 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Keep Lucid's group-limit query path and carry the selected soft-delete mode on its inner Knex builder. Resolve the inner table alias when qualifying the filter. Record that the OR leak described in the initial plan does not reproduce on Lucid 22.4.2.
 - **Reason:** Lucid creates a fresh outer model builder for grouped execution. Without mode propagation, its fetch hook applies the default predicate to the inner query even when the relation callback selected `withTrashed()` or `onlyTrashed()`. The tested SQL groups callback OR conditions before the relation key and soft-delete predicate.
 - **Evidence:** WP4 group-limit tests cover exact identities for has-many and many-to-many results on SQLite and PostgreSQL in each mode, and characterize OR grouping. The source touchpoints are Lucid's `orm/relations/has_many/query_builder.js` and `orm/relations/many_to_many/query_builder.js`.
+
+## 2026-10-25: Recover deletion state according to whether Lucid persisted the write
+
+- **Decision:** Use Lucid's hydrated `$original.deletedAt` to distinguish a pre-write failure from a hook failure after the database update. Restore the previous in-memory timestamp only when the new value was not persisted. Apply this to soft deletion, quiet deletion and restore.
+- **Reason:** Lucid hydrates originals after the update and before `afterUpdate` and `afterSave` hooks. Reverting the timestamp after either hook throws would make the instance disagree with its persisted row; leaving a failed pre-write restore cleared would prevent retry on the same instance.
+- **Evidence:** New lifecycle regressions failed on the previous WP4 commit for both post-write deletion and pre-write restore failures, then passed on SQLite and PostgreSQL 16. The installed Lucid save sequence is `build/src/orm/base_model/index.js:1553-1559`.

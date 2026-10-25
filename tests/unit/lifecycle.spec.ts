@@ -29,7 +29,8 @@ import { createDatabase, createTables } from '../helpers.js'
 class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
   static events: string[] = []
-  static failOn: 'beforeSave' | 'beforeDelete' | 'afterDelete' | null = null
+  static failOn:
+    'beforeSave' | 'beforeDelete' | 'afterUpdate' | 'afterSave' | 'afterDelete' | null = null
 
   @column({ isPrimary: true })
   declare id: number
@@ -63,11 +64,13 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   @afterUpdate()
   static recordAfterUpdate(_record: LifecycleRecord) {
     this.events.push('afterUpdate')
+    if (this.failOn === 'afterUpdate') throw new Error('afterUpdate failed')
   }
 
   @afterSave()
   static recordAfterSave(_record: LifecycleRecord) {
     this.events.push('afterSave')
+    if (this.failOn === 'afterSave') throw new Error('afterSave failed')
   }
 
   @afterDelete()
@@ -169,6 +172,81 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.isFalse(record.$isDirty)
     const stored = await LifecycleRecord.query().where('id', record.id).firstOrFail()
     assert.isNull(stored.deletedAt)
+  })
+
+  test('retains persisted deletion state when a post-write hook fails', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    for (const hook of ['afterUpdate', 'afterSave'] as const) {
+      const record = await seedRecord(`post-write-${hook}`)
+      LifecycleRecord.failOn = hook
+
+      await assert.rejects(() => record.delete(), `${hook} failed`)
+
+      assert.isTrue(record.trashed)
+      assert.isFalse(record.$isDirty)
+      const stored = (await LifecycleRecord.withTrashed()
+        .where('id', record.id)
+        .firstOrFail()) as LifecycleRecord
+      assert.isTrue(stored.trashed)
+
+      LifecycleRecord.failOn = null
+      record.username = `saved-after-${hook}`
+      await record.save()
+      const saved = (await LifecycleRecord.withTrashed()
+        .where('id', record.id)
+        .firstOrFail()) as LifecycleRecord
+      assert.isTrue(saved.trashed)
+      assert.equal(saved.username, `saved-after-${hook}`)
+    }
+  })
+
+  test('keeps a failed restore retryable on the same instance', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const record = await seedRecord('restore-retry')
+    await record.delete()
+    const previousDeletedAt = record.deletedAt
+    LifecycleRecord.failOn = 'beforeSave'
+
+    await assert.rejects(() => record.restore(), 'beforeSave failed')
+
+    assert.equal(record.deletedAt, previousDeletedAt)
+    assert.isTrue(record.trashed)
+    const stored = (await LifecycleRecord.withTrashed()
+      .where('id', record.id)
+      .firstOrFail()) as LifecycleRecord
+    assert.isTrue(stored.trashed)
+
+    LifecycleRecord.failOn = null
+    await record.restore()
+    assert.isFalse(record.trashed)
+  })
+
+  test('retains the restored state when a post-write hook fails', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    for (const hook of ['afterUpdate', 'afterSave'] as const) {
+      const record = await seedRecord(`restore-post-write-${hook}`)
+      await record.delete()
+      LifecycleRecord.failOn = hook
+
+      await assert.rejects(() => record.restore(), `${hook} failed`)
+
+      assert.isFalse(record.trashed)
+      assert.isFalse(record.$isDirty)
+      const stored = (await LifecycleRecord.findOrFail(record.id)) as LifecycleRecord
+      assert.isFalse(stored.trashed)
+
+      LifecycleRecord.failOn = null
+      record.username = `saved-after-restore-${hook}`
+      await record.save()
+      const saved = (await LifecycleRecord.findOrFail(record.id)) as LifecycleRecord
+      assert.isFalse(saved.trashed)
+      assert.equal(saved.username, `saved-after-restore-${hook}`)
+    }
   })
 
   test('recovers the force-delete flag when beforeDelete throws', async ({ assert }) => {
