@@ -134,3 +134,21 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Private planning files, never committed
+__*.md
+
+# Upstream editor and package artifacts
+.DS_Store
+.DS_STORE
+.idea
+.vscode/
+*.sublime-project
+*.sublime-workspace
+build
+dist
+shrinkwrap.yaml
+test-helpers/tmp
+yarn.lock
+tmp/
+coverage/
