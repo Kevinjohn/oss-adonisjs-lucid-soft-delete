@@ -1,8 +1,13 @@
 # Changelog
 
-All notable changes to this project are documented here.
+All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 3.0.0-alpha.1 - YYYY-MM-DD
+
+### Added
+
+- Document serialisation, factory state, seeder uniqueness conflicts, PostgreSQL and SQLite partial indexes, MySQL generated-column guidance, restore conflicts, and cascade boundaries.
+- Manual owner release checklist and a draft upstream status comment.
 
 ### Changed
 
@@ -15,7 +20,7 @@ All notable changes to this project are documented here.
 - Document that has-many-through scopes the related target but not its joined intermediate model; provide an explicit `onQuery` recipe for scoped relation counts.
 - Make instance deletion lifecycle-safe: revert failed soft-delete timestamps, skip unchanged repeated deletes, support quiet soft deletion, and restore force-delete state after errors.
 - Add trashed-only builder restore with grouped predicates, alias qualification, transaction support, and affected-row counts.
-- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals.
+- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals. Relationship aggregates remain unscoped in this alpha.
 - Preserve composed model fields and instance methods in emitted mixin types; retain relation-builder receiver types after soft-delete macros.
 - Export a symbol-based soft-delete capability guard and dedicated exception classes from the package root.
 - Verify runtime behavior with a Lucid 22 generated-schema model.

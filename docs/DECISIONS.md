@@ -127,3 +127,15 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Create a unique temporary PostgreSQL schema for each packed consumer run, pass it through the fixture's Lucid `searchPath` configuration, and drop it after the run.
 - **Reason:** The app's migrations otherwise leave `users` and migration metadata in the shared test database. A later run may skip its migration and pass against an earlier run's table.
 - **Evidence:** The gate checks the app connection's selected schema before Ace runs, confirms the migration created `users` there, then removes the schema on success and failure. Lucid's `schema_generate.js:60-73` reads the connection's `searchPath` for table discovery; without that setting it scans `public` even when the session has another search path. On a clean database, both latest and exact minimum modes scan zero tables before migration and one `users` table afterward, generate `deletedAt`, and leave no public or temporary schema tables. The root PostgreSQL suite passes after these runs.
+
+## 2026-10-25: Test persistence boundaries with database constraints
+
+- **Decision:** Characterize factory and seeder behavior through real unique constraints, test active-only uniqueness and restore conflicts on PostgreSQL, and exercise parent relations and physical-delete foreign-key behavior on both database dialects.
+- **Reason:** Soft-delete query filtering does not alter uniqueness or foreign-key enforcement. A rejected restore must leave the newer active row unchanged, and deleting a parent must follow the database's configured cascade rule.
+- **Evidence:** WP7 adds serialization, factory/seeder, PostgreSQL partial-index and cascade tests. The integrated suite passes 95 tests with two PostgreSQL-only cases skipped on SQLite, and 97 tests on PostgreSQL 16. Focused mutation checks failed at the intended assertions before restoration.
+
+## 2026-10-25: Keep publication and upstream communication as owner steps
+
+- **Decision:** Document manual alpha publication and prepare an upstream issue-32 comment as a draft. Leave the changelog release date for the owner and retain the README comment placeholder until the upstream comment is posted.
+- **Reason:** The PRD reserves package publication, tagging and the upstream communication to the owner after the release checks and merges.
+- **Evidence:** `docs/RELEASING.md` lists the manual checks and commands; `docs/upstream-comment.md` is an unposted draft. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
