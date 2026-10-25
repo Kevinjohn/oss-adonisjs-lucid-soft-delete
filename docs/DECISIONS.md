@@ -145,3 +145,9 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Keep the WP1 and WP6 CI jobs as specified: the root suite on both databases, peer-update jobs on PostgreSQL, the latest packed consumer on SQLite, and the minimum packed consumer on PostgreSQL. Verify the other packed consumer combinations locally.
 - **Reason:** The PRD's work-package commands define these CI legs, while its broader acceptance language asks for evidence on both databases and peer modes. The local cross-product closes that evidence gap without adding unrequested CI jobs.
 - **Evidence:** Latest and exact minimum packed consumers pass on both SQLite and PostgreSQL 16; a disposable exact-minimum checkout passes the root PostgreSQL suite and minimum packed consumer gate. GitHub Actions jobs remain unable to start because of the account billing restriction.
+
+## 2026-10-25: Require passing CI before merging the work-package stack
+
+- **Decision:** Hold WP1–WP7 merges until the required GitHub Actions checks run and pass. Local verification supports the implementation but does not replace the merge gate.
+- **Reason:** The repository owner chose to wait for CI after the runner jobs failed before starting.
+- **Evidence:** PRs #2–#8 remain open. The check annotations report an account payment or spending-limit restriction; the complete local suites and packed consumer modes passed.
