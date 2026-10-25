@@ -56,6 +56,8 @@ jobs:
       - if: matrix.database == 'better-sqlite3'
         run: pnpm build
       - run: pnpm test
+      - if: matrix.database == 'better-sqlite3'
+        run: pnpm test:consumer
 
   min-peers:
     runs-on: ubuntu-latest
@@ -94,6 +96,7 @@ jobs:
         run: pnpm add -D @adonisjs/core@7.0.0 @adonisjs/lucid@22.0.0
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm test:consumer --compatibility=minimum
 
   latest-peers:
     runs-on: ubuntu-latest

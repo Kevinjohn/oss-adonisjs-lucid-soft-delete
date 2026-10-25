@@ -363,6 +363,15 @@ DB_CLIENT=pg DB_USER="$USER" DB_DATABASE=lucid_soft_deletes_test pnpm test
 
 Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local PostgreSQL setup.
 
+The installed-package gate builds and packs this package, installs it into a fresh copy of the
+AdonisJS fixture app, and runs configure, schema generation, migration, typecheck, production build,
+and app tests. It requires network access for the fixture dependencies:
+
+```bash
+pnpm test:consumer
+pnpm test:consumer --compatibility=minimum
+```
+
 [npm-image]: https://img.shields.io/npm/v/@kevinjohn/lucid-soft-deletes?logo=npm&style=for-the-badge
 [npm-url]: https://www.npmjs.com/package/@kevinjohn/lucid-soft-deletes
 [license-image]: https://img.shields.io/npm/l/@kevinjohn/lucid-soft-deletes?style=for-the-badge&color=blueviolet

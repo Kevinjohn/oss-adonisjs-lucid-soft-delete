@@ -97,3 +97,33 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Retain the optional `deletedAt` declaration on the mixin instance and compose it with the generated-schema fixture's required `deletedAt: DateTime | null` property.
 - **Reason:** TypeScript accepts the intersection for the schema shape exercised by Lucid 22, so changing the public mixin field to required would be unnecessary and would misrepresent fresh instances whose attribute may be unset.
 - **Evidence:** The WP5 schema runtime test type-checks and exercises find, delete, and restore on SQLite and PostgreSQL.
+
+## 2026-10-25: Exercise the package in an isolated AdonisJS application
+
+- **Decision:** Commit a slim AdonisJS 7 fixture under `examples/app` with its own pnpm workspace and lockfile, then copy it into a temporary directory for each packed-package run. The fixture imports its generated `UserSchema`, and the gate regenerates that schema before typechecking.
+- **Reason:** A nested workspace keeps the fixture dependency graph independent of the package under test. Installing the tarball into a fresh copy proves that the app resolves the distributed package rather than source files in this checkout.
+- **Evidence:** The fixture's strict TypeScript check, build, configure twice, schema generation, migration and Japa consumer test pass locally. The packed latest and minimum peer runs pass on both SQLite and PostgreSQL 16.
+
+## 2026-10-25: Keep strict fixture typechecking across upstream declaration gaps
+
+- **Decision:** Pin the fixture to TypeScript 5.9.3 and Node types 25.9.9, include the optional peer declarations imported by Adonis, and load Ace command modules through dynamic module IDs. Retain `skipLibCheck: false`.
+- **Reason:** Node 26 types change tracing declarations, while generated core and Lucid command indexes import a `Command` type absent from the installed Ace declarations. Ace's configuration contract already accepts dynamic command loaders, which preserve runtime command registration without depending on those generated command-index types.
+- **Evidence:** The fixture's strict typecheck and runtime configure, schema, migration, build and consumer test pass with these dependencies and loaders.
+
+## 2026-10-25: Remove an unused starter entity-indexing hook from the consumer fixture
+
+- **Decision:** Omit the slim starter's `indexEntities()` initialization hook from the committed consumer fixture.
+- **Reason:** The fixture does not import generated controller, event or listener barrels. The hook's types conflict with core 7.0.0 and the installed assembler, while Lucid's `schema:generate` command is independent of it.
+- **Evidence:** The first minimum-peer run reached strict typechecking and reported only the hook mismatch. After removing it, both exact minimum and latest packed consumer runs pass configure, schema generation, migration, strict typechecking, build and Japa on SQLite and PostgreSQL. The declared peer floor remains core 7.0.0 and Lucid 22.0.0.
+
+## 2026-10-25: Prove configuration and peer selection from a fresh consumer state
+
+- **Decision:** Commit the fixture without the package provider, require provider counts of zero, one and one across two `configure` runs, and discard only the temporary app's lockfile in latest-peer mode. Keep exact TypeScript 5.9.3 and Node types 25.9.9 versions in the fixture manifest.
+- **Reason:** A pre-registered provider lets a no-op configuration hook pass. A copied lockfile can keep the latest-peer mode on old framework versions; resolving its compatible major ranges afresh tests the current peers while retaining a stable compiler baseline.
+- **Evidence:** The packed gate asserts each provider count and logs the installed dependency versions. Minimum mode still installs exact core 7.0.0 and Lucid 22.0.0.
+
+## 2026-10-25: Isolate PostgreSQL consumer runs by schema
+
+- **Decision:** Create a unique temporary PostgreSQL schema for each packed consumer run, pass it through the fixture's Lucid `searchPath` configuration, and drop it after the run.
+- **Reason:** The app's migrations otherwise leave `users` and migration metadata in the shared test database. A later run may skip its migration and pass against an earlier run's table.
+- **Evidence:** The gate checks the app connection's selected schema before Ace runs, confirms the migration created `users` there, then removes the schema on success and failure. Lucid's `schema_generate.js:60-73` reads the connection's `searchPath` for table discovery; without that setting it scans `public` even when the session has another search path. On a clean database, both latest and exact minimum modes scan zero tables before migration and one `users` table afterward, generate `deletedAt`, and leave no public or temporary schema tables. The root PostgreSQL suite passes after these runs.
