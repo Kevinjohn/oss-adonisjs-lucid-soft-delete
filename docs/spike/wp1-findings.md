@@ -2,7 +2,7 @@
 
 ## Runtime
 
-None. The retained upstream suite passes on Node 24 with SQLite and PostgreSQL 16: 17/17 tests on each database. WP1 repaired fixture-only differences in PostgreSQL boolean reads and foreign-key-safe cleanup. No behavior test was skipped.
+None. The retained upstream suite passes on Node 24 with SQLite and PostgreSQL 16: 17/17 tests on each database. WP1 repaired fixture-only differences in PostgreSQL boolean reads and foreign-key-safe cleanup. The upstream `adonis-lucid-filter` interop test was removed: `adonis-lucid-filter` 5.2.0 declares peers `@adonisjs/core@^6.2.3` and `@adonisjs/lucid@^21.1.0`, so it cannot install beside the AdonisJS 7 peers. No other behavior test was skipped.
 
 ## Declarations
 

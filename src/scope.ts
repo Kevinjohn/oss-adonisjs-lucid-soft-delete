@@ -15,6 +15,7 @@ export type SoftDeletesMode = 'default' | 'with' | 'only'
 
 type ScopedQuery = {
   [SOFT_DELETES_MODE]?: SoftDeletesMode
+  tableAlias?: string
 }
 
 type FilterableQuery = {
@@ -100,6 +101,7 @@ export function installModePropagation(builder: { prototype: object }): void {
     value(this: ScopedQuery, clone: ScopedQuery) {
       original.call(this, clone)
       setSoftDeletesMode(clone, getSoftDeletesMode(this))
+      clone.tableAlias = this.tableAlias
     },
   })
   Object.defineProperty(prototype, PATCHED, { value: true })
