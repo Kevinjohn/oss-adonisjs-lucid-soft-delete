@@ -132,7 +132,7 @@ This log records implementation decisions made while delivering version 3.0.0-al
 
 - **Decision:** Characterize factory and seeder behavior through real unique constraints, test active-only uniqueness and restore conflicts on PostgreSQL, and exercise parent relations and physical-delete foreign-key behavior on both database dialects.
 - **Reason:** Soft-delete query filtering does not alter uniqueness or foreign-key enforcement. A rejected restore must leave the newer active row unchanged, and deleting a parent must follow the database's configured cascade rule.
-- **Evidence:** WP7 adds serialization, factory/seeder, PostgreSQL partial-index and cascade tests. A restore-conflict regression also verifies retry on the same instance after the collision is resolved. The integrated suite passes 99 tests with two PostgreSQL-only cases skipped on SQLite, and 101 tests on PostgreSQL 16. Focused mutation checks failed at the intended assertions before restoration.
+- **Evidence:** WP7 adds serialization, factory/seeder, PostgreSQL partial-index and cascade tests. A restore-conflict regression also verifies retry on the same instance after the collision is resolved. The integrated suite passes 100 tests with two PostgreSQL-only cases skipped on SQLite, and 102 tests on PostgreSQL 16. Focused mutation checks failed at the intended assertions before restoration.
 
 ## 2026-10-25: Keep publication and upstream communication as owner steps
 
