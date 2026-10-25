@@ -1,12 +1,12 @@
-# Adonis Lucid Soft Deletes
-> Works with AdonisJS v6
+# @kevinjohn/lucid-soft-deletes
+> Works with AdonisJS 7 and Lucid 22
 
 Docs for [AdonisJS v5](https://github.com/lookinlab/adonis-lucid-soft-deletes/tree/v1)
 
 [![npm-image]][npm-url] [![license-image]][license-url] [![typescript-image]][typescript-url]
 
 This addon adds the functionality to soft deletes Lucid Models through the `deleted_at` flag
-> Works with `@adonisjs/lucid@^21.1.*`
+> Works with `@adonisjs/lucid@^22.0.0`
 
 Sometimes use the `deleted_at` flag for soft deletes could be not good way. More [about it](https://brandur.org/soft-deletion)
 
@@ -22,17 +22,10 @@ as Luxon / DateTime instance.
 
 ## Installation
 
-Install it using `npm`, `yarn` or `pnpm`.
+Install the package with pnpm.
 
 ```bash
-# npm
-npm i adonis-lucid-soft-deletes
-
-# yarn
-yarn add adonis-lucid-soft-deletes
-
-# pnpm
-pnpm add adonis-lucid-soft-deletes
+pnpm add @kevinjohn/lucid-soft-deletes
 ```
 
 After install call `configure`:

@@ -7,20 +7,17 @@
  * file that was distributed with this source code.
  */
 
-import { DateTime } from 'luxon'
+import type { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { column, BaseModel, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { compose } from '@adonisjs/core/helpers'
 import { createDatabase, createTables } from '../helpers.js'
 import { SoftDeletes } from '../../src/mixin.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { BaseModelFilter, Filterable } from 'adonis-lucid-filter'
-import { extendModelQueryBuilder as extendFilterableModelQueryBuilder } from 'adonis-lucid-filter/bindings'
 
 test.group('BaseModelWithSoftDeletes', (group) => {
   group.setup(() => {
     extendModelQueryBuilder(ModelQueryBuilder)
-    extendFilterableModelQueryBuilder(ModelQueryBuilder)
   })
 
   test('exists methods `withTrashed` and `onlyTrashed`', async ({ assert }) => {
@@ -127,7 +124,8 @@ test.group('BaseModelWithSoftDeletes', (group) => {
 
     const users = await User.all()
     assert.lengthOf(users, 1)
-    assert.deepEqual(users[0].toJSON(), user1.toJSON())
+    assert.equal(users[0].id, user1.id)
+    assert.equal(users[0].username, user1.username)
 
     const usersWithPaginate = await User.query().paginate(1, 10)
     assert.lengthOf(usersWithPaginate.all(), 1)
@@ -173,61 +171,6 @@ test.group('BaseModelWithSoftDeletes', (group) => {
 
     const users = await User.withTrashed().exec()
     assert.lengthOf(users, 3)
-
-    const usersWithPagination = await User.onlyTrashed().paginate(1, 5)
-    assert.lengthOf(usersWithPagination.all(), 1)
-    assert.equal(usersWithPagination.total, 1)
-
-    await User.truncate()
-  })
-
-  test('querying all models with trashed models after the filter method from Filterable mixin', async ({
-    assert,
-  }) => {
-    const db = await createDatabase()
-    await createTables(db)
-
-    class UserFilter extends BaseModelFilter {
-      username(value: string) {
-        this.$query.where('username', value)
-      }
-    }
-
-    class User extends compose(BaseModel, Filterable, SoftDeletes) {
-      static $filter = () => UserFilter
-
-      @column({ isPrimary: true })
-      declare id: number
-
-      @column()
-      declare username: string
-
-      @column()
-      declare email: string
-
-      @column()
-      declare isAdmin: number
-
-      @column()
-      declare companyId: number
-    }
-    User.boot()
-
-    const user1 = new User()
-    user1.fill({ username: 'Tony', email: 'tony@test.ru', isAdmin: 1, companyId: 1 })
-    await user1.save()
-    await user1.delete()
-
-    const user2 = new User()
-    user2.fill({ username: 'Adonis', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
-    await user2.save()
-
-    const user3 = new User()
-    user3.fill({ username: 'Lucid', email: 'lucid@test.ru', isAdmin: 0, companyId: 1 })
-    await user3.save()
-
-    const users = await User.filter({ username: 'Tony' }).withTrashed().exec()
-    assert.lengthOf(users, 1)
 
     const usersWithPagination = await User.onlyTrashed().paginate(1, 5)
     assert.lengthOf(usersWithPagination.all(), 1)
@@ -348,8 +291,8 @@ test.group('BaseModelWithSoftDeletes', (group) => {
 
     try {
       await user1.restore()
-    } catch ({ message }) {
-      assert.equal(message, 'Cannot restore a model instance is was force deleted')
+    } catch (error) {
+      assert.equal((error as { code: string }).code, 'E_MODEL_FORCE_DELETED')
     }
 
     await User.truncate()

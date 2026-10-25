@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import { DateTime } from 'luxon'
+import type { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { column, BaseModel, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
@@ -150,7 +150,9 @@ test.group('Relations', () => {
     assert.lengthOf(books[0].authors, 1)
 
     await book1.related('authors').detach()
-    await Promise.all([Book.truncate(), Author.truncate()])
+    await db.from('author_book').delete()
+    await db.from('books').delete()
+    await db.from('authors').delete()
   })
 
   test('querying many to many with preload and group limit', async ({ assert }) => {
@@ -229,6 +231,8 @@ test.group('Relations', () => {
     assert.lengthOf(authorsJohns, 2)
     assert.lengthOf(authorsJohns[0].authors, 1)
 
-    await Promise.all([Book.truncate(), Author.truncate()])
+    await db.from('author_book').delete()
+    await db.from('books').delete()
+    await db.from('authors').delete()
   })
 })

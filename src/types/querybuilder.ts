@@ -24,6 +24,8 @@ declare module '@adonisjs/lucid/types/model' {
     restore(): Promise<void>
   }
 
-  export interface ModelQueryBuilderContract<Model extends LucidModel, Result = InstanceType<Model>>
-    extends ExcludeSoftDeletesMethods<SoftDeletesMethods<Model>, Model> {}
+  export interface ModelQueryBuilderContract<
+    Model extends LucidModel,
+    Result = InstanceType<Model>,
+  > extends ExcludeSoftDeletesMethods<SoftDeletesMethods<Model>, Model> {}
 }
