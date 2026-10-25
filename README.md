@@ -33,7 +33,7 @@ pnpm add @kevinjohn/lucid-soft-deletes
 After install call `configure`:
 
 ```bash
-node ace configure adonis-lucid-soft-deletes
+node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
 ## Usage
@@ -43,7 +43,7 @@ Make sure to register the provider inside `adonisrc.ts` file.
 ```ts
 providers: [
   // ...
-  () => import('adonis-lucid-soft-deletes/provider'),
+  () => import('@kevinjohn/lucid-soft-deletes/provider'),
 ]
 ```
 
@@ -70,7 +70,7 @@ export default class Users extends BaseSchema {
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   // ...columns and props
@@ -129,7 +129,7 @@ export default class UsersController {
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   // ...columns and props
@@ -251,6 +251,74 @@ await User.query().withTrashed().exec()
 await User.query().onlyTrashed().restore()
 ```
 
+## Destructive operations
+
+| Operation                    | Behavior                                                                                                                                      | Result             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Instance `delete()`          | Sets `deletedAt` and saves the instance. Dirty model attributes are saved too. A repeated call on an unchanged trashed instance does nothing. | `Promise<void>`    |
+| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                                     | `Promise<void>`    |
+| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                          | `Promise<void>`    |
+| Instance `restore()`         | Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
+| Builder `delete()` / `del()` | Physically deletes matching rows, including trashed rows.                                                                                     | Lucid write result |
+| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                          | `Promise<number>`  |
+| Builder `forceDelete()`      | Not available.                                                                                                                                | —                  |
+
+Soft deletion runs the normal update and delete hooks in this order:
+
+```text
+beforeDelete → beforeUpdate → beforeSave → write → afterUpdate → afterSave → afterDelete
+```
+
+`deleteQuietly()` skips hooks. Calls to `delete()` or `deleteQuietly()` on an unpersisted instance throw
+`E_MODEL_NOT_PERSISTED`. See the [Scope contract](#scope-contract) for builder writes and operations
+that bypass model fetch hooks.
+
+If an `afterDelete` hook throws during `forceDelete()`, the physical DELETE may already have
+completed. The instance remains marked deleted, and later delete or restore calls reject.
+
+## Migration from 2.1.0
+
+- Install `@kevinjohn/lucid-soft-deletes` and configure `@kevinjohn/lucid-soft-deletes/provider`.
+- Upgrade to AdonisJS core 7, Lucid 22, and Node.js 24. Luxon 3.4.4 or newer is a required peer.
+- `trashed` is `false` when `deletedAt` is unset.
+- OR conditions are grouped before the default or `onlyTrashed()` filter is applied. `onlyTrashed()` adds its predicate at execution time.
+- `withTrashed()` and `onlyTrashed()` modes survive builder clones, pagination, and relation-builder clones. Base table aliases are supported.
+- `refresh()` works on a trashed instance and loads `deletedAt`.
+- Builder `restore()` affects trashed rows only, groups existing predicates, and returns the affected count.
+- `deleteQuietly()` soft-deletes without running hooks.
+- A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
+- Repeating `delete()` on an unchanged trashed instance is a no-op. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
+- Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
+- Group-limited preload callbacks retain the scoped OR grouping in the tested Lucid 22 release. See [Known internals](#known-internals).
+- No schema changes are required.
+
+## Known internals
+
+Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
+`applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
+The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
+`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
+
+For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
+`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
+`orm/relations/many_to_many/query_builder.js`). The soft-delete filter must be added to the inner
+Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
+The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
+for group-limited execution. Its table alias is also read from that inner builder when qualifying
+`deletedAt`.
+The package detects that path by inspecting SQL generated from a clone; it never previews the query
+that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
+
+On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
+before the relation key and soft-delete filter. The OR leak described in the initial plan did not
+reproduce on either database. Builder `restore()` does not support a prior `returning()` clause.
+
+## Support
+
+This package supports the current AdonisJS major. When a new major ships, the previous major
+continues to receive fixes for six months. Report bugs and security issues through GitHub issues.
+There is no response-time promise.
+
 ## Scope contract
 
 The default model query scope filters rows whose configured `deletedAt` column is not null.
@@ -295,9 +363,9 @@ DB_CLIENT=pg DB_USER="$USER" DB_DATABASE=lucid_soft_deletes_test pnpm test
 
 Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local PostgreSQL setup.
 
-[npm-image]: https://img.shields.io/npm/v/adonis-lucid-soft-deletes?logo=npm&style=for-the-badge
-[npm-url]: https://www.npmjs.com/package/adonis-lucid-soft-deletes
-[license-image]: https://img.shields.io/npm/l/adonis-lucid-soft-deletes?style=for-the-badge&color=blueviolet
-[license-url]: https://github.com/lookinlab/adonis-lucid-soft-deletes/blob/develop/LICENSE.md
-[typescript-image]: https://img.shields.io/npm/types/adonis-lucid-soft-deletes?color=294E80&label=%20&logo=typescript&style=for-the-badge
-[typescript-url]: https://github.com/lookinlab
+[npm-image]: https://img.shields.io/npm/v/@kevinjohn/lucid-soft-deletes?logo=npm&style=for-the-badge
+[npm-url]: https://www.npmjs.com/package/@kevinjohn/lucid-soft-deletes
+[license-image]: https://img.shields.io/npm/l/@kevinjohn/lucid-soft-deletes?style=for-the-badge&color=blueviolet
+[license-url]: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/LICENSE.md
+[typescript-image]: https://img.shields.io/npm/types/@kevinjohn/lucid-soft-deletes?color=294E80&label=%20&logo=typescript&style=for-the-badge
+[typescript-url]: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete

@@ -14,7 +14,7 @@ import type {
 } from '@adonisjs/lucid/types/model'
 
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
-import { installModePropagation, setSoftDeletesMode } from '../scope.js'
+import { installModePropagation, resolveTableReference, setSoftDeletesMode } from '../scope.js'
 
 /**
  * Raises exception when model not with soft delete
@@ -35,9 +35,12 @@ export function extendModelQueryBuilder(builder: any) {
     ensureModelWithSoftDeletes(this.model)
 
     const deletedAtColumn = this.model.$getColumn('deletedAt')?.columnName
-    if (!deletedAtColumn) return
+    if (!deletedAtColumn) throw new E_MODEL_SOFT_DELETE(this.model.name)
 
-    await this.update({ [deletedAtColumn]: null })
+    this.wrapExisting()
+    this.whereNotNull(`${resolveTableReference(this)}.${deletedAtColumn}`)
+    const result = await this.update({ [deletedAtColumn]: null })
+    return typeof result[0] === 'number' ? result[0] : result.length
   })
 
   builder.macro('withTrashed', function (this: ModelQueryBuilderContract<ModelWithSoftDeletes>) {

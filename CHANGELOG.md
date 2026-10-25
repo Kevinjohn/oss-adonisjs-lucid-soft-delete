@@ -13,3 +13,6 @@ All notable changes to this project are documented here.
 - Define the query scope contract for model reads, relations, aliases, clones, pagination, and documented bypass operations.
 - Preserve soft-delete mode across cloned model and relation builders, and group user OR predicates before applying the default or only-trashed filter.
 - Document that has-many-through scopes the related target but not its joined intermediate model; provide an explicit `onQuery` recipe for scoped relation counts.
+- Make instance deletion lifecycle-safe: revert failed soft-delete timestamps, skip unchanged repeated deletes, support quiet soft deletion, and restore force-delete state after errors.
+- Add trashed-only builder restore with grouped predicates, alias qualification, transaction support, and affected-row counts.
+- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals.

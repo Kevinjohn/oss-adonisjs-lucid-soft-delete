@@ -21,4 +21,32 @@ class ModelSoftDeleteException extends Exception {
   }
 }
 
-export { ModelSoftDeleteException as E_MODEL_SOFT_DELETE }
+class ModelForceDeletedException extends Exception {
+  static code = 'E_MODEL_FORCE_DELETED'
+  static status = 500
+
+  constructor() {
+    super('Cannot restore a model instance that was force deleted', {
+      code: ModelForceDeletedException.code,
+      status: ModelForceDeletedException.status,
+    })
+  }
+}
+
+class ModelNotPersistedException extends Exception {
+  static code = 'E_MODEL_NOT_PERSISTED'
+  static status = 500
+
+  constructor() {
+    super('Cannot soft delete a model instance that is not persisted', {
+      code: ModelNotPersistedException.code,
+      status: ModelNotPersistedException.status,
+    })
+  }
+}
+
+export {
+  ModelSoftDeleteException as E_MODEL_SOFT_DELETE,
+  ModelForceDeletedException as E_MODEL_FORCE_DELETED,
+  ModelNotPersistedException as E_MODEL_NOT_PERSISTED,
+}
