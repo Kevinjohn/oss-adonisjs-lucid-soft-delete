@@ -97,11 +97,20 @@ test.group('PostgreSQL partial unique indexes', (group) => {
       restoreError = error as { code?: string }
     }
     assert.equal(restoreError?.code, '23505')
+    assert.isTrue(previous.trashed)
 
     const active = await RestorableRecord.findOrFail(replacement.id)
     const trashed = await RestorableRecord.withTrashed().where('id', previous.id).firstOrFail()
     assert.equal(active.code, 'reusable')
     assert.isFalse(active.trashed)
     assert.isTrue(trashed.trashed)
+
+    await replacement.delete()
+    await previous.restore()
+
+    assert.isFalse(previous.trashed)
+    const restored = await RestorableRecord.findOrFail(previous.id)
+    assert.equal(restored.id, previous.id)
+    assert.isNull(await RestorableRecord.find(replacement.id))
   }).skip(process.env.DB_CLIENT !== 'pg', 'PostgreSQL partial unique index test')
 })

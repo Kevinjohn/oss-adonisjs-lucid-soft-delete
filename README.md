@@ -173,7 +173,7 @@ ALTER TABLE users
   ADD UNIQUE KEY users_active_email_unique (active_email);
 ```
 
-Match the generated column type and length to your email column. Application-side checks can race and do not replace a unique constraint. With an active-only index, restoring a trashed row whose email has since been reused fails with a database uniqueness error; the other row remains unchanged. Handle that conflict in the application.
+Match the generated column type and length to your email column. Application-side checks can race and do not replace a unique constraint. With an active-only index, restoring a trashed row whose email has since been reused fails with a database uniqueness error; the other row remains unchanged. Resolve the conflict before retrying `restore()` on the same trashed instance.
 
 ## Migration from 2.1.0
 
