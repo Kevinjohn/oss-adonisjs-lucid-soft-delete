@@ -91,7 +91,7 @@ jobs:
       - name: Print installed peer versions
         run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
       - name: Install minimum peer versions
-        run: pnpm add -D @adonisjs/core@7.0.0 @adonisjs/lucid@22.0.0 --no-frozen-lockfile
+        run: pnpm add -D @adonisjs/core@7.0.0 @adonisjs/lucid@22.0.0
       - run: pnpm test
       - run: pnpm build
 
@@ -129,6 +129,6 @@ jobs:
       - name: Print installed peer versions
         run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
       - name: Update to latest peer versions
-        run: pnpm update @adonisjs/core@latest @adonisjs/lucid@latest --no-frozen-lockfile
+        run: pnpm update @adonisjs/core@latest @adonisjs/lucid@latest
       - run: pnpm test
       - run: pnpm build
