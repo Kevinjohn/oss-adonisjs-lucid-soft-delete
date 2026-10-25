@@ -4,10 +4,6 @@
     "rootDir": "./",
     "outDir": "./build"
   },
-  "exclude": [
-    "node_modules",
-    "build",
-    "tmp/**",
-    "examples/**"
-  ]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "build", "tmp/**", "examples/**"]
 }

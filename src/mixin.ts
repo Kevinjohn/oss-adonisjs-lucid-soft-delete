@@ -15,12 +15,14 @@ import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid
 import type { BaseModel } from '@adonisjs/lucid/orm'
 import { applyScope, getSoftDeletesMode, setSoftDeletesMode } from './scope.js'
 import { E_MODEL_FORCE_DELETED, E_MODEL_NOT_PERSISTED } from './errors.js'
+import { SOFT_DELETES } from './guard.js'
 
-type ModelQueryBuilderContractWithIgnoreDeleted<
-  T extends LucidModel,
-  R = InstanceType<T>,
-> = ModelQueryBuilderContract<T, R> & {
-  softDeletesMode?: 'default' | 'with' | 'only'
+export interface SoftDeletesInstance {
+  deletedAt?: DateTime | null
+  readonly trashed: boolean
+  $forceDelete: boolean
+  restore(): Promise<this>
+  forceDelete(): Promise<void>
 }
 
 /** Restore the previous value only when Lucid did not complete its write. */
@@ -41,22 +43,56 @@ async function persistDeletedAt(
   }
 }
 
-export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
+export interface SoftDeletesStatics {
+  readonly [SOFT_DELETES]: true
+  ignoreDeleted<Model extends LucidModel>(query: ModelQueryBuilderContract<Model>): void
+  ignoreDeletedPaginate<Model extends LucidModel>(
+    queries: [ModelQueryBuilderContract<Model>, ModelQueryBuilderContract<Model>]
+  ): void
+  disableIgnore<Model extends LucidModel, Result>(
+    this: Model,
+    query: ModelQueryBuilderContract<Model, Result>
+  ): ModelQueryBuilderContract<Model, Result>
+  withTrashed<Model extends LucidModel>(
+    this: Model
+  ): ModelQueryBuilderContract<Model, InstanceType<Model>>
+  onlyTrashed<Model extends LucidModel>(
+    this: Model
+  ): ModelQueryBuilderContract<Model, InstanceType<Model>>
+}
+
+export type SoftDeletesConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
+  T,
+  'constructor'
+> &
+  SoftDeletesStatics & {
+    new (...args: any[]): InstanceType<T> & SoftDeletesInstance
+  }
+
+type ScopedModelQueryBuilder<
+  Model extends LucidModel,
+  Result = InstanceType<Model>,
+> = ModelQueryBuilderContract<Model, Result> & { softDeletesMode?: 'default' | 'with' | 'only' }
+
+export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
+  superclass: T
+): SoftDeletesConstructor<T> {
   class ModelWithSoftDeletes extends superclass {
     declare static $hooks: LucidModel['$hooks']
+    static [SOFT_DELETES] = true as const
 
     @beforeFind()
     @beforeFetch()
     static ignoreDeleted<Model extends typeof ModelWithSoftDeletes>(
-      query: ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>
+      query: ScopedModelQueryBuilder<Model, InstanceType<Model>>
     ): void {
       applyScope(query)
     }
 
     @beforePaginate()
     static ignoreDeletedPaginate<Model extends typeof ModelWithSoftDeletes>([countQuery, query]: [
-      ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>,
-      ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>,
+      ScopedModelQueryBuilder<Model, InstanceType<Model>>,
+      ScopedModelQueryBuilder<Model, InstanceType<Model>>,
     ]): void {
       setSoftDeletesMode(countQuery, getSoftDeletesMode(query))
       this.ignoreDeleted(countQuery)
@@ -64,8 +100,8 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
 
     static disableIgnore<Model extends typeof ModelWithSoftDeletes, Result = InstanceType<Model>>(
       this: Model,
-      query: ModelQueryBuilderContractWithIgnoreDeleted<Model, Result>
-    ): ModelQueryBuilderContractWithIgnoreDeleted<Model, Result> {
+      query: ScopedModelQueryBuilder<Model, Result>
+    ): ScopedModelQueryBuilder<Model, Result> {
       return setSoftDeletesMode(query, 'with')
     }
 
@@ -74,11 +110,8 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      */
     static withTrashed<Model extends typeof ModelWithSoftDeletes>(
       this: Model
-    ): ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<T>> {
-      const query = this.query() as ModelQueryBuilderContractWithIgnoreDeleted<
-        Model,
-        InstanceType<Model>
-      >
+    ): ScopedModelQueryBuilder<Model, InstanceType<Model>> {
+      const query = this.query() as ScopedModelQueryBuilder<Model, InstanceType<Model>>
       return this.disableIgnore(query)
     }
 
@@ -87,11 +120,8 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      */
     static onlyTrashed<Model extends typeof ModelWithSoftDeletes>(
       this: Model
-    ): ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>> {
-      const query = this.query() as ModelQueryBuilderContractWithIgnoreDeleted<
-        Model,
-        InstanceType<Model>
-      >
+    ): ScopedModelQueryBuilder<Model, InstanceType<Model>> {
+      const query = this.query() as ScopedModelQueryBuilder<Model, InstanceType<Model>>
 
       return setSoftDeletesMode(query, 'only')
     }
@@ -191,5 +221,5 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       }
     }
   }
-  return ModelWithSoftDeletes
+  return ModelWithSoftDeletes as unknown as SoftDeletesConstructor<T>
 }
