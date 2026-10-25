@@ -23,6 +23,24 @@ type ModelQueryBuilderContractWithIgnoreDeleted<
   softDeletesMode?: 'default' | 'with' | 'only'
 }
 
+/** Restore the previous value only when Lucid did not complete its write. */
+async function persistDeletedAt(
+  model: InstanceType<typeof BaseModel> & { deletedAt?: DateTime | null },
+  value: DateTime | null,
+  quietly = false
+): Promise<void> {
+  const previous = model.deletedAt
+  const originalsBeforeSave = model.$original
+  model.deletedAt = value
+  try {
+    if (quietly) await model.saveQuietly()
+    else await model.save()
+  } catch (error) {
+    if (model.$original === originalsBeforeSave) model.deletedAt = previous
+    throw error
+  }
+}
+
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
   class ModelWithSoftDeletes extends superclass {
     declare static $hooks: LucidModel['$hooks']
@@ -96,24 +114,6 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       return this.deletedAt !== null && this.deletedAt !== undefined
     }
 
-    /** Keep the instance aligned with a write that completed before a later hook failed. */
-    async persistDeletedAt(value: DateTime | null, quietly = false): Promise<void> {
-      const previous = this.deletedAt
-      this.deletedAt = value
-      try {
-        if (quietly) await this.saveQuietly()
-        else await this.save()
-      } catch (error) {
-        const original = this.$original.deletedAt
-        const persisted =
-          value === null
-            ? original === null
-            : DateTime.isDateTime(original) && original.equals(value)
-        if (!persisted) this.deletedAt = previous
-        throw error
-      }
-    }
-
     /**
      * Override default $getQueryFor method
      */
@@ -124,7 +124,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       /**
        * Soft Delete
        */
-      const softDelete = (): Promise<void> => this.persistDeletedAt(DateTime.local())
+      const softDelete = (): Promise<void> => persistDeletedAt(this, DateTime.local())
 
       if (action === 'delete' && !this.$forceDelete) {
         return { del: softDelete, delete: softDelete }
@@ -160,7 +160,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
         return
       }
       if (this.trashed && !('deletedAt' in this.$dirty)) return
-      await this.persistDeletedAt(DateTime.local(), true)
+      await persistDeletedAt(this, DateTime.local(), true)
     }
 
     /**
@@ -173,7 +173,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       if (!this.trashed) {
         return this
       }
-      await this.persistDeletedAt(null)
+      await persistDeletedAt(this, null)
 
       return this
     }

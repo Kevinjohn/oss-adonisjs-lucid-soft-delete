@@ -31,6 +31,7 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   static events: string[] = []
   static failOn:
     'beforeSave' | 'beforeDelete' | 'afterUpdate' | 'afterSave' | 'afterDelete' | null = null
+  static shiftDeletedAt = false
 
   @column({ isPrimary: true })
   declare id: number
@@ -51,8 +52,11 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   }
 
   @beforeUpdate()
-  static recordBeforeUpdate(_record: LifecycleRecord) {
+  static recordBeforeUpdate(record: LifecycleRecord) {
     this.events.push('beforeUpdate')
+    if (this.shiftDeletedAt && record.deletedAt) {
+      record.deletedAt = record.deletedAt.minus({ minutes: 1 })
+    }
   }
 
   @beforeSave()
@@ -96,6 +100,7 @@ test.group('Soft-delete lifecycle', (group) => {
   group.each.setup(() => {
     LifecycleRecord.events = []
     LifecycleRecord.failOn = null
+    LifecycleRecord.shiftDeletedAt = false
   })
 
   test('soft delete persists dirty attributes and runs hooks in Lucid order', async ({
@@ -200,6 +205,36 @@ test.group('Soft-delete lifecycle', (group) => {
       assert.isTrue(saved.trashed)
       assert.equal(saved.username, `saved-after-${hook}`)
     }
+  })
+
+  test('keeps a hook-adjusted persisted timestamp after a post-write failure', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const record = await seedRecord('hook-adjusted-timestamp')
+    LifecycleRecord.shiftDeletedAt = true
+    LifecycleRecord.failOn = 'afterSave'
+
+    await assert.rejects(() => record.delete(), 'afterSave failed')
+
+    const stored = (await LifecycleRecord.withTrashed()
+      .where('id', record.id)
+      .firstOrFail()) as LifecycleRecord
+    assert.isTrue(record.trashed)
+    assert.equal(
+      Math.floor(record.deletedAt!.toMillis() / 1000),
+      Math.floor(stored.deletedAt!.toMillis() / 1000)
+    )
+
+    LifecycleRecord.shiftDeletedAt = false
+    LifecycleRecord.failOn = null
+    record.username = 'saved-after-hook-adjustment'
+    await record.save()
+    const saved = (await LifecycleRecord.withTrashed()
+      .where('id', record.id)
+      .firstOrFail()) as LifecycleRecord
+    assert.isTrue(saved.trashed)
   })
 
   test('keeps a failed restore retryable on the same instance', async ({ assert }) => {
