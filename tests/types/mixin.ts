@@ -1,6 +1,13 @@
 /*
- * Compile-time contracts for the public soft-delete mixin.
+ * @kevinjohn/lucid-soft-deletes
+ *
+ * (c) 2026 Kevinjohn Gallagher
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
+
+/** Compile-time contracts for the public soft-delete mixin. */
 
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'

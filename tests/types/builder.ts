@@ -1,6 +1,13 @@
 /*
- * Compile-time contracts for soft-delete builder macros.
+ * @kevinjohn/lucid-soft-deletes
+ *
+ * (c) 2026 Kevinjohn Gallagher
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
+
+/** Compile-time contracts for soft-delete builder macros. */
 
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { ModelQueryBuilder } from '@adonisjs/lucid/orm'
