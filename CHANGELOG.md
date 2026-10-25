@@ -10,3 +10,6 @@ All notable changes to this project are documented here.
 - Rename the package to `@kevinjohn/lucid-soft-deletes` for AdonisJS 7, Lucid 22, and Node 24.
 - Replace the exception import for the current AdonisJS core export. Credit to necessarylion ([upstream PR 33](https://github.com/lookinlab/adonis-lucid-soft-deletes/pull/33)) and abdulmatinsanni ([upstream PR 34](https://github.com/lookinlab/adonis-lucid-soft-deletes/pull/34)) for identifying the compatibility fix.
 - Refresh the test and build toolchain for the supported framework versions.
+- Define the query scope contract for model reads, relations, aliases, clones, pagination, and documented bypass operations.
+- Preserve soft-delete mode across cloned model and relation builders, and group user OR predicates before applying the default or only-trashed filter.
+- Document that has-many-through scopes the related target but not its joined intermediate model; provide an explicit `onQuery` recipe for scoped relation counts.

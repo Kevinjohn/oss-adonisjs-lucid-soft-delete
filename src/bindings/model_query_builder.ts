@@ -13,17 +13,15 @@ import type {
   ModelWithSoftDeletes,
 } from '@adonisjs/lucid/types/model'
 
-import { Exception } from '@adonisjs/core/exceptions'
+import { E_MODEL_SOFT_DELETE } from '../errors.js'
+import { installModePropagation, setSoftDeletesMode } from '../scope.js'
 
 /**
  * Raises exception when model not with soft delete
  */
 function ensureModelWithSoftDeletes(model: LucidModel) {
   if (!('ignoreDeleted' in model && 'ignoreDeletedPaginate' in model)) {
-    throw new Exception(`${model.name} model don't support Soft Deletes`, {
-      code: 'E_MODEL_SOFT_DELETE',
-      status: 500,
-    })
+    throw new E_MODEL_SOFT_DELETE(model.name)
   }
 }
 
@@ -31,6 +29,8 @@ function ensureModelWithSoftDeletes(model: LucidModel) {
  * Define SoftDeletes binding to ModelQueryBuilder
  */
 export function extendModelQueryBuilder(builder: any) {
+  installModePropagation(builder)
+
   builder.macro('restore', async function (this: ModelQueryBuilderContract<LucidModel>) {
     ensureModelWithSoftDeletes(this.model)
 
@@ -42,13 +42,12 @@ export function extendModelQueryBuilder(builder: any) {
 
   builder.macro('withTrashed', function (this: ModelQueryBuilderContract<ModelWithSoftDeletes>) {
     ensureModelWithSoftDeletes(this.model)
-    return this.model.disableIgnore(this)
+    return setSoftDeletesMode(this, 'with')
   })
 
   builder.macro('onlyTrashed', function (this: ModelQueryBuilderContract<ModelWithSoftDeletes>) {
     ensureModelWithSoftDeletes(this.model)
 
-    const deletedAtColumn = this.model.$getColumn('deletedAt')?.columnName
-    return this.model.disableIgnore(this).whereNotNull(`${this.model.table}.${deletedAtColumn}`)
+    return setSoftDeletesMode(this, 'only')
   })
 }

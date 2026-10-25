@@ -43,3 +43,15 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Omit `--no-frozen-lockfile` from CI's `pnpm add` and `pnpm update` commands.
 - **Reason:** pnpm 11.23.0 rejects that flag for these commands; its default behavior permits the intended temporary peer changes.
 - **Evidence:** Separate disposable checkouts passed `pnpm test` (17/17) and `pnpm build` on PostgreSQL 16 with core 7.0.0/Lucid 22.0.0 and with core 7.6.0/Lucid 22.4.2 after the flag was removed.
+
+## 2026-10-25: Apply read scope at fetch time and carry the mode through clones
+
+- **Decision:** Store `default`, `with`, or `only` mode on model query builders, copy it through Lucid's guarded `applyQueryFlags` clone path, and add the filter from the model fetch and pagination hooks. Group existing predicates before adding the filter.
+- **Reason:** Applying the predicate in a query hook makes the scope part of the executed fetch, while preserving the mode lets clones, relation builders, and pagination count queries keep the caller's intent.
+- **Evidence:** WP3 scope tests cover OR grouping, aliases, clones, pagination, relation loads, and the query-builder bypass rows in the scope contract table in README.
+
+## 2026-10-25: Scope the has-many-through target and characterize its intermediate join
+
+- **Decision:** Apply the default scope to the related target model in has-many-through queries, without implicitly filtering the joined intermediate model.
+- **Reason:** Lucid executes fetch hooks for the relation query's target model; joined models do not independently run their model hooks. The PRD excludes automatic scoping for joins and requires the related target to be scoped.
+- **Evidence:** The has-many-through test shows an active related comment remains visible through a deleted post, while nested preload scopes the posts and their separately fetched comments. README documents an explicit qualified condition for callers who require an active intermediate row.
