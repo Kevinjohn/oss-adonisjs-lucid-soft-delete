@@ -230,6 +230,20 @@ test.group('Read scope', (group) => {
       stringAlias.map((row) => row.id),
       [active.id]
     )
+
+    const aliased = User.query().from({ u: 'users' }).where('u.username', 'active')
+    const cloned = await aliased.clone()
+    const page = await aliased.paginate(1, 10)
+
+    assert.deepEqual(
+      cloned.map((row) => row.id),
+      [active.id]
+    )
+    assert.equal(page.total, 1)
+    assert.deepEqual(
+      page.all().map((row) => row.id),
+      [active.id]
+    )
   })
 
   test('qualifies the base table in a self join', async ({ assert }) => {
