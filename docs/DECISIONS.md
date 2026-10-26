@@ -151,3 +151,9 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Hold WP1–WP7 merges until the required GitHub Actions checks run and pass. Local verification supports the implementation but does not replace the merge gate.
 - **Reason:** The repository owner chose to wait for CI after the runner jobs failed before starting.
 - **Evidence:** PRs #2–#8 remain open. The check annotations report an account payment or spending-limit restriction; the complete local suites and packed consumer modes passed.
+
+## 2026-10-26: Keep releases manual; add no release workflow
+
+- **Decision:** Align CI with the sibling AdonisJS packages (`checks.yml` job guard, conditional PostgreSQL service, `workflow_call` trigger, `codeql.yml`, `scorecard.yml`, `dependabot.yml`) but do not add their `release.yml`.
+- **Reason:** This package publishes to the `alpha` dist-tag by hand following `docs/RELEASING.md`. A release workflow would need publish credentials and a tag trigger that the alpha process does not define yet.
+- **Evidence:** `docs/RELEASING.md` states that publishing and tagging are manual owner actions. The sibling `release.yml` files call `checks.yml` through `workflow_call`, which this change adds so a later release workflow can reuse the checks unchanged.
