@@ -55,9 +55,24 @@ test.group('check:changed plan', () => {
     })
   })
 
-  test('build, tmp and examples output is ignored', ({ assert }) => {
-    const plan = planChecks(changed('build/index.js', 'tmp/x.ts', 'examples/app/start.ts'))
+  test('build, tmp and coverage output is ignored', ({ assert }) => {
+    const plan = planChecks(changed('build/index.js', 'tmp/x.ts', 'coverage/lcov.info'))
     assert.deepEqual(plan, { lint: [], typecheck: false, tests: [], consumer: false })
+  })
+
+  test('{$self} runs only the consumer gate')
+    .with(['examples/app/tests/consumer.spec.ts', 'examples/app/start/routes.ts'])
+    .run(({ assert }, path) => {
+      assert.deepEqual(planChecks(changed(path)), {
+        lint: [],
+        typecheck: false,
+        tests: [],
+        consumer: true,
+      })
+    })
+
+  test('package.json runs the consumer gate', ({ assert }) => {
+    assert.isTrue(planChecks(changed('package.json')).consumer)
   })
 
   test('consumer gate files run the gate and lint', ({ assert }) => {

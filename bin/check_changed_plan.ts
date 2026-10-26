@@ -34,7 +34,8 @@ const FULL_SUITE = [
   /^tsconfig\.json$/,
 ]
 const PLAN_SPEC = 'tests/unit/check_changed_plan.spec.ts'
-const CONSUMER = /^scripts\//
+/** The consumer gate's scripts, its fixture app, and the manifest it packs. */
+const CONSUMER = /^(scripts|examples\/app)\/|^package\.json$/
 
 /** Map changed files to the checks they can affect. */
 export function planChecks(changes: Change[]): Plan {
@@ -45,6 +46,7 @@ export function planChecks(changes: Change[]): Plan {
   let testAll = false
 
   for (const { path, deleted } of changes) {
+    if (CONSUMER.test(path)) plan.consumer = true
     if (IGNORED.test(path)) continue
 
     if (LINT_CONFIG.has(path)) lintAll = true
@@ -55,8 +57,6 @@ export function planChecks(changes: Change[]): Plan {
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
     else if (/^bin\/check_changed/.test(path)) tests.add(PLAN_SPEC)
-
-    if (CONSUMER.test(path)) plan.consumer = true
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
