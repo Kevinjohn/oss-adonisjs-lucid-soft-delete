@@ -337,6 +337,35 @@ test.group('Read scope', (group) => {
     )
   })
 
+  test('keeps several caller where groups when a builder executes more than once', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    await createUser('group-a')
+    const b = await createUser('group-b')
+    await createUser('group-trashed', true)
+    await createUser('group-outside')
+
+    const query = User.query()
+      .where('username', 'group-a')
+      .orWhere('username', 'group-b')
+      .orWhere('username', 'group-trashed')
+      .wrapExisting()
+      .whereNot('username', 'group-a')
+
+    for (let run = 0; run < 2; run++) {
+      const rows = await query
+      assert.deepEqual(
+        rows.map((row) => row.id),
+        [b.id]
+      )
+    }
+    const sql = query.toQuery()
+    assert.equal((sql.match(/deleted_at/g) ?? []).length, 1)
+    assert.match(sql, /\)\) and [`"]users[`"]\.[`"]deleted_at[`"] is null$/)
+  })
+
   test('keeps caller predicates when a builder executes more than once', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
