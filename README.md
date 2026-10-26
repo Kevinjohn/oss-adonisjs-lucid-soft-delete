@@ -76,6 +76,8 @@ const restoredCount = await User.query().onlyTrashed().where('email', 'a@example
 
 For another database column, override the model mapping with `@column.dateTime({ columnName: 'removed_at' })` on `declare deletedAt: DateTime | null` and add that nullable column in your migration. `trashed` reads the loaded attribute; it is not a separate database column.
 
+[examples/README.md](examples/README.md) has a complete migration, model, controller and route set using every method above.
+
 ## Scope contract
 
 The default model query scope selects rows whose configured `deletedAt` column is null.
