@@ -14,7 +14,7 @@ npm dist-tag ls @kevinjohn/lucid-soft-deletes # alpha -> 3.0.0-alpha.1
 git tag v3.0.0-alpha.1 && git push origin v3.0.0-alpha.1
 ```
 
-Verify that `alpha` resolves to `3.0.0-alpha.1`. On the package's first publish the registry may also point `latest` at it; that is expected, and the version must not be unpublished to clear it. `pnpm publish` refuses to run from a dirty tree or from a branch other than an up-to-date `main`. Then post the reviewed draft in [upstream-comment.md](upstream-comment.md) to [upstream issue 32](https://github.com/lookinlab/adonis-lucid-soft-deletes/issues/32), and replace the `TODO(owner)` in the README with a link to the posted comment. The upstream comment is not posted by this checklist automatically.
+Verify that `alpha` resolves to `3.0.0-alpha.1`. On the package's first publish the registry may also point `latest` at it; that is expected, and the version must not be unpublished to clear it. `pnpm publish` refuses to run from a dirty tree or from a branch other than an up-to-date `main`. Then post the reviewed draft in [upstream-comment.md](upstream-comment.md) to [upstream issue 32](https://github.com/lookinlab/adonis-lucid-soft-deletes/issues/32), and replace the `TODO(owner)` in the README with a link to the posted comment. The upstream comment is not posted by this checklist automatically. After posting, move `upstream-comment.md` to `docs/history/` and add it to that folder's index.
 
 For a later prerelease, set the next version and add a dated changelog entry. Commit the version and changelog together on a branch and merge it to `main` through a pull request, then repeat the checks, dry run, publish, dist-tag verification, and versioned tag steps with the new version:
 
