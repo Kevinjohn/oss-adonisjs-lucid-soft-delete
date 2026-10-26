@@ -32,10 +32,28 @@ function changedFiles(base: string): Change[] {
   return [...changes.values()]
 }
 
+let activeGroup: number | undefined
+
+/** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
+for (const [signal, code] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+] as const) {
+  process.on(signal, () => {
+    if (activeGroup) {
+      try {
+        process.kill(-activeGroup, 'SIGKILL')
+      } catch {}
+    }
+    process.exit(code)
+  })
+}
+
 /** Run a command in its own process group, so a hung step can be stopped with its children. */
 function run(command: string, args: string[]): Promise<{ code: number; output: string }> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    activeGroup = child.pid
     let output = ''
     child.stdout.on('data', (chunk) => (output += chunk))
     child.stderr.on('data', (chunk) => (output += chunk))
@@ -45,6 +63,7 @@ function run(command: string, args: string[]): Promise<{ code: number; output: s
     }, STEP_TIMEOUT_MS)
     child.on('close', (code) => {
       clearTimeout(timer)
+      activeGroup = undefined
       resolve({ code: code ?? 1, output })
     })
   })
