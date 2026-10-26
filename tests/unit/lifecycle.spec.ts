@@ -413,6 +413,34 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.isFalse(record.trashed)
   })
 
+  test('deleteQuietly with $forceDelete physically deletes without hooks', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const record = await seedRecord()
+
+    record.$forceDelete = true
+    await record.deleteQuietly()
+
+    assert.deepEqual(LifecycleRecord.events, [])
+    assert.isTrue(record.$isDeleted)
+    assert.isNull(await db.from('users').where('id', record.id).first())
+  })
+
+  test('deleteQuietly rejects on a trashed model after forceDelete', async ({ assert }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const record = await seedRecord()
+    await record.delete()
+    await record.forceDelete()
+    statements.length = 0
+
+    await assert.rejects(() => record.deleteQuietly(), /Cannot mutate delete model instance/)
+
+    assert.deepEqual(statements, [])
+    assert.isTrue(record.$isDeleted)
+  })
+
   test('restore advances updatedAt', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
