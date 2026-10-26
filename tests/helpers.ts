@@ -8,8 +8,10 @@
  */
 
 import { getActiveTest } from '@japa/runner'
-import { mkdir } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { AppFactory } from '@adonisjs/core/factories/app'
 import { LoggerFactory } from '@adonisjs/core/factories/logger'
 import { Emitter } from '@adonisjs/core/events'
@@ -23,19 +25,29 @@ export async function createDatabase() {
   const test = getActiveTest()
   if (!test) throw new Error('Cannot use "createDatabase" outside of a Japa test')
 
-  await mkdir(test.context.fs.basePath)
+  const databaseDirectory = await mkdtemp(join(tmpdir(), 'lucid-soft-deletes-'))
 
-  const app = new AppFactory().create(test.context.fs.baseUrl, () => {})
+  const app = new AppFactory().create(pathToFileURL(databaseDirectory), () => {})
   const logger = new LoggerFactory().create()
   const emitter = new Emitter(app)
   const db = new Database(
     {
-      connection: process.env.DB || 'sqlite',
+      connection: process.env.DB_CLIENT === 'pg' ? 'pg' : 'sqlite',
       connections: {
         sqlite: {
-          client: 'sqlite3',
+          client: 'better-sqlite3',
           connection: {
-            filename: join(test.context.fs.basePath, 'db.sqlite3'),
+            filename: join(databaseDirectory, 'db.sqlite3'),
+          },
+        },
+        pg: {
+          client: 'pg',
+          connection: {
+            host: process.env.DB_HOST || '127.0.0.1',
+            port: Number(process.env.DB_PORT || 5432),
+            user: process.env.DB_USER || process.env.USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE || 'lucid_soft_deletes_test',
           },
         },
       },
@@ -44,7 +56,10 @@ export async function createDatabase() {
     emitter
   )
 
-  test.cleanup(() => db.manager.closeAll())
+  test.cleanup(async () => {
+    await db.manager.closeAll()
+    await rm(databaseDirectory, { recursive: true, force: true })
+  })
   BaseModel.useAdapter(db.modelAdapter())
   return db
 }
@@ -54,13 +69,13 @@ export async function createTables(db: Database) {
   if (!test) throw new Error('Cannot use "createTables" outside of a Japa test')
 
   test.cleanup(async () => {
-    await db.connection().schema.dropTableIfExists('users')
-    await db.connection().schema.dropTableIfExists('industries')
+    await db.connection().schema.dropTableIfExists('author_book')
+    await db.connection().schema.dropTableIfExists('industry_user')
     await db.connection().schema.dropTableIfExists('books')
     await db.connection().schema.dropTableIfExists('authors')
+    await db.connection().schema.dropTableIfExists('users')
+    await db.connection().schema.dropTableIfExists('industries')
     await db.connection().schema.dropTableIfExists('roles')
-    await db.connection().schema.dropTableIfExists('industry_user')
-    await db.connection().schema.dropTableIfExists('author_book')
     await db.connection().schema.dropTableIfExists('posts')
   })
 
@@ -85,14 +100,14 @@ export async function createTables(db: Database) {
   })
 
   await db.connection().schema.createTable('books', (table) => {
-    table.increments().primary()
+    table.increments()
     table.string('name').unique()
     table.timestamps()
     table.timestamp('deleted_at', { useTz: true })
   })
 
   await db.connection().schema.createTable('authors', (table) => {
-    table.increments().primary()
+    table.increments()
     table.string('name')
     table.timestamps()
     table.timestamp('deleted_at', { useTz: true })
@@ -111,7 +126,7 @@ export async function createTables(db: Database) {
   })
 
   await db.connection().schema.createTable('author_book', (table) => {
-    table.increments().primary()
+    table.increments()
     table.integer('book_id')
     table.integer('author_id')
     table.foreign('book_id').references('books.id')
@@ -120,7 +135,7 @@ export async function createTables(db: Database) {
   })
 
   await db.connection().schema.createTable('posts', (table) => {
-    table.increments().primary()
+    table.increments()
     table.string('title')
     table.timestamp('deletedAt', { useTz: true })
   })

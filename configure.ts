@@ -13,6 +13,6 @@ export async function configure(command: Configure) {
   const codemods = await command.createCodemods()
 
   await codemods.updateRcFile((rcFile) => {
-    rcFile.addProvider('adonis-lucid-soft-deletes/provider')
+    rcFile.addProvider('@kevinjohn/lucid-soft-deletes/provider')
   })
 }

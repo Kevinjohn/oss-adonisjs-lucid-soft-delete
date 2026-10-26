@@ -11,8 +11,9 @@ import { DateTime } from 'luxon'
 import type { NormalizeConstructor } from '@adonisjs/core/types/helpers'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
-import { Exception } from '@poppinss/utils'
-import { column, beforeFind, beforeFetch, beforePaginate, BaseModel } from '@adonisjs/lucid/orm'
+import { Exception } from '@adonisjs/core/exceptions'
+import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid/orm'
+import type { BaseModel } from '@adonisjs/lucid/orm'
 
 type ModelQueryBuilderContractWithIgnoreDeleted<
   T extends LucidModel,
@@ -23,6 +24,8 @@ type ModelQueryBuilderContractWithIgnoreDeleted<
 
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
   class ModelWithSoftDeletes extends superclass {
+    declare static $hooks: LucidModel['$hooks']
+
     @beforeFind()
     @beforeFetch()
     static ignoreDeleted<Model extends typeof ModelWithSoftDeletes>(

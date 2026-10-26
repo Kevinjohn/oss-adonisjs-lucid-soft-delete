@@ -1,0 +1,134 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [pg, better-sqlite3]
+    env:
+      DB_CLIENT: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: lucid_soft_deletes_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lucid_soft_deletes_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.database == 'better-sqlite3'
+        run: pnpm lint
+      - if: matrix.database == 'better-sqlite3'
+        run: pnpm typecheck
+      - if: matrix.database == 'better-sqlite3'
+        run: pnpm build
+      - run: pnpm test
+
+  min-peers:
+    runs-on: ubuntu-latest
+    env:
+      DB_CLIENT: pg
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: lucid_soft_deletes_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lucid_soft_deletes_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Print installed peer versions
+        run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
+      - name: Install minimum peer versions
+        run: pnpm add -D @adonisjs/core@7.0.0 @adonisjs/lucid@22.0.0
+      - run: pnpm test
+      - run: pnpm build
+
+  latest-peers:
+    runs-on: ubuntu-latest
+    env:
+      DB_CLIENT: pg
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: lucid_soft_deletes_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lucid_soft_deletes_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Print installed peer versions
+        run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
+      - name: Update to latest peer versions
+        run: pnpm update @adonisjs/core@latest @adonisjs/lucid@latest
+      - run: pnpm test
+      - run: pnpm build
