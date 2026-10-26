@@ -246,6 +246,10 @@ pnpm build
 pnpm test
 ```
 
+`pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
+`main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
+still runs the full set.
+
 To run the runtime suite against PostgreSQL 16 on
 macOS, start the local service and create the test database:
 

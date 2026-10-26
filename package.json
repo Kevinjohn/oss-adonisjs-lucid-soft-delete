@@ -33,6 +33,7 @@
     "pretest": "pnpm build",
     "test": "c8 pnpm quick:test",
     "test:consumer": "node scripts/test_packed_consumer.mjs",
+    "check:changed": "node --import=@poppinss/ts-exec --enable-source-maps bin/check_changed.ts",
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
