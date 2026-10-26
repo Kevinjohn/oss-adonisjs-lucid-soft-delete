@@ -5,6 +5,13 @@
   "engines": {
     "node": ">=24.0.0"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.0.0",
+      "onFail": "download"
+    }
+  },
   "main": "./build/index.js",
   "type": "module",
   "files": [
@@ -35,22 +42,22 @@
   "devDependencies": {
     "@adonisjs/assembler": "^8.0.0",
     "@adonisjs/core": "^7.0.1",
-    "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/eslint-config": "^3.0.0",
+    "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/prettier-config": "^1.4.5",
     "@adonisjs/tsconfig": "^2.0.0",
     "@japa/assert": "^4.2.0",
-    "@japa/runner": "^5.3.0",
     "@japa/expect-type": "^2.0.4",
+    "@japa/runner": "^5.3.0",
     "@poppinss/ts-exec": "^1.4.4",
     "@types/luxon": "^3.0.0",
     "@types/node": "^25.3.5",
     "better-sqlite3": "^12.0.0",
-    "pg": "^8.0.0",
     "c8": "^11.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^10.0.3",
     "luxon": "^3.0.0",
+    "pg": "^8.0.0",
     "prettier": "^3.8.1",
     "tsdown": "^0.21.0",
     "typescript": "^5.9.3"
