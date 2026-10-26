@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
-    "pretest": "pnpm lint",
+    "pretest": "pnpm build",
     "test": "c8 pnpm quick:test",
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",

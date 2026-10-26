@@ -29,3 +29,5 @@ declare module '@adonisjs/lucid/types/model' {
     Result = InstanceType<Model>,
   > extends ExcludeSoftDeletesMethods<SoftDeletesMethods<Model>, Model> {}
 }
+
+export {}

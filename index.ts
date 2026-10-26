@@ -7,5 +7,7 @@
  * file that was distributed with this source code.
  */
 
+import './src/types/querybuilder.js'
+
 export { configure } from './configure.js'
 export { SoftDeletes } from './src/mixin.js'
