@@ -62,7 +62,7 @@ export default class UsersController {
 
   /** Trashed users only, for an admin "bin" view. */
   async trashed() {
-    return User.query().onlyTrashed().orderBy('deletedAt', 'desc')
+    return User.query().onlyTrashed().orderBy('deleted_at', 'desc')
   }
 
   /** Active and trashed together. */
