@@ -14,15 +14,9 @@ declare module '@adonisjs/lucid/types/model' {
     Model extends LucidModel,
     Result = InstanceType<Model>,
   > {
-    withTrashed(
-      this: Model extends SoftDeletesModel ? ModelQueryBuilderContract<Model, Result> : never
-    ): this
-    onlyTrashed(
-      this: Model extends SoftDeletesModel ? ModelQueryBuilderContract<Model, Result> : never
-    ): this
-    restore(
-      this: Model extends SoftDeletesModel ? ModelQueryBuilderContract<Model, Result> : never
-    ): Promise<number>
+    withTrashed(this: { model: SoftDeletesModel }): this
+    onlyTrashed(this: { model: SoftDeletesModel }): this
+    restore(this: { model: SoftDeletesModel }): Promise<number>
   }
 }
 
