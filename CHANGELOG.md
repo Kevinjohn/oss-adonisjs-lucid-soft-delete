@@ -24,3 +24,7 @@ All notable changes to this project are documented here. This changelog follows 
 - Preserve composed model fields and instance methods in emitted mixin types; retain relation-builder receiver types after soft-delete macros.
 - Export a symbol-based soft-delete capability guard and dedicated exception classes from the package root. `SoftDeletesModel` replaces the `ModelWithSoftDeletes` type that 2.1.0 augmented onto `@adonisjs/lucid/types/model`.
 - Verify runtime behavior with a Lucid 22 generated-schema model.
+
+### Fixed
+
+- Drop the filter from an earlier run when an executed builder switches to `withTrashed()`, so trashed rows are returned.

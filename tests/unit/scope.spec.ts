@@ -372,4 +372,46 @@ test.group('Read scope', (group) => {
     assert.equal(first.id, other.id)
     assert.equal((userQuery.toQuery().match(/deleted_at/g) ?? []).length, 1)
   })
+
+  test('switching an executed builder to with-trashed drops the earlier filter', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const active = await createUser('switch-active')
+    const trashed = await createUser('switch-trashed', true)
+    const query = User.query().whereIn('id', [active.id, trashed.id])
+
+    const scoped = await query
+    const all = (await query.withTrashed()) as User[]
+
+    assert.deepEqual(
+      scoped.map((row) => row.id),
+      [active.id]
+    )
+    assert.sameMembers(
+      all.map((row) => row.id),
+      [active.id, trashed.id]
+    )
+    assert.notInclude(query.toQuery(), 'deleted_at')
+  })
+
+  test('switching an executed builder to only-trashed replaces the earlier filter', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const active = await createUser('switch-active')
+    const trashed = await createUser('switch-trashed', true)
+    const query = User.query().whereIn('id', [active.id, trashed.id])
+
+    await query
+    const rows = (await query.onlyTrashed()) as User[]
+
+    assert.deepEqual(
+      rows.map((row) => row.id),
+      [trashed.id]
+    )
+    assert.equal((query.toQuery().match(/deleted_at/g) ?? []).length, 1)
+  })
 })
