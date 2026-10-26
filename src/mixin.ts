@@ -14,12 +14,13 @@ import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid/orm'
 import type { BaseModel } from '@adonisjs/lucid/orm'
+import { applyScope, getSoftDeletesMode, setSoftDeletesMode } from './scope.js'
 
 type ModelQueryBuilderContractWithIgnoreDeleted<
   T extends LucidModel,
   R = InstanceType<T>,
 > = ModelQueryBuilderContract<T, R> & {
-  ignoreDeleted: boolean
+  softDeletesMode?: 'default' | 'with' | 'only'
 }
 
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
@@ -31,17 +32,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
     static ignoreDeleted<Model extends typeof ModelWithSoftDeletes>(
       query: ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>
     ): void {
-      if (query['ignoreDeleted'] === false) {
-        return
-      }
-      const isGroupLimitQuery = query.clone().toQuery().includes('adonis_group_limit_counter')
-      const deletedAtColumn = query.model.$getColumn('deletedAt')?.columnName
-
-      const queryIgnoreDeleted = isGroupLimitQuery
-        ? (query.knexQuery as any)['_single'].table
-        : query
-
-      queryIgnoreDeleted.whereNull(`${query.model.table}.${deletedAtColumn}`)
+      applyScope(query)
     }
 
     @beforePaginate()
@@ -49,7 +40,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>,
       ModelQueryBuilderContractWithIgnoreDeleted<Model, InstanceType<Model>>,
     ]): void {
-      countQuery['ignoreDeleted'] = query['ignoreDeleted']
+      setSoftDeletesMode(countQuery, getSoftDeletesMode(query))
       this.ignoreDeleted(countQuery)
     }
 
@@ -57,11 +48,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       this: Model,
       query: ModelQueryBuilderContractWithIgnoreDeleted<Model, Result>
     ): ModelQueryBuilderContractWithIgnoreDeleted<Model, Result> {
-      if (query['ignoreDeleted'] === false) {
-        return query
-      }
-      query['ignoreDeleted'] = false
-      return query
+      return setSoftDeletesMode(query, 'with')
     }
 
     /**
@@ -88,8 +75,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
         InstanceType<Model>
       >
 
-      const deletedAtColumn = query.model.$getColumn('deletedAt')?.columnName
-      return this.disableIgnore(query).whereNotNull(`${query.model.table}.${deletedAtColumn}`)
+      return setSoftDeletesMode(query, 'only')
     }
 
     /**
@@ -128,10 +114,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       if (action === 'delete' && !this.$forceDelete) {
         return { del: softDelete, delete: softDelete }
       }
-      if (action === 'insert') {
-        return super.$getQueryFor(action, client)
-      }
-      return super.$getQueryFor(action, client)
+      if (action === 'insert') return super.$getQueryFor(action, client)
+      const query = super.$getQueryFor(action, client)
+      return action === 'refresh' ? setSoftDeletesMode(query, 'with') : query
     }
 
     /**

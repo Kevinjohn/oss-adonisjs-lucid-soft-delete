@@ -21,7 +21,7 @@ import { BaseModel } from '@adonisjs/lucid/orm'
 /**
  * Creates an instance of the database class for making queries
  */
-export async function createDatabase() {
+export async function createDatabase(onQuery?: (event: { sql: string }) => void) {
   const test = getActiveTest()
   if (!test) throw new Error('Cannot use "createDatabase" outside of a Japa test')
 
@@ -30,18 +30,21 @@ export async function createDatabase() {
   const app = new AppFactory().create(pathToFileURL(databaseDirectory), () => {})
   const logger = new LoggerFactory().create()
   const emitter = new Emitter(app)
+  if (onQuery) emitter.on('db:query', onQuery)
   const db = new Database(
     {
       connection: process.env.DB_CLIENT === 'pg' ? 'pg' : 'sqlite',
       connections: {
         sqlite: {
           client: 'better-sqlite3',
+          debug: true,
           connection: {
             filename: join(databaseDirectory, 'db.sqlite3'),
           },
         },
         pg: {
           client: 'pg',
+          debug: true,
           connection: {
             host: process.env.DB_HOST || '127.0.0.1',
             port: Number(process.env.DB_PORT || 5432),
@@ -69,14 +72,16 @@ export async function createTables(db: Database) {
   if (!test) throw new Error('Cannot use "createTables" outside of a Japa test')
 
   test.cleanup(async () => {
+    await db.connection().schema.dropTableIfExists('comments')
+    await db.connection().schema.dropTableIfExists('profiles')
     await db.connection().schema.dropTableIfExists('author_book')
     await db.connection().schema.dropTableIfExists('industry_user')
+    await db.connection().schema.dropTableIfExists('posts')
     await db.connection().schema.dropTableIfExists('books')
     await db.connection().schema.dropTableIfExists('authors')
     await db.connection().schema.dropTableIfExists('users')
     await db.connection().schema.dropTableIfExists('industries')
     await db.connection().schema.dropTableIfExists('roles')
-    await db.connection().schema.dropTableIfExists('posts')
   })
 
   await db.connection().schema.createTable('users', (table) => {
@@ -86,6 +91,7 @@ export async function createTables(db: Database) {
     table.boolean('is_admin')
     table.string('password')
     table.integer('company_id')
+    table.integer('manager_id')
     table.timestamps()
     table.timestamp('deleted_at', { useTz: true })
   })
@@ -137,6 +143,22 @@ export async function createTables(db: Database) {
   await db.connection().schema.createTable('posts', (table) => {
     table.increments()
     table.string('title')
+    table.integer('user_id')
+    table.timestamp('deleted_at', { useTz: true })
     table.timestamp('deletedAt', { useTz: true })
+  })
+
+  await db.connection().schema.createTable('profiles', (table) => {
+    table.increments()
+    table.integer('user_id')
+    table.string('display_name')
+    table.timestamp('deleted_at', { useTz: true })
+  })
+
+  await db.connection().schema.createTable('comments', (table) => {
+    table.increments()
+    table.integer('post_id')
+    table.string('body')
+    table.timestamp('deleted_at', { useTz: true })
   })
 }
