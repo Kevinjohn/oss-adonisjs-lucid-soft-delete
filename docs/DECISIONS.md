@@ -79,3 +79,21 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Detect whether Lucid replaced the model's `$original` object during `save()` to distinguish a pre-write failure from a hook failure after the database update. Restore the previous in-memory timestamp only when the write was not hydrated. Keep this helper lexical to the mixin module so subclasses cannot override it. Apply it to soft deletion, quiet deletion and restore.
 - **Reason:** Lucid replaces `$original` after the update and before `afterUpdate` and `afterSave` hooks. Comparing timestamps is insufficient because a before hook may change `deletedAt`. Reverting after a post-write hook failure would make the instance disagree with its persisted row; leaving a failed pre-write restore cleared would prevent retry on the same instance.
 - **Evidence:** Lifecycle regressions for pre-write restore failure, post-write delete/restore failure, and a hook-adjusted timestamp failed on the earlier WP4 implementation and pass on SQLite and PostgreSQL 16. The installed Lucid save sequence is `build/src/orm/base_model/index.js:1357-1358,1553-1559`.
+
+## 2026-10-25: Export named interfaces for the soft-delete mixin
+
+- **Decision:** Give `SoftDeletes` an explicit constructor return type built from exported `SoftDeletesStatics` and `SoftDeletesInstance` interfaces, while preserving the input constructor's static surface and instance type. Keep `restore()` as `Promise<this>`.
+- **Reason:** TypeScript's inferred anonymous mixin class emitted constraints that failed in a packed consumer and widened instance methods such as `restore()` and `useTransaction()`. Named interfaces provide stable declarations and retain fields from custom base models and mixin composition order.
+- **Evidence:** WP5 compile-time contracts cover subclass fields, static and builder result types, transactions, preload relations, custom bases, and both mixin orders; packed-consumer acceptance is recorded in the WP1 findings after verification.
+
+## 2026-10-25: Preserve builder receiver types and gate macros on capability
+
+- **Decision:** Declare query-builder macros with polymorphic `this` return types and require the explicit `SOFT_DELETES` symbol marker for method calls. Augment Lucid's concrete builder with the same methods, using a receiver that requires a proven soft-delete model. Use `hasSoftDeletes` in runtime macro validation.
+- **Reason:** Macro chains must preserve relation-specific methods such as `groupLimit`, while plain models must not be able to call soft-delete macros. Lucid's concrete builder implements the augmented contract, so its declaration must also include the macro methods for `skipLibCheck: false`; the gated receiver prevents an unproven concrete builder from calling them. A `deletedAt` column alone is not a reliable capability signal.
+- **Evidence:** WP5 type assertions cover relation-builder chains and reject `withTrashed()` on a plain model or an unproven concrete builder. Guard tests distinguish the mixin marker from a hand-written `deletedAt` column. The packed consumer type-checks with `skipLibCheck: false`.
+
+## 2026-10-25: Keep the generated schema's required deletedAt property
+
+- **Decision:** Retain the optional `deletedAt` declaration on the mixin instance and compose it with the generated-schema fixture's required `deletedAt: DateTime | null` property.
+- **Reason:** TypeScript accepts the intersection for the schema shape exercised by Lucid 22, so changing the public mixin field to required would be unnecessary and would misrepresent fresh instances whose attribute may be unset.
+- **Evidence:** The WP5 schema runtime test type-checks and exercises find, delete, and restore on SQLite and PostgreSQL.

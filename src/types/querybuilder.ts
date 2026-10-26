@@ -7,27 +7,25 @@
  * file that was distributed with this source code.
  */
 
+import type { SoftDeletesModel } from '../guard.js'
+
 declare module '@adonisjs/lucid/types/model' {
-  export type ModelWithSoftDeletes = LucidModel & {
-    ignoreDeleted(query: any): void
-    ignoreDeletedPaginate([countQuery, query]: [any, any]): void
-    disableIgnore(query: any): any
-  }
-
-  type ExcludeSoftDeletesMethods<Methods, Model> = {
-    [Method in keyof Methods]: Model extends ModelWithSoftDeletes ? Methods[Method] : never
-  }
-
-  type SoftDeletesMethods<Model extends LucidModel> = {
-    withTrashed(): ModelQueryBuilderContract<Model>
-    onlyTrashed(): ModelQueryBuilderContract<Model>
-    restore(): Promise<void>
-  }
-
   export interface ModelQueryBuilderContract<
     Model extends LucidModel,
     Result = InstanceType<Model>,
-  > extends ExcludeSoftDeletesMethods<SoftDeletesMethods<Model>, Model> {}
+  > {
+    withTrashed(this: { model: SoftDeletesModel }): this
+    onlyTrashed(this: { model: SoftDeletesModel }): this
+    restore(this: { model: SoftDeletesModel }): Promise<number>
+  }
+}
+
+declare module '@adonisjs/lucid/orm' {
+  export interface ModelQueryBuilder {
+    withTrashed(this: this & { model: SoftDeletesModel }): this
+    onlyTrashed(this: this & { model: SoftDeletesModel }): this
+    restore(this: this & { model: SoftDeletesModel }): Promise<number>
+  }
 }
 
 export {}

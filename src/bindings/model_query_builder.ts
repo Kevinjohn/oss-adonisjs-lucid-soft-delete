@@ -7,13 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import type {
-  LucidModel,
-  ModelQueryBuilderContract,
-  ModelWithSoftDeletes,
-} from '@adonisjs/lucid/types/model'
+import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
+import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import {
   addScopeFilter,
   installModePropagation,
@@ -25,7 +22,7 @@ import {
  * Raises exception when model not with soft delete
  */
 function ensureModelWithSoftDeletes(model: LucidModel) {
-  if (!('ignoreDeleted' in model && 'ignoreDeletedPaginate' in model)) {
+  if (!hasSoftDeletes(model)) {
     throw new E_MODEL_SOFT_DELETE(model.name)
   }
 }
@@ -47,12 +44,12 @@ export function extendModelQueryBuilder(builder: any) {
     return typeof result[0] === 'number' ? result[0] : result.length
   })
 
-  builder.macro('withTrashed', function (this: ModelQueryBuilderContract<ModelWithSoftDeletes>) {
+  builder.macro('withTrashed', function (this: ModelQueryBuilderContract<SoftDeletesModel>) {
     ensureModelWithSoftDeletes(this.model)
     return setSoftDeletesMode(this, 'with')
   })
 
-  builder.macro('onlyTrashed', function (this: ModelQueryBuilderContract<ModelWithSoftDeletes>) {
+  builder.macro('onlyTrashed', function (this: ModelQueryBuilderContract<SoftDeletesModel>) {
     ensureModelWithSoftDeletes(this.model)
 
     return setSoftDeletesMode(this, 'only')
