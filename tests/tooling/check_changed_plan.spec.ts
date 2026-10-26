@@ -82,9 +82,15 @@ test.group('check:changed plan', () => {
     assert.isFalse(plan.typecheck)
   })
 
+  test('a changed tooling spec runs on its own', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('tests/tooling/check_changed_plan.spec.ts')).tests, [
+      'tests/tooling/check_changed_plan.spec.ts',
+    ])
+  })
+
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
-      'tests/unit/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_plan.spec.ts',
     ])
   })
 

@@ -19,6 +19,10 @@ configure({
       name: 'unit',
       files: ['tests/unit/**/*.spec.ts'],
     },
+    {
+      name: 'tooling',
+      files: ['tests/tooling/**/*.spec.ts'],
+    },
   ],
 })
 
