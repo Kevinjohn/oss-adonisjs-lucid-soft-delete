@@ -77,6 +77,13 @@ export default class UsersController {
     return response.noContent()
   }
 
+  /** Soft delete without running model hooks, for example from a bulk import. */
+  async destroyQuietly({ params, response }: HttpContext) {
+    const user = await User.findOrFail(params.id)
+    await user.deleteQuietly()
+    return response.noContent()
+  }
+
   /** Restore one trashed user. `findOrFail` would not see it, so read with `withTrashed()`. */
   async restore({ params }: HttpContext) {
     const user = await User.withTrashed().where('id', params.id).firstOrFail()
@@ -114,6 +121,7 @@ router.get('/users', [UsersController, 'index'])
 router.get('/users/trashed', [UsersController, 'trashed'])
 router.get('/users/everyone', [UsersController, 'everyone'])
 router.delete('/users/:id', [UsersController, 'destroy'])
+router.delete('/users/:id/quietly', [UsersController, 'destroyQuietly'])
 router.post('/users/:id/restore', [UsersController, 'restore'])
 router.post('/users/restore', [UsersController, 'restoreMany'])
 router.delete('/users/:id/purge', [UsersController, 'purge'])
@@ -121,15 +129,16 @@ router.delete('/users/:id/purge', [UsersController, 'purge'])
 
 ## What to expect
 
-| Call                    | Rows touched                                              |
-| ----------------------- | --------------------------------------------------------- |
-| `DELETE /users/1`       | `UPDATE users SET deleted_at = now WHERE id = 1`          |
-| `GET /users`            | `WHERE users.deleted_at IS NULL`                          |
-| `GET /users/trashed`    | `WHERE users.deleted_at IS NOT NULL`                      |
-| `GET /users/everyone`   | no `deleted_at` predicate                                 |
-| `POST /users/1/restore` | `UPDATE users SET deleted_at = NULL WHERE id = 1`         |
-| `POST /users/restore`   | one `UPDATE` with the filter and `deleted_at IS NOT NULL` |
-| `DELETE /users/1/purge` | `DELETE FROM users WHERE id = 1`                          |
+| Call                      | Rows touched                                              |
+| ------------------------- | --------------------------------------------------------- |
+| `DELETE /users/1`         | `UPDATE users SET deleted_at = now WHERE id = 1`          |
+| `DELETE /users/1/quietly` | the same `UPDATE`, without model hooks                    |
+| `GET /users`              | `WHERE users.deleted_at IS NULL`                          |
+| `GET /users/trashed`      | `WHERE users.deleted_at IS NOT NULL`                      |
+| `GET /users/everyone`     | no `deleted_at` predicate                                 |
+| `POST /users/1/restore`   | `UPDATE users SET deleted_at = NULL WHERE id = 1`         |
+| `POST /users/restore`     | one `UPDATE` with the filter and `deleted_at IS NOT NULL` |
+| `DELETE /users/1/purge`   | `DELETE FROM users WHERE id = 1`                          |
 
 Relations, pagination, transactions and the cases the scope does not cover are in the
 [README](../README.md#scope-contract).
