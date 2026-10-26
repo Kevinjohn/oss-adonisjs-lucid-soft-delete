@@ -60,9 +60,10 @@ function report(name: string, passed: boolean, detail: string, output = ''): voi
   }
 }
 
-async function step(name: string, command: string, args: string[]): Promise<void> {
+async function step(name: string, command: string, args: string[]): Promise<boolean> {
   const { code, output } = await run(command, args)
   report(name, code === 0, '', output)
+  return code === 0
 }
 
 const [base = 'main', ...extra] = process.argv.slice(2)
@@ -104,9 +105,10 @@ if (plan.lint === 'all') {
 if (plan.typecheck) await step('typecheck', 'pnpm', ['typecheck'])
 else console.log('typecheck: skip (no TypeScript or type config changed)')
 
-if (plan.tests.length) {
-  // tests/unit/declarations.spec.ts reads build/.
-  await step('build', 'pnpm', ['build'])
+// tests/unit/declarations.spec.ts reads build/.
+if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
+  console.log('tests: skip (build failed)')
+} else if (plan.tests.length) {
   const explicit = plan.tests !== 'all'
   const files = explicit ? (plan.tests as string[]).flatMap((file) => ['--files', file]) : []
   const { code, output } = await run('pnpm', ['quick:test', ...files])
