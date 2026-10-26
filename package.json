@@ -25,6 +25,7 @@
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
     "pretest": "pnpm build",
     "test": "c8 pnpm quick:test",
+    "test:consumer": "node scripts/test_packed_consumer.mjs",
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
