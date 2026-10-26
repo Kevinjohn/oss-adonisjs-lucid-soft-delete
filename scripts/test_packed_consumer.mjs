@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-import { mkdir, readdir } from 'node:fs/promises'
+import { mkdir, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { runFresh } from './consumer/fresh.mjs'
 import { run } from './consumer/harness.mjs'
@@ -34,10 +34,9 @@ try {
   console.log(`\nInstalled-consumer gate passed (${compatibility}, ${database})`)
   console.log(`Installed package: ${result.installedPath}`)
   console.log(`Installed version: ${result.version}`)
-  console.log(`Consumer app: ${result.appRoot}`)
+  await rm(tempRoot, { recursive: true, force: true })
 } catch (error) {
   console.error(error?.stack ?? error)
+  console.error(`Consumer run directory kept for inspection: ${tempRoot}`)
   process.exitCode = 1
-} finally {
-  console.log(`Consumer run directory: ${tempRoot}`)
 }
