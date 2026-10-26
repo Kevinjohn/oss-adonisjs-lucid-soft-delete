@@ -20,7 +20,8 @@ All notable changes to this project are documented here. This changelog follows 
 - Document that has-many-through scopes the related target but not its joined intermediate model; provide an explicit `onQuery` recipe for scoped relation counts.
 - Make instance deletion lifecycle-safe: revert failed soft-delete timestamps, skip unchanged repeated deletes, support quiet soft deletion, and restore force-delete state after errors.
 - Add trashed-only builder restore with grouped predicates, alias qualification, transaction support, and affected-row counts.
-- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals. Relationship aggregates remain unscoped in this alpha.
+- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals.
+- Scope relationship aggregate and existence subqueries (`withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, `loadAggregate`) to active related rows. `withTrashed()` and `onlyTrashed()` inside the callback switch the mode. 2.1.0 counted trashed rows.
 - Preserve composed model fields and instance methods in emitted mixin types; retain relation-builder receiver types after soft-delete macros.
 - Export a symbol-based soft-delete capability guard and dedicated exception classes from the package root. `SoftDeletesModel` replaces the `ModelWithSoftDeletes` type that 2.1.0 augmented onto `@adonisjs/lucid/types/model`.
 - Verify runtime behavior with a Lucid 22 generated-schema model.
