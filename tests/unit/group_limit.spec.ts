@@ -8,10 +8,23 @@
  */
 
 import { test } from '@japa/runner'
+import type { Assert } from '@japa/assert'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { createDatabase, createTables } from '../helpers.js'
 import { RelationIndustry, RelationPost, RelationUser } from '../fixtures/models.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+
+/**
+ * The soft-delete filter must sit inside the `row_number()` subquery, before Lucid closes it as
+ * `adonis_temp`, so trashed rows never consume a parent's limit.
+ */
+function assertFilterInsideGroupLimitSubquery(assert: Assert, sql: string): void {
+  const filterAt = sql.search(/deleted_at.\s+is (not )?null/i)
+  const subqueryEndsAt = sql.search(/\)\s+as .adonis_temp./i)
+  assert.isAbove(filterAt, -1, 'no soft-delete filter in the group-limit SQL')
+  assert.isAbove(subqueryEndsAt, -1, 'no adonis_temp wrapper in the group-limit SQL')
+  assert.isBelow(filterAt, subqueryEndsAt, 'soft-delete filter is outside the row_number subquery')
+}
 
 test.group('Soft-delete scope with relation group limits', (group) => {
   group.setup(() => {
@@ -251,13 +264,14 @@ test.group('Soft-delete scope with relation group limits', (group) => {
           .orWhere('title', 'active-match')
       )
 
+    const sql = queries.find((query) => query.includes('adonis_group_limit_counter'))
+    assert.isDefined(sql)
+    assertFilterInsideGroupLimitSubquery(assert, sql!)
+    assert.match(sql!, /where\s+\(.*\bor\b.*\)\s+and .*deleted_at.*is null/i)
     assert.deepEqual(
       users[0].posts.map((post) => post.id),
       [activeMatch.id]
     )
-    const sql = queries.find((query) => query.includes('adonis_group_limit_counter'))
-    assert.isDefined(sql)
-    assert.match(sql!, /where\s+\(.*\bor\b.*\)\s+and .*deleted_at.*is null/i)
 
     const m2mUser = new RelationUser()
     m2mUser.fill({
@@ -288,12 +302,13 @@ test.group('Soft-delete scope with relation group limits', (group) => {
           .orWhere('title', 'm2m-active-match')
       )
 
+    const m2mSql = queries.find((query) => query.includes('adonis_group_limit_counter'))
+    assert.isDefined(m2mSql)
+    assertFilterInsideGroupLimitSubquery(assert, m2mSql!)
+    assert.match(m2mSql!, /where\s+\(.*\bor\b.*\)\s+and .*deleted_at.*is null/i)
     assert.deepEqual(
       m2mUsers[0].industries.map((industry) => industry.id),
       [activeIndustry.id]
     )
-    const m2mSql = queries.find((query) => query.includes('adonis_group_limit_counter'))
-    assert.isDefined(m2mSql)
-    assert.match(m2mSql!, /where\s+\(.*\bor\b.*\)\s+and .*deleted_at.*is null/i)
   })
 })
