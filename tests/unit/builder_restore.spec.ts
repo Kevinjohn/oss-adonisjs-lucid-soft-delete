@@ -137,4 +137,21 @@ test.group('Builder restore', (group) => {
     assert.equal(new Date(updatedAtDuringRestore.updated_at).getTime(), seededUpdatedAt.toMillis())
     assert.equal(new Date(persistedTimestamps.updated_at).getTime(), seededUpdatedAt.toMillis())
   })
+
+  test('keeps caller predicates when the same builder restores twice', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    const target = await createUser('target', true)
+    const bystander = await createUser('bystander', true)
+    const query = RelationUser.query().where('username', 'target')
+
+    assert.equal(await restoreAndGetCount(query), 1)
+    const restored = await RelationUser.findOrFail(target.id)
+    await restored.delete()
+    assert.equal(await restoreAndGetCount(query), 1)
+
+    const bystanderRow = await db.from('users').where('id', bystander.id).firstOrFail()
+    assert.isNotNull(bystanderRow.deleted_at)
+  })
 })
