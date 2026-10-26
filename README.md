@@ -1,328 +1,84 @@
 # @kevinjohn/lucid-soft-deletes
 
-> Works with AdonisJS 7 and Lucid 22
+This package continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) for AdonisJS 7 and Lucid 22. Upstream 2.1.0 targets AdonisJS 6 and Lucid 21. This continuation retains the upstream history and MIT license while updating the integration and defining the scope and lifecycle behavior in tests.
 
-Docs for [AdonisJS v5](https://github.com/lookinlab/adonis-lucid-soft-deletes/tree/v1)
+<!-- TODO(owner): After posting docs/upstream-comment.md to upstream issue 32, add a sentence here linking to the posted comment. -->
 
-[![npm-image]][npm-url] [![license-image]][license-url] [![typescript-image]][typescript-url]
+Version 3.0.0 is an alpha with intentional changes from 2.1.0. Read [Migration from 2.1.0](#migration-from-210) before upgrading.
 
-This addon adds the functionality to soft deletes Lucid Models through the `deleted_at` flag
+## Install
 
-> Works with `@adonisjs/lucid@^22.0.0`
-
-Sometimes use the `deleted_at` flag for soft deletes could be not good way. More [about it](https://brandur.org/soft-deletion)
-
-## Introduction
-
-Sometimes you may wish to "no-delete" a model from database.
-When models are soft deleted, they are not actually removed from your database.
-Instead, a `deleted_at` attribute is set on the model indicating the date
-and time at which the model was "deleted".
-
-:point_right: The SoftDeletes mixin will automatically add the `deleted_at` attribute
-as Luxon / DateTime instance.
-
-## Installation
-
-Install the package with pnpm.
+Use Node.js 24 or newer with AdonisJS core 7, Lucid 22, and Luxon 3.4.4 or newer within 3.x. Install the alpha and its required Luxon peer:
 
 ```bash
-pnpm add @kevinjohn/lucid-soft-deletes
-```
-
-After install call `configure`:
-
-```bash
+pnpm add @kevinjohn/lucid-soft-deletes@alpha luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
+`configure` registers `@kevinjohn/lucid-soft-deletes/provider` in `adonisrc.ts`. For manual registration, add `() => import('@kevinjohn/lucid-soft-deletes/provider')` to its `providers` array once.
+
 ## Usage
 
-Make sure to register the provider inside `adonisrc.ts` file.
+Add a nullable timestamp to each table whose model uses the mixin. For an existing table:
 
 ```ts
-providers: [
-  // ...
-  () => import('@kevinjohn/lucid-soft-deletes/provider'),
-]
-```
-
-You should add the `deleted_at` column to your database tables for models with soft deletes.
-
-```ts
-// migrations/1234566666_users.ts
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
-export default class Users extends BaseSchema {
+export default class AddDeletedAtToUsers extends BaseSchema {
   protected tableName = 'users'
 
   async up() {
-    this.schema.createTable(this.tableName, (table) => {
-      // ...
+    this.schema.alterTable(this.tableName, (table) => {
       table.timestamp('deleted_at').nullable()
     })
   }
-  // ...
+
+  async down() {
+    this.schema.alterTable(this.tableName, (table) => {
+      table.dropColumn('deleted_at')
+    })
+  }
 }
 ```
 
-### Applying Soft Deletes to a Model
+Compose the model and use instance methods for soft and physical deletion:
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
+import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
-  // ...columns and props
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare email: string
 }
+
+const user = await User.findOrFail(1)
+await user.delete() // sets deleted_at; row remains
+
+const trashedUser = await User.withTrashed().where('id', 1).firstOrFail()
+console.log(trashedUser.trashed) // true
+await trashedUser.restore()
+await trashedUser.forceDelete() // physical DELETE
 ```
 
-Now, when you call the `.delete()` method on the model, the `deleted_at` (`customDeletedAtColumn`) column
-will be set to the current date and time. However, the model's database record will be left in the table.
+Read modes are available as model statics and builder macros. They survive cloning and pagination:
 
 ```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class UsersController {
-  /**
-   * Delete user by id
-   * DELETE /users/:id
-   */
-  async destroy({ params, response }: HttpContext) {
-    const user = await User.findOrFail(params.id)
-    await user.delete()
-
-    return user // or response.noContent()
-  }
-}
+const active = await User.query().exec()
+const all = await User.withTrashed().paginate(1)
+const trashed = await User.query().onlyTrashed().exec()
+const restoredCount = await User.query().onlyTrashed().where('email', 'a@example.test').restore()
 ```
 
-> :boom: Soft delete only works for model instances. `await User.query().delete()` as before
-> will delete models from database
-
-:point_right: When querying a model that uses soft deletes, the soft deleted models
-will automatically be excluded from all query results.
-
-To determine if a given model instance has been soft deleted, you may use the `.trashed` getter:
-
-```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class UsersController {
-  /**
-   * Get user by id
-   * GET /users/:id
-   */
-  async show({ params }: HttpContext) {
-    const user = await User.withTrashed().where('id', params.id).firstOrFail()
-    if (user.trashed) {
-      return response.forbidden()
-    }
-    return user
-  }
-}
-```
-
-### Set custom column name for `deletedAt`
-
-```ts
-import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
-
-export default class User extends compose(BaseModel, SoftDeletes) {
-  // ...columns and props
-
-  @column.dateTime({ columnName: 'customDeletedAtColumn' })
-  declare deletedAt: DateTime | null
-}
-```
-
-### Restoring Soft Deleted Models
-
-To restore a soft deleted model, you may call the `.restore()` method on a model instance.
-Also, method `.restore()` exists after methods `.withTrashed()` and `.onlyTrashed()`
-The `restore` method will set the model's `deleted_at` column to `null`:
-
-```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class TrashUsersController {
-  /**
-   * Update trashed user by id
-   * PUT /trash/users/:id
-   */
-  async update({ params }: HttpContext) {
-    const user = await User.withTrashed().where('id', params.id).firstOrFail()
-    await user.restore()
-
-    return user
-
-    // or
-
-    await User.withTrashed().where('id', params.id).restore()
-    await User.query().withTrashed().where('id', params.id).restore()
-  }
-}
-```
-
-### Permanently Deleting Models
-
-Sometimes you may need to truly remove a model from your database.
-You may use the `.forceDelete()` method to permanently remove a soft deleted model from the database table:
-
-```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class UsersController {
-  /**
-   * Delete user by id
-   * DELETE /users/:id
-   */
-  async destroy({ params, response }: HttpContext) {
-    const user = await User.findOrFail(params.id)
-    await user.forceDelete()
-
-    return response.noContent()
-  }
-}
-```
-
-### Including Soft Deleted Models
-
-As noted above, soft deleted models will automatically be excluded from query results.
-However, you may force soft deleted models to be included in a query's results
-by calling the `.withTrashed()` method on the model:
-
-```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class UsersController {
-  /**
-   * Get a list users
-   * GET /users?withTrashed=1
-   */
-  async index({ request }: HttpContext) {
-    const usersQuery = request.input('withTrashed') ? User.withTrashed() : User.query()
-
-    return usersQuery.exec()
-
-    // or
-
-    return User.query()
-      .if(request.input('withTrashed'), (query) => {
-        query.withTrashed()
-      })
-      .exec()
-  }
-}
-```
-
-### Retrieving only Soft Deleted Models
-
-The `.onlyTrashed()` method will retrieve **only** soft deleted models:
-
-```ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
-
-export default class TrashUsersController {
-  /**
-   * Get a list trashed users
-   * GET /trash/users
-   */
-  async index({ request }: HttpContext) {
-    return User.onlyTrashed().exec()
-  }
-}
-```
-
-### Soft Deletes methods
-
-Methods `.withTrashed()`, `.onlyTrashed()` and `.restore()` also available
-in ModelQueryBuilder for models with soft delete, example:
-
-```ts
-await User.query().withTrashed().exec()
-await User.query().onlyTrashed().restore()
-```
-
-## Destructive operations
-
-| Operation                    | Behavior                                                                                                                                      | Result             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| Instance `delete()`          | Sets `deletedAt` and saves the instance. Dirty model attributes are saved too. A repeated call on an unchanged trashed instance does nothing. | `Promise<void>`    |
-| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                                     | `Promise<void>`    |
-| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                          | `Promise<void>`    |
-| Instance `restore()`         | Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
-| Builder `delete()` / `del()` | Physically deletes matching rows, including trashed rows.                                                                                     | Lucid write result |
-| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                          | `Promise<number>`  |
-| Builder `forceDelete()`      | Not available.                                                                                                                                | —                  |
-
-Soft deletion runs the normal update and delete hooks in this order:
-
-```text
-beforeDelete → beforeUpdate → beforeSave → write → afterUpdate → afterSave → afterDelete
-```
-
-`deleteQuietly()` skips hooks. Calls to `delete()` or `deleteQuietly()` on an unpersisted instance throw
-`E_MODEL_NOT_PERSISTED`. See the [Scope contract](#scope-contract) for builder writes and operations
-that bypass model fetch hooks.
-
-If an `afterDelete` hook throws during `forceDelete()`, the physical DELETE may already have
-completed. The instance remains marked deleted, and later delete or restore calls reject.
-
-## Migration from 2.1.0
-
-- Install `@kevinjohn/lucid-soft-deletes` and configure `@kevinjohn/lucid-soft-deletes/provider`.
-- Upgrade to AdonisJS core 7, Lucid 22, and Node.js 24. Luxon 3.4.4 or newer is a required peer.
-- `trashed` is `false` when `deletedAt` is unset.
-- OR conditions are grouped before the default or `onlyTrashed()` filter is applied. `onlyTrashed()` adds its predicate at execution time.
-- `withTrashed()` and `onlyTrashed()` modes survive builder clones, pagination, and relation-builder clones. Base table aliases are supported.
-- `refresh()` works on a trashed instance and loads `deletedAt`.
-- Builder `restore()` affects trashed rows only, groups existing predicates, and returns the affected count.
-- `deleteQuietly()` soft-deletes without running hooks.
-- A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
-- Repeating `delete()` on an unchanged trashed instance is a no-op. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
-- Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
-- The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
-- Group-limited preload callbacks retain the scoped OR grouping in the tested Lucid 22 release. See [Known internals](#known-internals).
-- No schema changes are required.
-
-## Known internals
-
-Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
-`applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
-The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
-`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
-
-For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
-`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
-`orm/relations/many_to_many/query_builder.js`). The soft-delete filter must be added to the inner
-Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
-The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
-for group-limited execution. Its table alias is also read from that inner builder when qualifying
-`deletedAt`.
-The package detects that path by inspecting SQL generated from a clone; it never previews the query
-that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
-
-On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
-before the relation key and soft-delete filter. The OR leak described in the initial plan did not
-reproduce on either database. Builder `restore()` does not support a prior `returning()` clause.
-
-## Support
-
-This package supports the current AdonisJS major. When a new major ships, the previous major
-continues to receive fixes for six months. Report bugs and security issues through GitHub issues.
-There is no response-time promise.
+For another database column, override the model mapping with `@column.dateTime({ columnName: 'removed_at' })` on `declare deletedAt: DateTime | null` and add that nullable column in your migration. `trashed` reads the loaded attribute; it is not a separate database column.
 
 ## Scope contract
 
-The default model query scope filters rows whose configured `deletedAt` column is not null.
+The default model query scope selects rows whose configured `deletedAt` column is null.
 `withTrashed()` disables that filter, while `onlyTrashed()` selects only rows with a deletion
 timestamp. These modes are applied when Lucid executes a model fetch and are preserved when a
 query is cloned or paginated.
@@ -342,6 +98,7 @@ query is cloned or paginated.
 | OR predicates in default and only-trashed modes                                                                    | Groups user predicates before applying the scope; `withTrashed()` adds no scope predicate              | `tests/unit/scope.spec.ts`: `groups a user OR expression before applying the default scope`; `groups a user OR expression in only-trashed mode`; `with-trashed mode adds no filter and survives a clone`                                                                                                                                                                                      |
 | Clones, pagination count queries, and preload callbacks                                                            | Preserve the selected mode                                                                             | `tests/unit/scope.spec.ts`: `with-trashed mode adds no filter and survives a clone`; `only-trashed mode survives a clone`; `pagination count inherits with-trashed mode`; `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`                                                                                                |
 | Aliased base tables and self-joins                                                                                 | Qualifies the scope against the base alias or table                                                    | `tests/unit/scope.spec.ts`: `uses object and string aliases for the base table`; `qualifies the base table in a self join`                                                                                                                                                                                                                                                                    |
+| Group-limited has-many and many-to-many preloads                                                                    | Apply the filter before each parent's limit                                                             | `tests/unit/group_limit.spec.ts`: `scopes has-many rows before applying per-parent limits in each mode`; `scopes many-to-many rows before applying per-parent limits in each mode`                                                                                                                                                                                                        |
 
 For a has-many-through relation, the related target is scoped, while the intermediate model is
 joined without its own scope. An active comment can therefore be returned through a soft-deleted
@@ -350,9 +107,145 @@ excluded. Add an explicit qualified condition such as `whereNull('posts.deleted_
 intermediate row must be active. This behavior is covered by
 `tests/unit/scope_relations.spec.ts`: `filters has-many-through and nested relations at each loaded level`.
 
+## Destructive operations
+
+| Operation                    | Behavior                                                                                                                                      | Result             |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Instance `delete()`          | Sets `deletedAt` and saves the instance, including other dirty attributes. Repeated calls skip the write when `deletedAt` is unchanged. | `Promise<void>`    |
+| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                                     | `Promise<void>`    |
+| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                          | `Promise<void>`    |
+| Instance `restore()`         | Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
+| Builder `delete()` / `del()` | Physically deletes matching rows, including trashed rows.                                                                                     | Lucid write result |
+| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                          | `Promise<number>`  |
+| Builder `forceDelete()`      | Not available.                                                                                                                                | —                  |
+
+Soft deletion runs the normal update and delete hooks in this order:
+
+```text
+beforeDelete → beforeUpdate → beforeSave → write → afterUpdate → afterSave → afterDelete
+```
+
+`deleteQuietly()` skips hooks. Calls to `delete()` or `deleteQuietly()` on an unpersisted instance throw
+`E_MODEL_NOT_PERSISTED`. See the [Scope contract](#scope-contract) for builder writes and operations
+that bypass model fetch hooks. Transactions work through `useTransaction(trx)` and `query({ client: trx })`; builder `restore()` honors its query client. A soft-deleted parent retains child and pivot rows. A physical `forceDelete()` follows database foreign-key rules.
+
+On an already-trashed instance, both `delete()` and `deleteQuietly()` skip the write when `deletedAt` is unchanged. Any other dirty attributes remain in memory; call `save()` or `saveQuietly()` to persist them.
+
+If an `afterDelete` hook throws during `forceDelete()`, the physical DELETE may already have
+completed. The instance remains marked deleted, and later delete or restore calls reject.
+
+## Serialisation, factories, and seeders
+
+`deletedAt` serializes as a date-time value by default. The undecorated `trashed` getter does not serialize. `serializeAs: null` hides the timestamp from serialized output without changing persistence or `trashed`. A renamed database column still serializes under the model property name unless `serializeAs` also changes:
+
+```ts
+import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { compose } from '@adonisjs/core/helpers'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import type { DateTime } from 'luxon'
+
+class User extends compose(BaseModel, SoftDeletes) {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column.dateTime({ columnName: 'removed_at', serializeAs: null })
+  declare deletedAt: DateTime | null
+}
+```
+
+If a `select()` omits `deletedAt`, the loaded instance reports `trashed === false`: the getter reflects loaded attributes, not database state. Include `deletedAt` when checking it on a projection. A Lucid factory can set `deletedAt = DateTime.local()` in a `state('trashed')` callback; the created row then appears through `withTrashed()`. A seeder using `updateOrCreate()` against a trashed row may attempt an insert. If a unique constraint still covers the trashed value, the database rejects it. Fetch with `withTrashed()` and explicitly decide whether to restore or update it. A soft delete inside a Lucid transaction rolls back with the transaction.
+
+## Uniqueness
+
+Choose a database constraint based on whether a value can be reused after deletion. PostgreSQL and SQLite support a partial unique index that excludes trashed rows:
+
+```sql
+CREATE UNIQUE INDEX users_active_email_unique ON users (email)
+WHERE deleted_at IS NULL;
+```
+
+MySQL has no partial unique indexes. A plain `(email, deleted_at)` unique index does **not** enforce uniqueness among active rows because multiple `NULL` values are distinct. Use a generated column holding the email only for active rows, then index it:
+
+```sql
+ALTER TABLE users
+  ADD COLUMN active_email VARCHAR(255)
+    GENERATED ALWAYS AS (IF(deleted_at IS NULL, email, NULL)) STORED,
+  ADD UNIQUE KEY users_active_email_unique (active_email);
+```
+
+Match the generated column type and length to your email column. Application-side checks can race and do not replace a unique constraint. With an active-only index, restoring a trashed row whose email has since been reused fails with a database uniqueness error; the other row remains unchanged. Resolve the conflict before retrying `restore()` on the same trashed instance.
+
+## Migration from 2.1.0
+
+- Install `@kevinjohn/lucid-soft-deletes` and configure `@kevinjohn/lucid-soft-deletes/provider`.
+- Upgrade to AdonisJS core 7, Lucid 22, and Node.js 24. Luxon 3.4.4 or newer within 3.x is a required peer.
+- `trashed` is `false` when `deletedAt` is unset.
+- OR conditions are grouped before the default or `onlyTrashed()` filter is applied. `onlyTrashed()` adds its predicate at execution time.
+- `withTrashed()` and `onlyTrashed()` modes survive builder clones, pagination, and relation-builder clones. Base table aliases are supported.
+- `refresh()` works on a trashed instance and loads `deletedAt`.
+- Builder `restore()` affects trashed rows only, groups existing predicates, and returns the affected count.
+- `deleteQuietly()` soft-deletes without running hooks.
+- A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
+- Repeating `delete()` on an already-trashed instance skips the write when `deletedAt` is unchanged, even if other attributes are dirty. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
+- Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
+- The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
+- Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [Known internals](#known-internals).
+- No schema changes are required.
+
+## Not in alpha: relationship aggregates
+
+Related-model fetch hooks do not run for Lucid 22 relationship aggregate and existence subqueries. `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` include trashed related rows in this alpha. Automatic scoping is deferred to beta. Define an explicitly scoped relation where an aggregate must count only active rows:
+
+```ts
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { compose } from '@adonisjs/core/helpers'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import Post from '#models/post'
+
+class User extends compose(BaseModel, SoftDeletes) {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @hasMany(() => Post, {
+    onQuery: (query) => query.whereNull('deleted_at'),
+  })
+  declare activePosts: HasMany<typeof Post>
+}
+
+const usersWithActivePostCounts = await User.query().withCount('activePosts')
+```
+
+This recipe is tested for `withCount` in `tests/unit/scope_bypass.spec.ts`. Adapt the column reference for custom names or aliases.
+
+## Non-goals
+
+- No general global-scope framework; this mixin concerns `deleted_at` only.
+- No cascade soft delete or restore. Child and pivot rows remain after a parent soft delete; `forceDelete()` follows the database's foreign-key and cascade rules.
+- No bulk soft delete, builder `forceDelete()`, or migration generator beyond `configure` registering the provider.
+- No AdonisJS 5 or 6 support. AdonisJS 6 users can stay on upstream 2.1.0.
+- No `adonis-lucid-filter` compatibility promise while its available release targets older AdonisJS and Lucid peers.
+
+## Support promise
+
+This package supports the current AdonisJS major. When the next major ships, the previous line receives fixes for six months. Report bugs and security issues through [GitHub issues](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues). There is no response-time promise.
+
+## TypeScript floor
+
+Use TypeScript 5.9 or newer. TypeScript is not a package peer dependency.
+
 ## Contributing
 
-Use Node.js 24 and pnpm 11. The default suite uses SQLite. To run it against PostgreSQL 16 on
+Use Node.js 24 and pnpm 11. The default suite uses SQLite. Run the repository checks through these scripts:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm test
+```
+
+To run the runtime suite against PostgreSQL 16 on
 macOS, start the local service and create the test database:
 
 ```bash
@@ -373,9 +266,23 @@ pnpm test:consumer
 pnpm test:consumer --compatibility=minimum
 ```
 
-[npm-image]: https://img.shields.io/npm/v/@kevinjohn/lucid-soft-deletes?logo=npm&style=for-the-badge
-[npm-url]: https://www.npmjs.com/package/@kevinjohn/lucid-soft-deletes
-[license-image]: https://img.shields.io/npm/l/@kevinjohn/lucid-soft-deletes?style=for-the-badge&color=blueviolet
-[license-url]: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/LICENSE.md
-[typescript-image]: https://img.shields.io/npm/types/@kevinjohn/lucid-soft-deletes?color=294E80&label=%20&logo=typescript&style=for-the-badge
-[typescript-url]: https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete
+## Known internals
+
+Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
+`applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
+The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
+`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
+
+For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
+`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
+`orm/relations/many_to_many/query_builder.js`). The soft-delete filter must be added to the inner
+Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
+The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
+for group-limited execution. Its table alias is also read from that inner builder when qualifying
+`deletedAt`.
+The package detects that path by inspecting SQL generated from a clone; it never previews the query
+that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
+
+On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
+before the relation key and soft-delete filter. Builder `restore()` does not support a prior
+`returning()` clause.

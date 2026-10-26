@@ -127,3 +127,27 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Create a unique temporary PostgreSQL schema for each packed consumer run, pass it through the fixture's Lucid `searchPath` configuration, and drop it after the run.
 - **Reason:** The app's migrations otherwise leave `users` and migration metadata in the shared test database. A later run may skip its migration and pass against an earlier run's table.
 - **Evidence:** The gate checks the app connection's selected schema before Ace runs, confirms the migration created `users` there, then removes the schema on success and failure. Lucid's `schema_generate.js:60-73` reads the connection's `searchPath` for table discovery; without that setting it scans `public` even when the session has another search path. On a clean database, both latest and exact minimum modes scan zero tables before migration and one `users` table afterward, generate `deletedAt`, and leave no public or temporary schema tables. The root PostgreSQL suite passes after these runs.
+
+## 2026-10-25: Test persistence boundaries with database constraints
+
+- **Decision:** Characterize factory and seeder behavior through real unique constraints, test active-only uniqueness and restore conflicts on PostgreSQL, and exercise parent relations and physical-delete foreign-key behavior on both database dialects.
+- **Reason:** Soft-delete query filtering does not alter uniqueness or foreign-key enforcement. A rejected restore must leave the newer active row unchanged, and deleting a parent must follow the database's configured cascade rule.
+- **Evidence:** WP7 adds serialization, factory/seeder, PostgreSQL partial-index and cascade tests. A restore-conflict regression also verifies retry on the same instance after the collision is resolved. The integrated suite passes 100 tests with two PostgreSQL-only cases skipped on SQLite, and 102 tests on PostgreSQL 16. Focused mutation checks failed at the intended assertions before restoration.
+
+## 2026-10-25: Keep publication and upstream communication as owner steps
+
+- **Decision:** Document manual alpha publication and prepare an upstream issue-32 comment as a draft. Leave the changelog release date for the owner and retain the README comment placeholder until the upstream comment is posted.
+- **Reason:** The PRD reserves package publication, tagging and the upstream communication to the owner after the release checks and merges.
+- **Evidence:** `docs/RELEASING.md` lists the manual checks and commands; `docs/upstream-comment.md` is an unposted draft. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
+
+## 2026-10-25: Follow the specified CI legs and run the full peer/database combination locally
+
+- **Decision:** Keep the WP1 and WP6 CI jobs as specified: the root suite on both databases, peer-update jobs on PostgreSQL, the latest packed consumer on SQLite, and the minimum packed consumer on PostgreSQL. Verify the other packed consumer combinations locally.
+- **Reason:** The PRD's work-package commands define these CI legs, while its broader acceptance language asks for evidence on both databases and peer modes. The local cross-product closes that evidence gap without adding unrequested CI jobs.
+- **Evidence:** Latest and exact minimum packed consumers pass on both SQLite and PostgreSQL 16; a disposable exact-minimum checkout passes the root PostgreSQL suite and minimum packed consumer gate. GitHub Actions jobs remain unable to start because of the account billing restriction.
+
+## 2026-10-25: Require passing CI before merging the work-package stack
+
+- **Decision:** Hold WP1–WP7 merges until the required GitHub Actions checks run and pass. Local verification supports the implementation but does not replace the merge gate.
+- **Reason:** The repository owner chose to wait for CI after the runner jobs failed before starting.
+- **Evidence:** PRs #2–#8 remain open. The check annotations report an account payment or spending-limit restriction; the complete local suites and packed consumer modes passed.
