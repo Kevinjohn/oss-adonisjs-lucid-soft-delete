@@ -37,13 +37,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [pg, better-sqlite3]
+        database: [pg, better-sqlite3, mysql]
     env:
       DB_CLIENT: ${{ matrix.database }}
       DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PORT: ${{ matrix.database == 'mysql' && 3306 || 5432 }}
+      DB_USER: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
+      DB_PASSWORD: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
       DB_DATABASE: lucid_soft_deletes_test
     services:
       postgres:
@@ -59,6 +59,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      mysql:
+        image: ${{ matrix.database == 'mysql' && 'mysql:8.4' || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lucid_soft_deletes_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

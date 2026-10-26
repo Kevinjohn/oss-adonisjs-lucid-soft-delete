@@ -64,7 +64,11 @@ test.group('Soft-delete factories, seeders, and transactions', (group) => {
       (cause: unknown) => cause
     )
     assert.isDefined(error, 'updateOrCreate should violate the unique constraint')
-    assert.oneOf((error as { code?: string }).code, ['23505', 'SQLITE_CONSTRAINT_UNIQUE'])
+    assert.oneOf((error as { code?: string }).code, [
+      '23505',
+      'ER_DUP_ENTRY',
+      'SQLITE_CONSTRAINT_UNIQUE',
+    ])
 
     const persisted = await RelationUser.withTrashed().where('id', user.id).firstOrFail()
     assert.isTrue(persisted.trashed)

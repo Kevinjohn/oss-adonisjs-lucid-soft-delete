@@ -24,13 +24,18 @@ import { DateTime } from 'luxon'
 import { SoftDeletes } from '../../src/mixin.js'
 import { E_MODEL_NOT_PERSISTED } from '../../src/errors.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from '../helpers.js'
+import { createDatabase, createTables, dbClient } from '../helpers.js'
 
 class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
   static events: string[] = []
   static failOn:
-    'beforeSave' | 'beforeDelete' | 'afterUpdate' | 'afterSave' | 'afterDelete' | null = null
+    | 'beforeSave'
+    | 'beforeDelete'
+    | 'afterUpdate'
+    | 'afterSave'
+    | 'afterDelete'
+    | null = null
   static shiftDeletedAt = false
 
   @column({ isPrimary: true })
@@ -313,9 +318,9 @@ test.group('Soft-delete lifecycle', (group) => {
     await schema.dropTableIfExists('lifecycle_children')
     await schema.createTable('lifecycle_children', (table) => {
       table.increments()
-      table.integer('user_id').notNullable().references('users.id')
+      table.integer('user_id').unsigned().notNullable().references('users.id')
     })
-    if (process.env.DB_CLIENT !== 'pg') {
+    if (dbClient === 'sqlite') {
       await db.connection().raw('PRAGMA foreign_keys = ON')
     }
     const record = await seedRecord()

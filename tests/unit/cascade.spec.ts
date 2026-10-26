@@ -11,7 +11,7 @@ import { getActiveTest, test } from '@japa/runner'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { createDatabase } from '../helpers.js'
+import { createDatabase, dbClient } from '../helpers.js'
 import { SoftDeletes } from '../../src/mixin.js'
 
 test.group('Cascade boundaries', () => {
@@ -20,9 +20,7 @@ test.group('Cascade boundaries', () => {
   }) => {
     const db = await createDatabase()
     const connection = db.connection()
-    const isPostgres = process.env.DB_CLIENT === 'pg'
-
-    if (!isPostgres) await db.rawQuery('PRAGMA foreign_keys = ON')
+    if (dbClient === 'sqlite') await db.rawQuery('PRAGMA foreign_keys = ON')
 
     const tables = ['parent_pivot', 'children_cascade', 'children_restrict', 'parents', 'tags']
     getActiveTest()?.cleanup(async () => {
@@ -39,16 +37,21 @@ test.group('Cascade boundaries', () => {
       table.string('name').notNullable()
     })
     await connection.schema.createTable('parent_pivot', (table) => {
-      table.integer('parent_id').notNullable().references('parents.id')
-      table.integer('tag_id').notNullable().references('tags.id')
+      table.integer('parent_id').unsigned().notNullable().references('parents.id')
+      table.integer('tag_id').unsigned().notNullable().references('tags.id')
     })
     await connection.schema.createTable('children_restrict', (table) => {
       table.increments('id').primary()
-      table.integer('parent_id').notNullable().references('parents.id')
+      table.integer('parent_id').unsigned().notNullable().references('parents.id')
     })
     await connection.schema.createTable('children_cascade', (table) => {
       table.increments('id').primary()
-      table.integer('parent_id').notNullable().references('parents.id').onDelete('CASCADE')
+      table
+        .integer('parent_id')
+        .unsigned()
+        .notNullable()
+        .references('parents.id')
+        .onDelete('CASCADE')
     })
 
     class Parent extends compose(BaseModel, SoftDeletes) {
@@ -129,7 +132,9 @@ test.group('Cascade boundaries', () => {
     assert.exists(foreignKeyError)
     assert.equal(
       (foreignKeyError as { code?: string }).code,
-      isPostgres ? '23503' : 'SQLITE_CONSTRAINT_FOREIGNKEY'
+      { pg: '23503', mysql: 'ER_ROW_IS_REFERENCED_2', sqlite: 'SQLITE_CONSTRAINT_FOREIGNKEY' }[
+        dbClient
+      ]
     )
     assert.isNotNull(await connection.from('parents').where('id', restrictedParent.id).first())
 
