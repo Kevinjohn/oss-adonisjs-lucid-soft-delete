@@ -336,4 +336,40 @@ test.group('Read scope', (group) => {
       [active.id]
     )
   })
+
+  test('keeps caller predicates when a builder executes more than once', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const owner = await createUser('owner')
+    const other = await createUser('other')
+    await createUser('trashed-owner', true)
+    const ownPost = await RelationPost.create({ userId: owner.id, title: 'own' })
+    await RelationPost.create({ userId: other.id, title: 'other' })
+
+    const loadedOwner = await RelationUser.findOrFail(owner.id)
+    const relatedQuery = loadedOwner.related('posts').query()
+    const userQuery = User.query().where('username', 'owner').orWhere('username', 'trashed-owner')
+    const pageQuery = User.query().where('username', 'other')
+
+    for (let run = 0; run < 2; run++) {
+      const posts = await relatedQuery
+      const users = await userQuery
+      assert.deepEqual(
+        posts.map((post) => post.id),
+        [ownPost.id]
+      )
+      assert.deepEqual(
+        users.map((user) => user.id),
+        [owner.id]
+      )
+    }
+    const page = await pageQuery.paginate(1)
+    const first = await pageQuery.firstOrFail()
+    assert.deepEqual(
+      page.all().map((user) => user.id),
+      [other.id]
+    )
+    assert.equal(first.id, other.id)
+    assert.equal((userQuery.toQuery().match(/deleted_at/g) ?? []).length, 1)
+  })
 })

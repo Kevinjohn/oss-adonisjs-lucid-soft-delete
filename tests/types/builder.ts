@@ -10,6 +10,7 @@
 /** Compile-time contracts for soft-delete builder macros. */
 
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
+import type { SoftDeletesModel } from '../../index.js'
 import type { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { User } from './mixin.js'
 
@@ -36,4 +37,15 @@ export function assertBuilderTypeContracts(): void {
   const bare = undefined as unknown as ModelQueryBuilder
   // @ts-expect-error BARE_BUILDER_HAS_NO_PROVEN_SOFT_DELETE_CAPABILITY
   bare.withTrashed()
+}
+
+/** A helper written once for every soft-delete model keeps the macros. */
+export function includeTrashed<Model extends SoftDeletesModel>(
+  query: ModelQueryBuilderContract<Model>
+): ModelQueryBuilderContract<Model> {
+  return query.withTrashed()
+}
+
+export function restoreTrashed<Model extends SoftDeletesModel>(model: Model): Promise<number> {
+  return model.query().onlyTrashed().restore()
 }

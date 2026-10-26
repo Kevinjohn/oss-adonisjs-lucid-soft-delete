@@ -289,6 +289,7 @@ completed. The instance remains marked deleted, and later delete or restore call
 - A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
 - Repeating `delete()` on an unchanged trashed instance is a no-op. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
 - Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
+- The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
 - Group-limited preload callbacks retain the scoped OR grouping in the tested Lucid 22 release. See [Known internals](#known-internals).
 - No schema changes are required.
 
