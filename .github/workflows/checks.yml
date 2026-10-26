@@ -3,18 +3,36 @@ name: checks
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/FUNDING.yml'
+      - '.github/pull_request_template.md'
+      - '.github/workflows/codeql.yml'
+      - '.github/workflows/scorecard.yml'
   pull_request:
+    paths-ignore:
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/FUNDING.yml'
+      - '.github/pull_request_template.md'
+      - '.github/workflows/codeql.yml'
+      - '.github/workflows/scorecard.yml'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
+# A newer push to the same branch or pull request cancels the older run. Release runs keep their
+# own group because a called workflow takes the caller's name.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   checks:
+    # Push and pull request runs start once the repository is public, where hosted minutes are
+    # free. Manual and release runs always start.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -29,7 +47,7 @@ jobs:
       DB_DATABASE: lucid_soft_deletes_test
     services:
       postgres:
-        image: postgres:16
+        image: ${{ matrix.database == 'pg' && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -60,6 +78,9 @@ jobs:
         run: pnpm test:consumer
 
   min-peers:
+    # Push and pull request runs start once the repository is public, where hosted minutes are
+    # free. Manual and release runs always start.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
     env:
       DB_CLIENT: pg
@@ -99,6 +120,9 @@ jobs:
       - run: pnpm test:consumer --compatibility=minimum
 
   latest-peers:
+    # Push and pull request runs start once the repository is public, where hosted minutes are
+    # free. Manual and release runs always start.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
     env:
       DB_CLIENT: pg
