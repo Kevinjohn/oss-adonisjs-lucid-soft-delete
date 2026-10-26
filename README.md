@@ -188,6 +188,7 @@ Match the generated column type and length to your email column. Application-sid
 - A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
 - Repeating `delete()` on an already-trashed instance skips the write when `deletedAt` is unchanged, even if other attributes are dirty. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
 - Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
+- The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
 - Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [Known internals](#known-internals).
 - No schema changes are required.
 
