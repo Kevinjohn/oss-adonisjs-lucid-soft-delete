@@ -99,6 +99,7 @@ query is cloned or paginated.
 | Clones, pagination count queries, and preload callbacks                                                            | Preserve the selected mode                                                                             | `tests/unit/scope.spec.ts`: `with-trashed mode adds no filter and survives a clone`; `only-trashed mode survives a clone`; `pagination count inherits with-trashed mode`; `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`                                                                                                |
 | Aliased base tables and self-joins                                                                                 | Qualifies the scope against the base alias or table                                                    | `tests/unit/scope.spec.ts`: `uses object and string aliases for the base table`; `qualifies the base table in a self join`                                                                                                                                                                                                                                                                    |
 | Group-limited has-many and many-to-many preloads                                                                    | Apply the filter before each parent's limit                                                             | `tests/unit/group_limit.spec.ts`: `scopes has-many rows before applying per-parent limits in each mode`; `scopes many-to-many rows before applying per-parent limits in each mode`                                                                                                                                                                                                        |
+| Reusing a builder: awaiting the same query twice, `paginate()` then `first()`, or builder `restore()` twice        | Keeps the caller's predicates; the scope filter is replaced on each run, not stacked                   | `tests/unit/scope.spec.ts`: `keeps caller predicates when a builder executes more than once`; `tests/unit/builder_restore.spec.ts`: `keeps caller predicates when the same builder restores twice`                                                                                                                                                                                            |
 
 For a has-many-through relation, the related target is scoped, while the intermediate model is
 joined without its own scope. An active comment can therefore be returned through a soft-deleted
@@ -272,6 +273,14 @@ Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and cal
 `applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
 The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
 `Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
+
+The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
+into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
+`applyWhere()` empties `whereStack` when it holds several groups
+(`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
+builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
+change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
+`tests/unit/scope.spec.ts` and `tests/unit/builder_restore.spec.ts` cover it.
 
 For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
 `adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
