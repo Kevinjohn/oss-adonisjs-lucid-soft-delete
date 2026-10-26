@@ -11,12 +11,10 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
-import {
-  addScopeFilter,
-  installModePropagation,
-  resolveTableReference,
-  setSoftDeletesMode,
-} from '../scope.js'
+import { setSoftDeletesMode } from '../mode.js'
+import { installModePropagation } from '../propagation.js'
+import { resolveTableReference } from '../table_reference.js'
+import { addScopeFilter } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
