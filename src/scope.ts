@@ -48,17 +48,8 @@ function replayGroups(query: GroupedQuery, knexQuery: KnexWhere, groups: WhereNo
   }
 }
 
-/**
- * Add the scope filter after the caller's predicates as one where group.
- * Lucid's `applyWhere()` empties `whereStack` when it holds several groups, which would drop the
- * caller's predicates when a builder runs twice. A filter from an earlier run is replaced.
- */
-export function addScopeFilter(
-  query: ModelQueryBuilderContract<LucidModel>,
-  filter: 'whereNull' | 'whereNotNull',
-  reference: string
-): void {
-  const grouped = query as unknown as GroupedQuery
+/** Collect the caller's where groups, unwrapping a replay node and dropping scope filters. */
+function collectGroups(grouped: GroupedQuery): WhereNode[][] {
   const groups: WhereNode[][] = []
   for (const collection of grouped.whereStack) {
     let target: WhereNode[] | undefined
@@ -73,7 +64,11 @@ export function addScopeFilter(
       }
     }
   }
+  return groups
+}
 
+/** Keep the caller's groups in one non-draining where group. */
+function rebuildStack(grouped: GroupedQuery, groups: WhereNode[][]): void {
   grouped.whereStack = [[]]
   if (groups.length) {
     grouped.whereStack[0].push({
@@ -82,8 +77,31 @@ export function addScopeFilter(
       [SCOPE_NODE]: groups,
     })
   }
+}
+
+/**
+ * Add the scope filter after the caller's predicates as one where group.
+ * Lucid's `applyWhere()` empties `whereStack` when it holds several groups, which would drop the
+ * caller's predicates when a builder runs twice. A filter from an earlier run is replaced.
+ */
+export function addScopeFilter(
+  query: ModelQueryBuilderContract<LucidModel>,
+  filter: 'whereNull' | 'whereNotNull',
+  reference: string
+): void {
+  const grouped = query as unknown as GroupedQuery
+  rebuildStack(grouped, collectGroups(grouped))
   query[filter](reference)
   grouped.whereStack[0].at(-1)![SCOPE_NODE] = true
+}
+
+/** Remove a scope filter left by an earlier run. A builder that never ran is left untouched. */
+export function removeScopeFilter(query: ModelQueryBuilderContract<LucidModel>): void {
+  const grouped = query as unknown as GroupedQuery
+  const hasFilter = grouped.whereStack.some((collection) =>
+    collection.some((node) => node[SCOPE_NODE] === true)
+  )
+  if (hasFilter) rebuildStack(grouped, collectGroups(grouped))
 }
 
 function aliasFromTable(table: unknown): string | undefined {
@@ -127,7 +145,7 @@ export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
     isGroupLimit && inner && typeof inner === 'object'
       ? getSoftDeletesMode(inner)
       : getSoftDeletesMode(query)
-  if (mode === 'with') return
+  if (mode === 'with') return removeScopeFilter(query)
 
   const column = query.model.$getColumn('deletedAt')?.columnName
   if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
