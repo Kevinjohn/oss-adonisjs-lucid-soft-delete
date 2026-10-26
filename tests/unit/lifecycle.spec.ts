@@ -30,12 +30,7 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
   static events: string[] = []
   static failOn:
-    | 'beforeSave'
-    | 'beforeDelete'
-    | 'afterUpdate'
-    | 'afterSave'
-    | 'afterDelete'
-    | null = null
+    'beforeSave' | 'beforeDelete' | 'afterUpdate' | 'afterSave' | 'afterDelete' | null = null
   static shiftDeletedAt = false
 
   @column({ isPrimary: true })
