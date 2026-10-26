@@ -190,7 +190,7 @@ Match the generated column type and length to your email column. Application-sid
 - Repeating `delete()` on an already-trashed instance skips the write when `deletedAt` is unchanged, even if other attributes are dirty. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
 - Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
 - The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
-- Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [Known internals](#known-internals).
+- Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [docs/INTERNALS.md](docs/INTERNALS.md).
 - No schema changes are required.
 
 ## Not in alpha: relationship aggregates
@@ -242,29 +242,6 @@ checks, and the pull request conventions. Security reports follow [SECURITY.md](
 
 ## Known internals
 
-Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
-`applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
-The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
-`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
-
-The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
-into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
-`applyWhere()` empties `whereStack` when it holds several groups
-(`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
-builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
-change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
-`tests/unit/scope.spec.ts` and `tests/unit/builder_restore.spec.ts` cover it.
-
-For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
-`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
-`orm/relations/many_to_many/query_builder.js`). The soft-delete filter must be added to the inner
-Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
-The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
-for group-limited execution. Its table alias is also read from that inner builder when qualifying
-`deletedAt`.
-The package detects that path by inspecting SQL generated from a clone; it never previews the query
-that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
-
-On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
-before the relation key and soft-delete filter. Builder `restore()` does not support a prior
-`returning()` clause.
+The scope relies on a few Lucid 22 internals: the `applyQueryFlags()` clone hook, the `whereStack`
+rewrite, and group-limit subquery detection. [docs/INTERNALS.md](docs/INTERNALS.md) names each one, where
+it lives in Lucid, and the tests that cover it.
