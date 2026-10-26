@@ -11,16 +11,34 @@ import { DateTime } from 'luxon'
 import type { NormalizeConstructor } from '@adonisjs/core/types/helpers'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
-import { Exception } from '@adonisjs/core/exceptions'
 import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid/orm'
 import type { BaseModel } from '@adonisjs/lucid/orm'
 import { applyScope, getSoftDeletesMode, setSoftDeletesMode } from './scope.js'
+import { E_MODEL_FORCE_DELETED, E_MODEL_NOT_PERSISTED } from './errors.js'
 
 type ModelQueryBuilderContractWithIgnoreDeleted<
   T extends LucidModel,
   R = InstanceType<T>,
 > = ModelQueryBuilderContract<T, R> & {
   softDeletesMode?: 'default' | 'with' | 'only'
+}
+
+/** Restore the previous value only when Lucid did not complete its write. */
+async function persistDeletedAt(
+  model: InstanceType<typeof BaseModel> & { deletedAt?: DateTime | null },
+  value: DateTime | null,
+  quietly = false
+): Promise<void> {
+  const previous = model.deletedAt
+  const originalsBeforeSave = model.$original
+  model.deletedAt = value
+  try {
+    if (quietly) await model.saveQuietly()
+    else await model.save()
+  } catch (error) {
+    if (model.$original === originalsBeforeSave) model.deletedAt = previous
+    throw error
+  }
 }
 
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(superclass: T) {
@@ -93,7 +111,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      * Computed trashed property
      */
     get trashed(): boolean {
-      return this.deletedAt !== null
+      return this.deletedAt !== null && this.deletedAt !== undefined
     }
 
     /**
@@ -106,10 +124,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
       /**
        * Soft Delete
        */
-      const softDelete = async (): Promise<void> => {
-        this.deletedAt = DateTime.local()
-        await this.save()
-      }
+      const softDelete = (): Promise<void> => persistDeletedAt(this, DateTime.local())
 
       if (action === 'delete' && !this.$forceDelete) {
         return { del: softDelete, delete: softDelete }
@@ -123,8 +138,29 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      * Override default delete method
      */
     async delete(): Promise<void> {
-      await super.delete()
-      this.$isDeleted = this.$forceDelete
+      if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
+      if (this.$isDeleted) return super.delete()
+      if (this.$forceDelete) {
+        await super.delete()
+        return
+      }
+      if (this.trashed && !('deletedAt' in this.$dirty)) return
+      try {
+        await super.delete()
+      } finally {
+        this.$isDeleted = false
+      }
+    }
+
+    async deleteQuietly(): Promise<void> {
+      if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
+      if (this.$isDeleted) return super.deleteQuietly()
+      if (this.$forceDelete) {
+        await super.deleteQuietly()
+        return
+      }
+      if (this.trashed && !('deletedAt' in this.$dirty)) return
+      await persistDeletedAt(this, DateTime.local(), true)
     }
 
     /**
@@ -132,16 +168,12 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      */
     async restore(): Promise<this> {
       if (this.$isDeleted) {
-        throw new Exception('Cannot restore a model instance is was force deleted', {
-          code: 'E_MODEL_FORCE_DELETED',
-          status: 500,
-        })
+        throw new E_MODEL_FORCE_DELETED()
       }
       if (!this.trashed) {
         return this
       }
-      this.deletedAt = null
-      await this.save()
+      await persistDeletedAt(this, null)
 
       return this
     }
@@ -150,8 +182,13 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(su
      * Force delete model
      */
     async forceDelete(): Promise<void> {
+      const previous = this.$forceDelete
       this.$forceDelete = true
-      await this.delete()
+      try {
+        await this.delete()
+      } finally {
+        this.$forceDelete = previous
+      }
     }
   }
   return ModelWithSoftDeletes

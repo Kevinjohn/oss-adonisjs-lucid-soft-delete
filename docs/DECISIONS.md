@@ -55,3 +55,27 @@ This log records implementation decisions made while delivering version 3.0.0-al
 - **Decision:** Apply the default scope to the related target model in has-many-through queries, without implicitly filtering the joined intermediate model.
 - **Reason:** Lucid executes fetch hooks for the relation query's target model; joined models do not independently run their model hooks. The PRD excludes automatic scoping for joins and requires the related target to be scoped.
 - **Evidence:** The has-many-through test shows an active related comment remains visible through a deleted post, while nested preload scopes the posts and their separately fetched comments. README documents an explicit qualified condition for callers who require an active intermediate row.
+
+## 2026-10-25: Keep instance delete semantics separate from bulk writes
+
+- **Decision:** Instance `delete()` and `deleteQuietly()` soft-delete through model saves; builder `delete()` and `del()` remain physical bulk deletes. Instance restore is a no-op for active rows, while builder restore changes only trashed rows and returns the affected count.
+- **Reason:** Lucid model hooks and timestamps apply to instance saves. Bulk writes bypass those hooks by design, and their existing physical-delete behavior is retained.
+- **Evidence:** WP4 lifecycle and builder-restore tests exercise hook order, dirty attributes, failure recovery, grouped predicates, transaction clients, and physical builder deletes.
+
+## 2026-10-25: Reset force-delete state across success and failure
+
+- **Decision:** Restore the prior `$forceDelete` value in `finally`, preserve Lucid's deleted-instance guard before soft-delete no-op handling, and set `$isDeleted` only when Lucid's physical deletion resolves.
+- **Reason:** Reusing an instance after a failed delete must not silently switch its next `delete()` into a physical delete. A failure from an `afterDelete` hook occurs after the row is already gone and retains Lucid's deleted-instance state.
+- **Evidence:** WP4 lifecycle tests cover before-hook failure, database foreign-key failure, and after-hook failure.
+
+## 2026-10-25: Preserve modes across Lucid's group-limit outer query
+
+- **Decision:** Keep Lucid's group-limit query path and carry the selected soft-delete mode on its inner Knex builder. Resolve the inner table alias when qualifying the filter. Record that the OR leak described in the initial plan does not reproduce on Lucid 22.4.2.
+- **Reason:** Lucid creates a fresh outer model builder for grouped execution. Without mode propagation, its fetch hook applies the default predicate to the inner query even when the relation callback selected `withTrashed()` or `onlyTrashed()`. The tested SQL groups callback OR conditions before the relation key and soft-delete predicate.
+- **Evidence:** WP4 group-limit tests cover exact identities for has-many and many-to-many results on SQLite and PostgreSQL in each mode, and characterize OR grouping. The source touchpoints are Lucid's `orm/relations/has_many/query_builder.js` and `orm/relations/many_to_many/query_builder.js`.
+
+## 2026-10-25: Recover deletion state according to whether Lucid persisted the write
+
+- **Decision:** Detect whether Lucid replaced the model's `$original` object during `save()` to distinguish a pre-write failure from a hook failure after the database update. Restore the previous in-memory timestamp only when the write was not hydrated. Keep this helper lexical to the mixin module so subclasses cannot override it. Apply it to soft deletion, quiet deletion and restore.
+- **Reason:** Lucid replaces `$original` after the update and before `afterUpdate` and `afterSave` hooks. Comparing timestamps is insufficient because a before hook may change `deletedAt`. Reverting after a post-write hook failure would make the instance disagree with its persisted row; leaving a failed pre-write restore cleared would prevent retry on the same instance.
+- **Evidence:** Lifecycle regressions for pre-write restore failure, post-write delete/restore failure, and a hook-adjusted timestamp failed on the earlier WP4 implementation and pass on SQLite and PostgreSQL 16. The installed Lucid save sequence is `build/src/orm/base_model/index.js:1357-1358,1553-1559`.

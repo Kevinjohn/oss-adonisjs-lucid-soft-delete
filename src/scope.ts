@@ -86,11 +86,22 @@ export function addScopeFilter(
   grouped.whereStack[0].at(-1)![SCOPE_NODE] = true
 }
 
+function aliasFromTable(table: unknown): string | undefined {
+  if (typeof table === 'string') return table.match(/\s+as\s+(\w+)$/i)?.[1]
+  if (table && typeof table === 'object' && !Array.isArray(table)) {
+    const entries = Object.entries(table)
+    if (entries.length === 1 && typeof entries[0][1] === 'string') return entries[0][0]
+  }
+  return undefined
+}
+
 export function setSoftDeletesMode<Query extends object>(
   query: Query,
   mode: SoftDeletesMode
 ): Query {
   ;(query as ScopedQuery)[SOFT_DELETES_MODE] = mode
+  const knexQuery = (query as { knexQuery?: object }).knexQuery
+  if (knexQuery) (knexQuery as ScopedQuery)[SOFT_DELETES_MODE] = mode
   return query
 }
 
@@ -103,27 +114,32 @@ export function resolveTableReference(query: ModelQueryBuilderContract<LucidMode
   if (tableAlias) return tableAlias
 
   const table = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
-  if (typeof table === 'string') {
-    const alias = table.match(/\s+as\s+(\w+)$/i)?.[1]
-    if (alias) return alias
-  }
+  const alias = aliasFromTable(table)
+  if (alias) return alias
 
   return query.model.table
 }
 
 export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
-  const mode = getSoftDeletesMode(query)
+  const isGroupLimit = query.clone().toQuery().includes('adonis_group_limit_counter')
+  const inner = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
+  const mode =
+    isGroupLimit && inner && typeof inner === 'object'
+      ? getSoftDeletesMode(inner)
+      : getSoftDeletesMode(query)
   if (mode === 'with') return
 
   const column = query.model.$getColumn('deletedAt')?.columnName
   if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
 
-  const reference = `${resolveTableReference(query)}.${column}`
+  const innerTable = (inner as { _single?: { table?: unknown } } | undefined)?._single?.table
+  const tableReference = isGroupLimit
+    ? (aliasFromTable(innerTable) ?? resolveTableReference(query))
+    : resolveTableReference(query)
+  const reference = `${tableReference}.${column}`
   const filter = mode === 'only' ? 'whereNotNull' : 'whereNull'
-  const isGroupLimit = query.clone().toQuery().includes('adonis_group_limit_counter')
 
   if (isGroupLimit) {
-    const inner = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
     if (inner && typeof inner === 'object' && filter in inner) {
       ;(inner as FilterableQuery)[filter](reference)
       return
@@ -144,7 +160,7 @@ export function installModePropagation(builder: { prototype: object }): void {
     configurable: true,
     value(this: ScopedQuery, clone: ScopedQuery) {
       original.call(this, clone)
-      clone[SOFT_DELETES_MODE] = this[SOFT_DELETES_MODE]
+      setSoftDeletesMode(clone, getSoftDeletesMode(this))
       clone.tableAlias = this.tableAlias
     },
   })
