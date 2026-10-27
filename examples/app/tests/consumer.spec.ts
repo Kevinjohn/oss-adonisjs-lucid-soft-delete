@@ -8,7 +8,8 @@
  */
 
 import { test } from '@japa/runner'
-import { BaseModel, ModelQueryBuilder } from '@adonisjs/lucid/orm'
+import { DateTime } from 'luxon'
+import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import {
   E_MODEL_FORCE_DELETED,
   E_MODEL_NOT_PERSISTED,
@@ -82,4 +83,23 @@ test('installed bulk lifecycle macros return counts and preserve active rows whe
   assert.isNotNull(await User.find(active.id))
   assert.isNull(await User.withTrashed().where('id', target.id).first())
   await active.forceDelete()
+})
+
+class UtcUser extends User {
+  static table = 'users'
+
+  @column.dateTime({ serialize: (value: DateTime | null) => value?.toUTC().toISO() ?? null })
+  declare deletedAt: DateTime | null
+}
+
+test('installed model keeps a Luxon attribute and serializes UTC ISO', async ({ assert }) => {
+  const user = await UtcUser.create({
+    email: `utc-${Date.now()}-${Math.random()}@example.test`,
+    username: 'utc-recipe',
+  })
+  user.deletedAt = DateTime.fromISO('2026-10-27T07:30:19-04:00', { setZone: true })
+  await user.save()
+  assert.isTrue(DateTime.isDateTime(user.deletedAt))
+  assert.equal(user.serialize().deletedAt, '2026-10-27T11:30:19.000Z')
+  await user.forceDelete()
 })

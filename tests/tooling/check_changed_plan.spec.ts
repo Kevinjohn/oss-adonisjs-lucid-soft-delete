@@ -71,6 +71,37 @@ test.group('check:changed plan', () => {
       })
     })
 
+  for (const deleted of [false, true]) {
+    test(`shipped inputs select the consumer gate (${deleted ? 'deleted' : 'added or modified'})`)
+      .with([
+        'src/mixin.ts',
+        'providers/lucid_soft_deletes_provider.ts',
+        'index.ts',
+        'configure.ts',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+        'tsconfig.json',
+      ])
+      .run(({ assert }, path) => {
+        assert.isTrue(planChecks([{ path, deleted }]).consumer)
+      })
+  }
+
+  test('unshipped files do not select the consumer gate')
+    .with([
+      'tests/unit/x.spec.ts',
+      'tests/helpers.ts',
+      'bin/test.ts',
+      'README.md',
+      'docs/x.md',
+      '.github/workflows/checks.yml',
+      'build/index.js',
+      'tmp/x.ts',
+    ])
+    .run(({ assert }, path) => {
+      assert.isFalse(planChecks(changed(path)).consumer)
+    })
+
   test('package.json runs the consumer gate', ({ assert }) => {
     assert.isTrue(planChecks(changed('package.json')).consumer)
   })
