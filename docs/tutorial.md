@@ -8,14 +8,14 @@ through create, hide, list, restore, and permanent purge. No published release i
 
 Use Git, Node.js 24, pnpm 11, and a C/C++ toolchain supported by `better-sqlite3`. Work in a
 disposable directory: the walkthrough writes an `.env` file and SQLite database under the checkout.
-Run this block from that empty directory, using a checkout that contains this tutorial and the
-lifecycle implementation it describes:
+Run this block from that empty directory. It selects the immutable [verified example snapshot](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/tree/19bfb5bd3905f99a840a5f426478a3c7fb570302), so the source contains the service, migrations and companion tests even before these changes reach the default branch:
 
 <!-- setup: tutorial -->
 
 ```sh
-git clone https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete.git lucid-soft-delete
+git clone --no-checkout https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete.git lucid-soft-delete
 cd lucid-soft-delete
+git checkout --detach 19bfb5bd3905f99a840a5f426478a3c7fb570302
 pnpm install --frozen-lockfile
 pnpm build
 pnpm --dir examples/app install
@@ -173,7 +173,7 @@ confirmation UI.
 
 ## Release boundary and further evidence
 
-This tutorial targets the source checkout containing the lifecycle implementation. The fixture's
+This tutorial targets the immutable example snapshot selected above. Keep that revision when reproducing its results; use your installed release documentation when adapting it to an application. The fixture's
 `file:../../` dependency and `pnpm build` make the example runnable before that implementation is
 published. Consumers installing from a registry need a release that includes those lifecycle APIs;
 do not infer registry availability from this source-checkout walkthrough.
