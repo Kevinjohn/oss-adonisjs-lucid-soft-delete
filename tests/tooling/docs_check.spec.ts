@@ -301,4 +301,14 @@ test.group('Documentation checks', () => {
     )
     assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
   })
+  test('heading anchors preserve underscores and angle-bracket contents inside inline code', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      { 'README.md': '# `_private_`\n[Private](#_private_)\n## `Model<T>`\n[Generic](#modelt)\n' },
+      cleanup
+    )
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
+  })
 })

@@ -77,8 +77,15 @@ function anchors(markdown: Markdown): Set<string> {
     const base = heading
       .toLowerCase()
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/<[^>]+>/g, '')
-      .replace(/(?<![\p{L}\p{N}])_{1,2}([^_]+)_{1,2}(?![\p{L}\p{N}])/gu, '$1')
+      .replace(
+        /(`+)(.*?)\1|<[^>]+>|(?<![\p{L}\p{N}])_{1,2}([^_]+)_{1,2}(?![\p{L}\p{N}])/gu,
+        (
+          _match,
+          ticks: string | undefined,
+          code: string | undefined,
+          emphasis: string | undefined
+        ) => (ticks ? code! : (emphasis ?? ''))
+      )
       .replace(/[`*~]/g, '')
       .replace(/[^\p{L}\p{N}\s_-]/gu, '')
       .replace(/\s/g, '-')
