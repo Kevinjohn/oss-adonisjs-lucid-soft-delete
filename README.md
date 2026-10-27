@@ -115,16 +115,38 @@ intermediate row must be active. This behavior is covered by
 
 ## Destructive operations
 
-| Operation                    | Behavior                                                                                                                                | Result             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| Instance `delete()`          | Sets `deletedAt` and saves the instance, including other dirty attributes. Repeated calls skip the write when `deletedAt` is unchanged. | `Promise<void>`    |
-| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                               | `Promise<void>`    |
-| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                    | `Promise<void>`    |
-| Instance `restore()`         | Requires a persisted instance and a loaded `deletedAt` value on fetched models. Clears the timestamp on trashed rows; active instances are returned unchanged. Force-deleted models throw `E_MODEL_FORCE_DELETED`.                  | `Promise<this>`    |
-| Builder `delete()` / `del()` | Physically deletes matching rows, including active rows even after `onlyTrashed()` (see warning below).                                 | Lucid write result |
-| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                    | `Promise<number>`  |
-| Builder `softDelete()`       | Sets the mapped timestamp on matching active rows only; `onlyTrashed()` returns zero.                                                   | `Promise<number>`  |
-| Builder `forceDelete()`      | Physically deletes matching rows; `onlyTrashed()` preserves active rows.                                                                | `Promise<number>`  |
+| Operation                    | Eligible states                                                                                                | No-op / result                                                                     | Other dirty attributes                          | `updatedAt`                             | Hooks in order                                                                                       | Quiet behaviour            | Errors                                                                                                                    | Transaction / connection source                                   |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Instance `delete()`          | Persisted active or trashed; physically deleted instances reject                                               | Unchanged trashed timestamp: no write; otherwise `Promise<void>`                   | Saved on a write; retained in memory on a no-op | Auto-updated on a write when configured | `beforeDelete` → `beforeUpdate` → `beforeSave` → write → `afterUpdate` → `afterSave` → `afterDelete` | Use `deleteQuietly()`      | Persistence and hook errors propagate                                                                                     | Instance client, `useTransaction(trx)` or client used to fetch it |
+| Instance `deleteQuietly()`   | Same as instance `delete()`                                                                                    | Same no-op; `Promise<void>`                                                        | Same as instance `delete()`                     | Same as instance `delete()`             | None                                                                                                 | Uses `saveQuietly()`       | Persistence errors propagate                                                                                              | Instance client                                                   |
+| Instance `restore()`         | Persisted, not physically deleted; fetched instances must include `deletedAt` (including loaded `null`)        | Active: returns unchanged instance; trashed: clears timestamp and returns instance | Saved on a write; retained on active no-op      | Auto-updated on a write when configured | `beforeUpdate` → `beforeSave` → write → `afterUpdate` → `afterSave`                                  | No quiet restore API       | `E_MODEL_NOT_PERSISTED`, `E_MODEL_FORCE_DELETED`, `E_MODEL_UNKNOWN_DELETION_STATE`, persistence and hook errors propagate | Instance client                                                   |
+| Instance `forceDelete()`     | Persisted active or trashed; physically deleted instances reject                                               | Physical DELETE; `Promise<void>`; restores prior `$forceDelete` flag               | Not saved                                       | Unchanged                               | `beforeDelete` → write → `afterDelete`                                                               | No dedicated `forceDeleteQuietly()` method  | Persistence and hook errors propagate                                                                                     | Instance client                                                   |
+| Builder `restore()`          | Matching trashed rows, regardless of read mode                                                                 | Clears timestamp; `Promise<number>` affected count, including zero                 | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate; many-to-many and has-many-through relation builders reject                                        | Builder client / `useTransaction(trx)`                            |
+| Builder `softDelete()`       | Matching active rows in default or `withTrashed()` mode; `onlyTrashed()` touches zero                          | Sets timestamp; `Promise<number>` affected count                                   | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate; many-to-many and has-many-through relation builders reject                                        | Builder client / `useTransaction(trx)`                            |
+| Builder `forceDelete()`      | Matching active and trashed rows in default or `withTrashed()` mode; only trashed rows in `onlyTrashed()` mode | Physical DELETE; `Promise<number>` affected count                                  | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate; many-to-many and has-many-through relation builders reject                                        | Builder client / `useTransaction(trx)`                            |
+| Builder `delete()` / `del()` | Matching active and trashed rows; read modes do not select rows for these writes                               | Physical DELETE; Lucid write result                                                | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate                                                                                                    | Builder client / `useTransaction(trx)`                            |
+
+Instance soft-delete and restore saves use Lucid's column `prepare` functions. Builder operations run directly against
+mapped database columns, without instance column preparation, model hooks, or automatic timestamps.
+Fetch the complete deletion state before restoring a projection; `await partial.refresh()` loads it
+using the instance's client. Locally created and saved active instances may restore as a no-op.
+Calls to instance `delete()`, `deleteQuietly()` or `restore()` on an unpersisted model reject with
+`E_MODEL_NOT_PERSISTED`. A soft-deleted parent retains child and pivot rows; physical deletion follows
+database foreign-key rules. See the [Scope contract](#scope-contract) for operations bypassing fetch hooks.
+
+The package never opens its own transaction. Attach the caller's transaction using
+`useTransaction(trx)` or fetch with `query({ client: trx })`; named connection clients are preserved.
+Compose policy checks, mutations and application bookkeeping inside that same caller transaction.
+After-hooks run before commit and are not proof of durable success. Dispatch external effects only
+after the transaction resolves successfully; hooks do not provide an event bus or durability boundary.
+
+An outer rollback restores database rows, but does not rewind model attributes or Lucid's tracking
+state. After a soft delete or restore, `deletedAt`, `$original` and `$dirty` still reflect the completed
+save: dirty attributes were saved and originals hydrated. Discard and refetch the instance, or refresh
+a non-deleted instance before reusing it. After `forceDelete()` followed by rollback, the row exists
+again but the instance remains `$isDeleted`; `refresh()` rejects, so discard and refetch it.
+`$forceDelete` is restored to its prior value even on failure. An after-hook error can follow a
+successful SQL write; without a caller transaction, that write may already be durable.
 
 **Warning:** `withTrashed()` and `onlyTrashed()` are read modes. They are not applied to
 builder `delete()`, `del()`, `update()` or `increment()`. For example, this physically
@@ -160,26 +182,6 @@ A builder that has already run keeps the soft-delete filter from that run, so a 
 on the same builder removes only the rows that run's mode selected. Start a new query for a bulk
 write.
 
-Soft deletion runs the normal update and delete hooks in this order:
-
-```text
-beforeDelete → beforeUpdate → beforeSave → write → afterUpdate → afterSave → afterDelete
-```
-
-`deleteQuietly()` skips hooks. Calls to `delete()`, `deleteQuietly()`, or `restore()` on an
-unpersisted instance throw `E_MODEL_NOT_PERSISTED`. Restoring a fetched instance whose projection
-omitted `deletedAt` throws `E_MODEL_UNKNOWN_DELETION_STATE`; select `deletedAt` or call `refresh()`
-before restoring. `E_MODEL_NOT_PERSISTED` and `E_MODEL_UNKNOWN_DELETION_STATE` are exported from
-the package root. See the [Scope contract](#scope-contract) for builder writes and operations that
-bypass model fetch hooks.
-Transactions work through `useTransaction(trx)` and `query({ client: trx })`; builder `restore()`
-honors its query client. A soft-deleted parent retains child and pivot rows. A physical
-`forceDelete()` follows database foreign-key rules.
-
-On an already-trashed instance, both `delete()` and `deleteQuietly()` skip the write when `deletedAt` is unchanged. Any other dirty attributes remain in memory; call `save()` or `saveQuietly()` to persist them.
-
-If an `afterDelete` hook throws during `forceDelete()`, the physical DELETE may already have
-completed. The instance remains marked deleted, and later delete or restore calls reject.
 
 ## Serialisation, factories, and seeders
 
