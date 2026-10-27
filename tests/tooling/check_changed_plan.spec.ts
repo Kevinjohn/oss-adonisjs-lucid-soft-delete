@@ -19,6 +19,7 @@ test.group('check:changed plan', () => {
       typecheck: true,
       tests: ['tests/unit/scope.spec.ts'],
       consumer: false,
+      skipped: [],
     })
   })
 
@@ -52,12 +53,13 @@ test.group('check:changed plan', () => {
       typecheck: false,
       tests: [],
       consumer: false,
+      skipped: [],
     })
   })
 
   test('build, tmp and coverage output is ignored', ({ assert }) => {
     const plan = planChecks(changed('build/index.js', 'tmp/x.ts', 'coverage/lcov.info'))
-    assert.deepEqual(plan, { lint: [], typecheck: false, tests: [], consumer: false })
+    assert.deepEqual(plan, { lint: [], typecheck: false, tests: [], consumer: false, skipped: [] })
   })
 
   test('{$self} runs only the consumer gate')
@@ -68,6 +70,7 @@ test.group('check:changed plan', () => {
         typecheck: false,
         tests: [],
         consumer: true,
+        skipped: [],
       })
     })
 
@@ -143,6 +146,23 @@ test.group('check:changed plan', () => {
     const specOnly = planChecks([{ path: 'tests/unit/old.spec.ts', deleted: true }])
     assert.deepEqual(specOnly.tests, [])
     assert.isTrue(specOnly.typecheck)
+  })
+})
+
+test.group('check:changed --static plan', () => {
+  test('keeps changed specs but leaves out the unit suite and consumer gate', ({ assert }) => {
+    const plan = planChecks(changed('src/scope.ts', 'tests/unit/scope.spec.ts'), true)
+    assert.deepEqual(plan.tests, ['tests/unit/scope.spec.ts'])
+    assert.isFalse(plan.consumer)
+    assert.deepEqual(plan.skipped, ['unit suite', 'consumer'])
+    assert.deepEqual(plan.lint, ['src/scope.ts', 'tests/unit/scope.spec.ts'])
+    assert.isTrue(plan.typecheck)
+  })
+
+  test('skips nothing when the change selects no suite', ({ assert }) => {
+    const plan = planChecks(changed('tests/tooling/docs_check.spec.ts', 'README.md'), true)
+    assert.deepEqual(plan.tests, ['tests/tooling/docs_check.spec.ts'])
+    assert.deepEqual(plan.skipped, [])
   })
 })
 

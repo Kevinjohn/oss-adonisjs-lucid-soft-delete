@@ -16,6 +16,9 @@ still runs the full set. Changes to shipped source, package entry points, depend
 configuration also select the packed-consumer gate, which requires network access. Changes only
 to tests, `bin/` tooling, or prose do not select that gate. The fast local documentation check
 runs on every invocation, including prose-only changes; it does not fetch external URLs.
+`pnpm check:changed --static [base]` still runs changed spec files on their own but leaves out the
+full unit suite and the packed-consumer gate, printing a `skip` line for each. Use it per change
+when one full run covers several changes together.
 
 ## PostgreSQL
 
