@@ -36,8 +36,9 @@ test.group('Published cookbook recipes', (group) => {
   test('keeps tenant and ID predicates on batch delete and purge', async ({ assert }) => {
     const result = await softDeleteAndPurgeSelectedBatch(41)
     assert.equal(result.deleted, 2)
-    assert.equal(result.purged, 2)
-    assert.isFalse(result.selectedRowsRemain)
+    assert.equal(result.purged, 1)
+    assert.isFalse(result.purgedRowRemains)
+    assert.isTrue(result.restoredRowRemains)
     assert.isTrue(result.otherTenantRemains)
     assert.isTrue(result.unselectedSameTenantRemains)
     assert.isTrue(result.trashedOtherTenantRemains)
