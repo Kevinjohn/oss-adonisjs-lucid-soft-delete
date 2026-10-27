@@ -125,6 +125,12 @@ test.group('check:changed plan', () => {
     ])
   })
 
+  test('the documentation checker runs its own spec', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/docs_check.ts')).tests, [
+      'tests/tooling/docs_check.spec.ts',
+    ])
+  })
+
   test('deleted files select checks but are never passed to a tool', ({ assert }) => {
     const plan = planChecks([
       { path: 'tests/unit/old.spec.ts', deleted: true },
