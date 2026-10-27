@@ -122,8 +122,8 @@ function links(markdown: Markdown): { target: string; line: number }[] {
   }
   for (const [index, raw] of markdown.visible.entries()) {
     const code = [...raw.matchAll(/(`+).*?\1/g)]
-    const inCode = (index: number) =>
-      code.some((match) => index >= match.index! && index < match.index! + match[0].length)
+    const inCode = (offset: number) =>
+      code.some((match) => offset >= match.index! && offset < match.index! + match[0].length)
     const line = raw.replace(/(`+).*?\1/g, (match) => ' '.repeat(match.length))
     if (/^ {0,3}\[[^\]]+\]:/.test(line)) continue
     for (const match of line.matchAll(
