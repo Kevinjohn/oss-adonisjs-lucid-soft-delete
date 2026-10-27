@@ -145,17 +145,20 @@ test.group('Scope bypasses', (group) => {
     const { active, trashed } = await seedUsers(User)
     await trashed.delete()
     const trx = await db.transaction()
-    await User.query({ client: trx })
-      .from('users as selected')
-      .whereNotNull(`selected.${User.$getColumn('deletedAt')!.columnName}`)
-      .where((query) => query.where('id', active.id).orWhere('id', trashed.id))
-      .delete()
-    const remainingUsers = await trx.from('users')
-    assert.deepEqual(
-      remainingUsers.map((row) => row.id),
-      [active.id]
-    )
-    await trx.rollback()
+    try {
+      await User.query({ client: trx })
+        .from('users as selected')
+        .whereNotNull(`selected.${User.$getColumn('deletedAt')!.columnName}`)
+        .where((query) => query.where('id', active.id).orWhere('id', trashed.id))
+        .delete()
+      const remainingUsers = await trx.from('users')
+      assert.deepEqual(
+        remainingUsers.map((row) => row.id),
+        [active.id]
+      )
+    } finally {
+      await trx.rollback()
+    }
     assert.lengthOf(await db.from('users'), 2)
   })
 
