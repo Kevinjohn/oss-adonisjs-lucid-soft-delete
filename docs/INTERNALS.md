@@ -35,3 +35,23 @@ that will execute. This depends on Lucid/Knex internals and is covered by group-
 On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
 before the relation key and soft-delete filter. Builder `restore()` does not support a prior
 `returning()` clause.
+
+The `applyWhere()` wrapper has two branches: relation subqueries install their scope after
+relation constraints are prepared; other non-child builders reapply an existing scope node
+from anywhere in the where stack. Reapplication groups predicates appended by subclass hooks
+without rereading the mode or installing a missing filter. Fetch and paginate hooks still call
+`applyScope()` so group-limit detection runs at hook time, outside the wrapper.
+
+Builder `softDelete()` writes the mapped column with `DateTime.local()` formatted using the
+query client's dialect date-time format. Like builder `restore()`, it bypasses custom column
+preparation and instance hooks and leaves `updatedAt` unchanged. Each macro replaces earlier
+scope nodes while preserving caller predicates. `forceDelete()` removes an earlier lifecycle
+scope in default/with mode, or replaces it with `whereNotNull` in only mode.
+
+The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
+builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target
+to the pivot table for update and delete actions, which would mutate pivot rows instead of
+related models. `HasManyThroughQueryBuilder.applyConstraints()` filters update and delete
+actions with `whereIn(key, select * from through)`, which the database rejects. Has-many builders
+retain their normal relation constraint. As with builder `restore()`, a prior `returning()`
+clause is unsupported.

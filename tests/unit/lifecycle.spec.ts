@@ -22,7 +22,11 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { SoftDeletes } from '../../src/mixin.js'
-import { E_MODEL_NOT_PERSISTED } from '../../src/errors.js'
+import {
+  E_MODEL_FORCE_DELETED,
+  E_MODEL_NOT_PERSISTED,
+  E_MODEL_UNKNOWN_DELETION_STATE,
+} from '../../src/errors.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 
@@ -82,6 +86,19 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
     this.events.push('afterDelete')
     if (this.failOn === 'afterDelete') throw new Error('afterDelete failed')
   }
+}
+
+class CustomLifecycleRecord extends compose(BaseModel, SoftDeletes) {
+  static table = 'posts'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare title: string
+
+  @column.dateTime({ columnName: 'deletedAt' })
+  declare deletedAt?: DateTime | null
 }
 
 async function seedRecord(username = 'lifecycle') {
@@ -510,6 +527,63 @@ test.group('Soft-delete lifecycle', (group) => {
     )
   })
 
+  test('restore rejects an unpersisted model without writing or running hooks', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    statements.length = 0
+    const transaction = await db.transaction()
+
+    try {
+      for (const [withDeletedAt, useTransaction] of [
+        [false, false],
+        [true, false],
+        [true, true],
+      ] as const) {
+        const record = new LifecycleRecord()
+        record.fill({ username: 'unsaved-restore', email: 'unsaved-restore@example.test' })
+        if (withDeletedAt) record.deletedAt = DateTime.local()
+        if (useTransaction) record.useTransaction(transaction)
+        const attributesBefore = { ...record.$attributes }
+        const originalBefore = { ...record.$original }
+        const dirtyBefore = { ...record.$dirty }
+
+        try {
+          await record.restore()
+          assert.fail('Expected restore to reject an unpersisted instance')
+        } catch (error) {
+          assert.instanceOf(error, E_MODEL_NOT_PERSISTED)
+          assert.equal((error as { code: string }).code, E_MODEL_NOT_PERSISTED.code)
+          assert.equal((error as { status: number }).status, E_MODEL_NOT_PERSISTED.status)
+        }
+
+        assert.deepEqual(record.$attributes, attributesBefore)
+        assert.deepEqual(record.$original, originalBefore)
+        assert.deepEqual(record.$dirty, dirtyBefore)
+        assert.isFalse(record.$isPersisted)
+      }
+
+      assert.deepEqual(
+        statements.filter((sql) => /^(insert|update)\b/i.test(sql)),
+        []
+      )
+      assert.deepEqual(LifecycleRecord.events, [])
+    } finally {
+      await transaction.rollback()
+    }
+
+    assert.equal(
+      await db
+        .from('users')
+        .count('* as total')
+        .first()
+        .then((row) => row?.total),
+      0
+    )
+  })
+
   test('restore on an active model returns the same instance without writing', async ({
     assert,
   }) => {
@@ -524,5 +598,131 @@ test.group('Soft-delete lifecycle', (group) => {
 
     assert.strictEqual(restored, record)
     assert.deepEqual(LifecycleRecord.events, [])
+  })
+
+  test('restore rejects a fetched instance when deletedAt was not selected', async ({ assert }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const trashed = await seedRecord('unknown-trashed')
+    await trashed.delete()
+    const active = await seedRecord('unknown-active')
+    statements.length = 0
+
+    for (const record of await Promise.all([
+      LifecycleRecord.withTrashed().select('id').where('id', trashed.id).firstOrFail(),
+      LifecycleRecord.query().select('id').where('id', active.id).firstOrFail(),
+    ])) {
+      assert.isFalse(record.$isLocal)
+      assert.notProperty(record.$attributes, 'deletedAt')
+
+      let error: unknown
+      try {
+        await record.restore()
+      } catch (caught) {
+        error = caught
+      }
+
+      assert.isDefined(error)
+      assert.instanceOf(error, E_MODEL_UNKNOWN_DELETION_STATE)
+      assert.equal((error as { code: string }).code, E_MODEL_UNKNOWN_DELETION_STATE.code)
+      assert.equal((error as { status: number }).status, E_MODEL_UNKNOWN_DELETION_STATE.status)
+    }
+
+    assert.deepEqual(
+      statements.filter((sql) => /^update\b/i.test(sql)),
+      []
+    )
+    const persistedTrashed = await db.from('users').where('id', trashed.id).first()
+    assert.isNotNull(persistedTrashed?.deleted_at)
+  })
+
+  test('restore preserves the force-deleted error for a fetched projection', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const saved = await seedRecord('force-deleted-projection')
+    const projected = await LifecycleRecord.query().select('id').where('id', saved.id).firstOrFail()
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    await projected.forceDelete()
+    assert.isTrue(projected.$isDeleted)
+    await assert.rejects(() => projected.restore(), E_MODEL_FORCE_DELETED)
+    assert.isNull(await LifecycleRecord.withTrashed().where('id', saved.id).first())
+  })
+
+  test('active full fetches and locally saved models remain no-op restores', async ({ assert }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const fetched = await seedRecord('active-full-fetch')
+    const record = await LifecycleRecord.findOrFail(fetched.id)
+    const fresh = new LifecycleRecord()
+    fresh.fill({ username: 'new-active', email: 'new-active@example.test' })
+    await fresh.save()
+    const created = await LifecycleRecord.create({
+      username: 'created-active',
+      email: 'created-active@example.test',
+    })
+    const quietlyCreated = await LifecycleRecord.createQuietly({
+      username: 'quiet-active',
+      email: 'quiet-active@example.test',
+    })
+    statements.length = 0
+
+    assert.strictEqual(await record.restore(), record)
+    assert.strictEqual(await fresh.restore(), fresh)
+    assert.strictEqual(await created.restore(), created)
+    assert.strictEqual(await quietlyCreated.restore(), quietlyCreated)
+    assert.deepEqual(
+      statements.filter((sql) => /^update\b/i.test(sql)),
+      []
+    )
+  })
+
+  test('refresh loads custom deletedAt state before restoring on its transaction', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const original = new CustomLifecycleRecord()
+    original.title = 'custom-unknown-state'
+    await original.save()
+    await original.delete()
+    const projected = await CustomLifecycleRecord.withTrashed()
+      .select('id')
+      .where('id', original.id)
+      .firstOrFail()
+    const transaction = await db.transaction()
+    projected.useTransaction(transaction)
+    statements.length = 0
+    let committed = false
+
+    try {
+      let error: unknown
+      try {
+        await projected.restore()
+      } catch (caught) {
+        error = caught
+      }
+      assert.isDefined(error)
+      assert.instanceOf(error, E_MODEL_UNKNOWN_DELETION_STATE)
+      assert.equal((error as { code: string }).code, E_MODEL_UNKNOWN_DELETION_STATE.code)
+      assert.deepEqual(
+        statements.filter((sql) => /^update\b/i.test(sql)),
+        []
+      )
+
+      await projected.refresh()
+      assert.isTrue(projected.trashed)
+      assert.strictEqual(await projected.restore(), projected)
+      assert.isFalse(projected.trashed)
+      await transaction.commit()
+      committed = true
+    } finally {
+      if (!committed) await transaction.rollback()
+    }
+
+    const restored = await CustomLifecycleRecord.findOrFail(original.id)
+    assert.isNull(restored.deletedAt)
   })
 })

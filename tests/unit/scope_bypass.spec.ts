@@ -121,6 +121,79 @@ test.group('Scope bypasses', (group) => {
     )
   })
 
+  test('onlyTrashed delete remains physical and unscoped; pojo and previews stay unscoped', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const { User } = createModels()
+    const { active, trashed } = await seedUsers(User)
+    await trashed.delete()
+    const query = User.onlyTrashed().whereIn('id', [active.id, trashed.id])
+    assert.notInclude(query.toQuery(), 'deleted_at')
+    assert.lengthOf(await query.clone().pojo(), 2)
+    await query.delete()
+    assert.lengthOf(await db.from('users'), 0)
+  })
+
+  test('mapped purge recipe preserves active rows with grouped alternatives, alias and transaction', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const { User } = createModels()
+    const { active, trashed } = await seedUsers(User)
+    await trashed.delete()
+    const trx = await db.transaction()
+    try {
+      await User.query({ client: trx })
+        .from('users as selected')
+        .whereNotNull(`selected.${User.$getColumn('deletedAt')!.columnName}`)
+        .where((query) => query.where('id', trashed.id).orWhere('id', active.id))
+        .delete()
+      const remainingUsers = await trx.from('users')
+      assert.deepEqual(
+        remainingUsers.map((row) => row.id),
+        [active.id]
+      )
+    } finally {
+      await trx.rollback()
+    }
+    assert.lengthOf(await db.from('users'), 2)
+  })
+
+  test('mapped purge recipe supports renamed columns and has-many builders', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const { User, Post } = createModels()
+    const { active } = await seedUsers(User)
+    const posts = await seedPosts(Post, active.id)
+    class RenamedPost extends Post {
+      static table = 'posts'
+      @column.dateTime({ columnName: 'deletedAt' })
+      declare deletedAt: DateTime | null
+    }
+    await db.from('posts').where('id', posts.trashed.id).update({ deletedAt: new Date() })
+    await RenamedPost.query().whereNotNull(RenamedPost.$getColumn('deletedAt')!.columnName).delete()
+    const remainingPosts = await db.from('posts')
+    assert.deepEqual(
+      remainingPosts.map((row) => row.id),
+      [posts.active.id]
+    )
+    const more = await seedPosts(Post, active.id)
+    await more.trashed.delete()
+    await active
+      .related('posts')
+      .query()
+      .whereNotNull(Post.$getColumn('deletedAt')!.columnName)
+      .delete()
+    const finalPosts = await db.from('posts')
+    assert.sameMembers(
+      finalPosts.map((row) => row.id),
+      [posts.active.id, more.active.id]
+    )
+  })
+
   test('a join from a model without soft deletes does not filter the joined users', async ({
     assert,
   }) => {

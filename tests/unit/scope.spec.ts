@@ -402,6 +402,21 @@ test.group('Read scope', (group) => {
     assert.equal((userQuery.toQuery().match(/deleted_at/g) ?? []).length, 1)
   })
 
+  test('keeps a predicate added after a run outside the earlier OR', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const owner = await createUser('reuse-owner')
+    const other = await createUser('reuse-other')
+    const query = User.query().where('id', other.id).orWhere('id', owner.id)
+
+    await query
+    const users = await query.where('username', 'reuse-owner')
+    assert.deepEqual(
+      users.map((user) => user.id),
+      [owner.id]
+    )
+  })
+
   test('switching an executed builder to with-trashed drops the earlier filter', async ({
     assert,
   }) => {

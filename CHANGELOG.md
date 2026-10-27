@@ -6,6 +6,8 @@ All notable changes to this project are documented here. This changelog follows 
 
 ### Added
 
+- Builder `softDelete()` and `forceDelete()` return affected counts, preserve caller predicates and transaction clients, and provide explicit bulk lifecycle writes. `onlyTrashed().forceDelete()` purges only trashed rows. Many-to-many and has-many-through relation builders reject these macros and builder `restore()` before writing.
+
 - Document serialisation, factory state, seeder uniqueness conflicts, PostgreSQL and SQLite partial indexes, MySQL generated-column guidance, restore conflicts, and cascade boundaries.
 - Manual owner release checklist and a draft upstream status comment.
 
@@ -29,4 +31,7 @@ All notable changes to this project are documented here. This changelog follows 
 
 ### Fixed
 
+- Reject instance `restore()` when a fetched model did not load `deletedAt`.
+- Reject instance `restore()` on an unpersisted model instead of inserting a new row.
+- Preserve the existing soft-delete filter after subclass query hooks append OR predicates. Reusing a fetched builder for physical deletion now regroups later OR predicates before its retained filter too. An AND predicate appended by a hook, or added to a builder after it ran, applies to the caller's whole OR expression rather than its last alternative.
 - Drop the filter from an earlier run when an executed builder switches to `withTrashed()`, so trashed rows are returned.
