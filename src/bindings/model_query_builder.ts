@@ -1,7 +1,8 @@
 /*
- * adonis-lucid-soft-deletes
+ * @kevinjohn/lucid-soft-deletes
  *
- * (c) Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2024 Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2026 Kevinjohn Gallagher
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -11,12 +12,11 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
-import {
-  addScopeFilter,
-  installModePropagation,
-  resolveTableReference,
-  setSoftDeletesMode,
-} from '../scope.js'
+import { setSoftDeletesMode } from '../mode.js'
+import { installModePropagation } from '../propagation.js'
+import { installSubQueryScope } from '../sub_query_scope.js'
+import { resolveTableReference } from '../table_reference.js'
+import { addScopeFilter } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
@@ -32,6 +32,7 @@ function ensureModelWithSoftDeletes(model: LucidModel) {
  */
 export function extendModelQueryBuilder(builder: any) {
   installModePropagation(builder)
+  installSubQueryScope(builder)
 
   builder.macro('restore', async function (this: ModelQueryBuilderContract<LucidModel>) {
     ensureModelWithSoftDeletes(this.model)

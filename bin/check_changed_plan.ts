@@ -21,7 +21,7 @@ export type Plan = {
 const IGNORED = /^(build|tmp|examples|coverage)\//
 const LINTABLE = /\.(ts|mts|cts|js|mjs|cjs)$/
 const TYPED = /\.(ts|mts|cts)$/
-const SPEC = /^tests\/unit\/.+\.spec\.ts$/
+const SPEC = /^tests\/(unit|tooling)\/.+\.spec\.ts$/
 const DEPENDENCIES = new Set(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'])
 const LINT_CONFIG = new Set(['eslint.config.js', ...DEPENDENCIES])
 const TYPE_CONFIG = new Set(['tsconfig.json', ...DEPENDENCIES])
@@ -33,7 +33,7 @@ const FULL_SUITE = [
   /^bin\/test\.ts$/,
   /^tsconfig\.json$/,
 ]
-const PLAN_SPEC = 'tests/unit/check_changed_plan.spec.ts'
+const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
 /** The consumer gate's scripts, its fixture app, and the manifest it packs. */
 const CONSUMER = /^(scripts|examples\/app)\/|^package\.json$/
 

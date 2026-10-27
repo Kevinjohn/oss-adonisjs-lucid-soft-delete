@@ -76,6 +76,8 @@ const restoredCount = await User.query().onlyTrashed().where('email', 'a@example
 
 For another database column, override the model mapping with `@column.dateTime({ columnName: 'removed_at' })` on `declare deletedAt: DateTime | null` and add that nullable column in your migration. `trashed` reads the loaded attribute; it is not a separate database column.
 
+[examples/README.md](examples/README.md) has a complete migration, model, controller and route set using every method above.
+
 ## Scope contract
 
 The default model query scope selects rows whose configured `deletedAt` column is null.
@@ -88,8 +90,8 @@ query is cloned or paginated.
 | `find*`, `first`, `exec`, `paginate`, and `all`                                                                    | Excludes soft-deleted rows by default                                                                  | `tests/unit/scope.spec.ts`: `groups a user OR expression before applying the default scope`; `tests/unit/model.spec.ts`: `querying models without trashed models`                                                                                                                                                                                                                             |
 | `preload` and `load` for has-one, has-many, belongs-to, many-to-many, has-many-through, nested, and self relations | Scopes each fetched related model                                                                      | `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`; `filters belongs-to relations when preloading and loading`; `filters many-to-many relations on preload and related queries`; `filters has-many-through and nested relations at each loaded level`; `filters self-referential relations and nested belongs-to relations` |
 | `user.related('posts').query()`                                                                                    | Applies the related model's default scope                                                              | `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`                                                                                                                                                                                                                                                                          |
-| `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate`                    | Bypass the soft-delete scope in alpha because relation subqueries do not run related-model fetch hooks | `tests/unit/scope_bypass.spec.ts`: `relation aggregates and existence checks include trashed children`                                                                                                                                                                                                                                                                                        |
-| Relation aggregate `onQuery` callback                                                                              | Can explicitly scope a relation aggregate with `onQuery: (query) => query.whereNull('deleted_at')`     | `tests/unit/scope_bypass.spec.ts`: `a relation onQuery callback scopes withCount to active children`                                                                                                                                                                                                                                                                                          |
+| `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` | Scope the related model inside the subquery; `withTrashed()` or `onlyTrashed()` in the callback switches the mode | `tests/unit/scope_bypass.spec.ts`: `relation aggregates and existence checks exclude trashed children`; `withTrashed and onlyTrashed inside an aggregate callback switch the sub-query mode`; `tests/unit/scope_aggregates.spec.ts` for has-one, many-to-many, has-many-through, self-referential, and plain related models |
+| Relation aggregate `onQuery` callback | Still applies; `onQuery: (query) => query.whereNull('deleted_at')` adds a second, redundant predicate | `tests/unit/scope_bypass.spec.ts`: `a relation onQuery callback scopes withCount to active children` |
 | `pojo()` queries                                                                                                   | Bypass the model scope                                                                                 | `tests/unit/scope_bypass.spec.ts`: `pojo queries return active and trashed records from exec, first, and paginate`                                                                                                                                                                                                                                                                            |
 | Joins and embedded subqueries                                                                                      | Bypass the scope for joined models; only the query's model is scoped                                   | `tests/unit/scope_bypass.spec.ts`: `a join from a model without soft deletes does not filter the joined users`                                                                                                                                                                                                                                                                                |
 | Bulk `update`, `delete`, `del`, and `increment`; `related().query().delete()`                                      | Bypass the scope; bulk `delete` and `del` are physical deletes                                         | `tests/unit/scope_bypass.spec.ts`: `bulk update and increment include trashed rows, while delete and del physically remove rows`; `related query delete and db.from operate without the model scope`                                                                                                                                                                                          |
@@ -191,33 +193,22 @@ Match the generated column type and length to your email column. Application-sid
 - Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
 - The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
 - Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [docs/INTERNALS.md](docs/INTERNALS.md).
+- Relationship aggregates and existence checks are scoped to active related rows. 2.1.0 counted trashed rows; use `withTrashed()` in the callback to keep that behaviour.
 - No schema changes are required.
 
-## Not in alpha: relationship aggregates
+## Relationship aggregates
 
-Related-model fetch hooks do not run for Lucid 22 relationship aggregate and existence subqueries. `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` include trashed related rows in this alpha. Automatic scoping is deferred to beta. Define an explicitly scoped relation where an aggregate must count only active rows:
+Lucid 22 does not run related-model fetch hooks for relationship aggregate and existence subqueries. The package scopes those subqueries itself: `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` count or match only active related rows when the related model uses the mixin. The parent model's own scope is unchanged. Switch the mode inside the callback:
 
 ```ts
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
-import { compose } from '@adonisjs/core/helpers'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
-import Post from '#models/post'
-
-class User extends compose(BaseModel, SoftDeletes) {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @hasMany(() => Post, {
-    onQuery: (query) => query.whereNull('deleted_at'),
-  })
-  declare activePosts: HasMany<typeof Post>
-}
-
-const usersWithActivePostCounts = await User.query().withCount('activePosts')
+const users = await User.query()
+  .withCount('posts') // active posts
+  .withCount('posts', (query) => query.withTrashed().as('all_posts'))
+  .withCount('posts', (query) => query.onlyTrashed().as('trashed_posts'))
+  .whereHas('posts', (query) => query.withTrashed().where('title', 'archived'))
 ```
 
-This recipe is tested for `withCount` in `tests/unit/scope_bypass.spec.ts`. Adapt the column reference for custom names or aliases.
+Has-many-through scopes the target model, not the intermediate model, matching preload behaviour. A related model without the mixin is left alone. Self-referential relations qualify the filter with Lucid's self-join alias.
 
 ## Non-goals
 
@@ -237,11 +228,12 @@ Use TypeScript 5.9 or newer. TypeScript is not a package peer dependency.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain, the PostgreSQL and installed-package
-checks, and the pull request conventions. Security reports follow [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain, the PostgreSQL, MySQL and
+installed-package checks, and the pull request conventions. Security reports follow [SECURITY.md](SECURITY.md).
 
 ## Known internals
 
-The scope relies on a few Lucid 22 internals: the `applyQueryFlags()` clone hook, the `whereStack`
-rewrite, and group-limit subquery detection. [docs/INTERNALS.md](docs/INTERNALS.md) names each one, where
-it lives in Lucid, and the tests that cover it.
+The scope relies on a few Lucid 22 internals: the `applyQueryFlags()` clone hook, the
+`applyWhere()` sub-query hook, the `whereStack` rewrite, and group-limit subquery detection.
+[docs/INTERNALS.md](docs/INTERNALS.md) names each one, where it lives in Lucid, and the tests that
+cover it.

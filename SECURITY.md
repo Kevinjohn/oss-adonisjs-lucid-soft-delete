@@ -12,10 +12,12 @@ receives fixes for six months. Only the latest release on each supported line re
 
 ## Reporting a vulnerability
 
-Report security issues through
-[GitHub issues](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues). Describe the
-affected version, the model and query shape involved, and the observed and expected rows. Omit any
-production data. There is no response-time promise.
+GitHub issues are public. For a defect that exposes or changes rows it should not, open an
+[issue](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues) titled "Security
+contact request" that names only the affected version, and wait for a private channel before
+sharing the query shape or a reproduction. Other security concerns can go straight into an issue.
+Describe the affected version, the model and query shape involved, and the observed and expected
+rows. Omit any production data. There is no response-time promise.
 
 This package runs inside the application's own database connection and adds no network, file or
 credential handling of its own. The likely class of defect is a query that returns or modifies rows

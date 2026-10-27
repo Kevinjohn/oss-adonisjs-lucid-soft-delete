@@ -5,7 +5,14 @@ These notes are for contributors. They name the Lucid 22 internals the scope rel
 Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
 `applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
 The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
-`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. This is the package's one Lucid prototype hook.
+`Symbol.for('@kevinjohn/lucid-soft-deletes/patched')`. The provider also wraps `ModelQueryBuilder.prototype.applyWhere()`, guarded by
+`Symbol.for('@kevinjohn/lucid-soft-deletes/sub-query-scope')`: when the builder is a relation
+sub-query (`isRelatedSubQuery`, not a `where` callback child) for a model with the mixin, the
+soft-delete filter is added before the where stack is flushed. Every way Lucid renders a sub-query
+(`toKnex()` for `select` and `whereExists`, `toSQL()` for `has` with an operator) passes through
+`applyWhere()` after `prepare()` has added the relation constraint. These are the package's two
+Lucid prototype hooks; `tests/unit/scope_aggregates.spec.ts` and `tests/unit/scope_bypass.spec.ts`
+cover the second.
 
 The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
 into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's

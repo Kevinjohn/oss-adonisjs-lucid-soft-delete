@@ -152,3 +152,6 @@ test-helpers/tmp
 yarn.lock
 tmp/
 coverage/
+
+# Claude Code session worktrees created inside the checkout
+.claude/worktrees/
