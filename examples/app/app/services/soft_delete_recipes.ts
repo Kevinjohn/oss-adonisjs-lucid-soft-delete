@@ -115,6 +115,12 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     .where('tenantId', tenantId)
     .whereIn('id', selectedIds)
     .softDelete()
+  // Restoring a selected row before the purge makes it active, so onlyTrashed() keeps it.
+  await RecipeParent.query()
+    .onlyTrashed()
+    .where('tenantId', tenantId)
+    .where('id', second.id)
+    .restore()
   const purged = await RecipeParent.query()
     .onlyTrashed()
     .where('tenantId', tenantId)
@@ -124,9 +130,8 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
   return {
     deleted,
     purged,
-    selectedRowsRemain: Boolean(
-      await RecipeParent.withTrashed().whereIn('id', [first.id, second.id]).first()
-    ),
+    purgedRowRemains: Boolean(await RecipeParent.withTrashed().where('id', first.id).first()),
+    restoredRowRemains: Boolean(await RecipeParent.find(second.id)),
     otherTenantRemains: Boolean(await RecipeParent.find(otherTenant.id)),
     unselectedSameTenantRemains: Boolean(await RecipeParent.find(unselectedSameTenant.id)),
     trashedOtherTenantRemains: Boolean(
