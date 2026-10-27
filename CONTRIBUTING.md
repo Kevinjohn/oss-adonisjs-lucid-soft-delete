@@ -11,7 +11,9 @@ pnpm test
 
 `pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
 `main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
-still runs the full set.
+still runs the full set. Changes to shipped source, package entry points, dependencies, or TypeScript
+configuration also select the packed-consumer gate, which requires network access. Changes only
+to tests, `bin/` tooling, or prose do not select that gate.
 
 ## PostgreSQL
 

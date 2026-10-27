@@ -48,8 +48,10 @@ preparation and instance hooks and leaves `updatedAt` unchanged. Each macro repl
 scope nodes while preserving caller predicates. `forceDelete()` removes an earlier lifecycle
 scope in default/with mode, or replaces it with `whereNotNull` in only mode.
 
-The lifecycle macros reject many-to-many relation builders before writing: Lucid's
-`ManyToManyQueryBuilder.applyConstraints()` changes the target to the pivot table for update
-and delete actions. This would mutate pivot rows instead of related models. Has-many builders
+The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
+builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target
+to the pivot table for update and delete actions, which would mutate pivot rows instead of
+related models. `HasManyThroughQueryBuilder.applyConstraints()` filters update and delete
+actions with `whereIn(key, select * from through)`, which the database rejects. Has-many builders
 retain their normal relation constraint. As with builder `restore()`, a prior `returning()`
 clause is unsupported.
