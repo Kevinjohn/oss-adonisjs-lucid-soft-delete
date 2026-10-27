@@ -78,11 +78,9 @@ test.group('Installed transactional lifecycle', (group) => {
         async function execute() {
           await db.transaction(async (trx) => {
             if (outcome === 'policyReject') throw new Error('policy rejected')
-            const query = Parent.query({ client: trx })
-              .where('tenantId', 1)
-              .where('id', selected.id)
+            const query = Parent.query({ client: trx }).where('tenantId', 1)
             if (action.startsWith('instance')) {
-              const record = await query.withTrashed().firstOrFail()
+              const record = await query.where('id', selected.id).withTrashed().firstOrFail()
               if (action === 'instanceDelete') await record.delete()
               if (action === 'instanceRestore') await record.restore()
               if (action === 'instanceForceDelete') await record.forceDelete()
