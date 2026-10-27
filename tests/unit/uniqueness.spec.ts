@@ -113,4 +113,46 @@ test.group('PostgreSQL partial unique indexes', (group) => {
     assert.equal(restored.id, previous.id)
     assert.isNull(await RestorableRecord.find(replacement.id))
   }).skip(process.env.DB_CLIENT !== 'pg', 'PostgreSQL partial unique index test')
+  test('propagates a transactional restore conflict and rolls back the aborted transaction', async ({
+    assert,
+    cleanup,
+  }) => {
+    const db = await createDatabase()
+    await createPartialUniqueTable(db, RestorableRecord.table)
+    const previous = await RestorableRecord.create({ code: 'transactional' })
+    await previous.delete()
+    const replacement = await RestorableRecord.create({ code: 'transactional' })
+    const transaction = await db.transaction()
+    cleanup(async () => {
+      if (!transaction.isCompleted) await transaction.rollback()
+    })
+    const record = await RestorableRecord.query({ client: transaction })
+      .withTrashed()
+      .where('id', previous.id)
+      .firstOrFail()
+    let errorCode: string | undefined
+    try {
+      await record.restore()
+    } catch (error) {
+      errorCode = (error as { code?: string }).code
+    }
+    assert.equal(errorCode, '23505')
+    let abortedCode: string | undefined
+    try {
+      await transaction.from(RestorableRecord.table).count('* as total')
+    } catch (error) {
+      abortedCode = (error as { code?: string }).code
+    }
+    assert.equal(abortedCode, '25P02')
+    await transaction.rollback()
+    const rows = await RestorableRecord.withTrashed().orderBy('id')
+    assert.deepEqual(
+      rows.map((row) => row.id),
+      [previous.id, replacement.id]
+    )
+    assert.isTrue(rows[0].trashed)
+    assert.equal(rows[0].deletedAt!.toMillis(), previous.deletedAt!.toMillis())
+    assert.isFalse(rows[1].trashed)
+    assert.isTrue(record.trashed)
+  }).skip(process.env.DB_CLIENT !== 'pg', 'PostgreSQL aborted transaction test')
 })
