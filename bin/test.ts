@@ -1,7 +1,8 @@
 /*
- * adonis-lucid-soft-deletes
+ * @kevinjohn/lucid-soft-deletes
  *
- * (c) Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2024 Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2026 Kevinjohn Gallagher
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -18,6 +19,10 @@ configure({
     {
       name: 'unit',
       files: ['tests/unit/**/*.spec.ts'],
+    },
+    {
+      name: 'tooling',
+      files: ['tests/tooling/**/*.spec.ts'],
     },
   ],
 })

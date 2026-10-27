@@ -15,12 +15,14 @@ All notable changes to this project are documented here. This changelog follows 
 - Rename the package to `@kevinjohn/lucid-soft-deletes` for AdonisJS 7, Lucid 22, and Node 24.
 - Replace the exception import for the current AdonisJS core export. Credit to necessarylion ([upstream PR 33](https://github.com/lookinlab/adonis-lucid-soft-deletes/pull/33)) and abdulmatinsanni ([upstream PR 34](https://github.com/lookinlab/adonis-lucid-soft-deletes/pull/34)) for identifying the compatibility fix.
 - Refresh the test and build toolchain for the supported framework versions.
+- Run the runtime suite on MySQL 8.4 as well as PostgreSQL 16 and SQLite in CI.
 - Define the query scope contract for model reads, relations, aliases, clones, pagination, and documented bypass operations.
 - Preserve soft-delete mode across cloned model and relation builders, and group user OR predicates before applying the default or only-trashed filter.
 - Document that has-many-through scopes the related target but not its joined intermediate model; provide an explicit `onQuery` recipe for scoped relation counts.
 - Make instance deletion lifecycle-safe: revert failed soft-delete timestamps, skip unchanged repeated deletes, support quiet soft deletion, and restore force-delete state after errors.
 - Add trashed-only builder restore with grouped predicates, alias qualification, transaction support, and affected-row counts.
-- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals. Relationship aggregates remain unscoped in this alpha.
+- Document lifecycle hooks, migration changes from 2.1.0, and Lucid group-limit internals.
+- Scope relationship aggregate and existence subqueries (`withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, `loadAggregate`) to active related rows. `withTrashed()` and `onlyTrashed()` inside the callback switch the mode. 2.1.0 counted trashed rows.
 - Preserve composed model fields and instance methods in emitted mixin types; retain relation-builder receiver types after soft-delete macros.
 - Export a symbol-based soft-delete capability guard and dedicated exception classes from the package root. `SoftDeletesModel` replaces the `ModelWithSoftDeletes` type that 2.1.0 augmented onto `@adonisjs/lucid/types/model`.
 - Verify runtime behavior with a Lucid 22 generated-schema model.

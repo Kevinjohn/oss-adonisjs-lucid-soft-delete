@@ -1,7 +1,8 @@
 /*
- * adonis-lucid-soft-deletes
+ * @kevinjohn/lucid-soft-deletes
  *
- * (c) Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2024 Lookin Anton <alsd@lookinlab.ru>
+ * (c) 2026 Kevinjohn Gallagher
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -13,7 +14,8 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid/orm'
 import type { BaseModel } from '@adonisjs/lucid/orm'
-import { applyScope, getSoftDeletesMode, setSoftDeletesMode } from './scope.js'
+import { getSoftDeletesMode, setSoftDeletesMode } from './mode.js'
+import { applyScope } from './scope.js'
 import { E_MODEL_FORCE_DELETED, E_MODEL_NOT_PERSISTED } from './errors.js'
 import { SOFT_DELETES } from './guard.js'
 
@@ -41,6 +43,18 @@ async function persistDeletedAt(
     if (model.$original === originalsBeforeSave) model.deletedAt = previous
     throw error
   }
+}
+
+type DeleteAction = 'physical' | 'skip' | 'soft'
+
+/** Shared guard for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
+function deleteActionFor(
+  model: InstanceType<typeof BaseModel> & { $forceDelete: boolean; trashed: boolean }
+): DeleteAction {
+  if (!model.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
+  if (model.$isDeleted || model.$forceDelete) return 'physical'
+  if (model.trashed && !('deletedAt' in model.$dirty)) return 'skip'
+  return 'soft'
 }
 
 export interface SoftDeletesStatics {
@@ -168,13 +182,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      * Override default delete method
      */
     async delete(): Promise<void> {
-      if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
-      if (this.$isDeleted) return super.delete()
-      if (this.$forceDelete) {
-        await super.delete()
-        return
-      }
-      if (this.trashed && !('deletedAt' in this.$dirty)) return
+      const action = deleteActionFor(this)
+      if (action === 'skip') return
+      if (action === 'physical') return super.delete()
       try {
         await super.delete()
       } finally {
@@ -183,13 +193,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
     }
 
     async deleteQuietly(): Promise<void> {
-      if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
-      if (this.$isDeleted) return super.deleteQuietly()
-      if (this.$forceDelete) {
-        await super.deleteQuietly()
-        return
-      }
-      if (this.trashed && !('deletedAt' in this.$dirty)) return
+      const action = deleteActionFor(this)
+      if (action === 'skip') return
+      if (action === 'physical') return super.deleteQuietly()
       await persistDeletedAt(this, DateTime.local(), true)
     }
 

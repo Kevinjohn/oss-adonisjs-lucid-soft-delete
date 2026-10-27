@@ -15,7 +15,7 @@ import type {
   TransactionClientContract,
 } from '@adonisjs/lucid/types/database'
 import { dirname, join } from 'node:path'
-import { createDatabase, createTables } from '../helpers.js'
+import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { RelationPost, RelationUser } from '../fixtures/models.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
 
@@ -114,10 +114,15 @@ test.group('Soft-delete transactions', (group) => {
     if (!primaryConfig) throw new Error('Primary database connection is missing')
 
     let secondaryConfig = structuredClone(primaryConfig)
-    if (process.env.DB_CLIENT === 'pg') {
+    if (dbClient === 'pg') {
       await db.rawQuery('DROP SCHEMA IF EXISTS second CASCADE').exec()
       await db.rawQuery('CREATE SCHEMA second').exec()
       ;(secondaryConfig as PostgreConfig).searchPath = ['second']
+    } else if (dbClient === 'mysql') {
+      await db.rawQuery('DROP DATABASE IF EXISTS lucid_soft_deletes_second').exec()
+      await db.rawQuery('CREATE DATABASE lucid_soft_deletes_second').exec()
+      const mysqlConfig = secondaryConfig as { connection: { database?: string } }
+      mysqlConfig.connection = { ...mysqlConfig.connection, database: 'lucid_soft_deletes_second' }
     } else {
       const sqliteConfig = secondaryConfig as SqliteConfig
       if (typeof sqliteConfig.connection === 'string') {
@@ -165,8 +170,10 @@ test.group('Soft-delete transactions', (group) => {
       .firstOrFail()) as RelationUser
     assert.isTrue(deletedOnSecondary.trashed)
 
-    if (process.env.DB_CLIENT === 'pg') {
+    if (dbClient === 'pg') {
       await db.rawQuery('DROP SCHEMA second CASCADE').exec()
+    } else if (dbClient === 'mysql') {
+      await db.rawQuery('DROP DATABASE lucid_soft_deletes_second').exec()
     }
   })
 })

@@ -141,7 +141,7 @@ test.group('Scope bypasses', (group) => {
     )
   })
 
-  test('relation aggregates and existence checks include trashed children', async ({ assert }) => {
+  test('relation aggregates and existence checks exclude trashed children', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
     const { User, Post } = createModels()
@@ -154,44 +154,66 @@ test.group('Scope bypasses', (group) => {
     await trashedPosts.trashed.delete()
     await orphanPost.delete()
 
+    const total = (query: ReturnType<typeof User.query>) =>
+      query
+        .count('* as total')
+        .first()
+        .then((row) => Number((row as { $extras: { total: unknown } } | null)?.$extras.total))
+
     const counted = await User.query().where('id', active.id).withCount('posts').firstOrFail()
-    assert.equal(Number(counted.$extras.posts_count), 2)
+    assert.equal(Number(counted.$extras.posts_count), 1)
+    assert.equal(await total(User.query().has('posts')), 2)
+    assert.equal(await total(User.query().has('posts', '>=', 2)), 0)
     assert.equal(
-      await User.query()
-        .has('posts')
-        .count('* as total')
-        .first()
-        .then((row) => row?.$extras.total),
-      3
-    )
-    assert.equal(
-      await User.query()
-        .whereHas('posts', (query) => query.where('title', 'orphan trashed post'))
-        .count('* as total')
-        .first()
-        .then((row) => row?.$extras.total),
-      1
-    )
-    assert.equal(
-      await User.query()
-        .doesntHave('posts')
-        .count('* as total')
-        .first()
-        .then((row) => row?.$extras.total),
+      await total(
+        User.query().whereHas('posts', (query) => query.where('title', 'orphan trashed post'))
+      ),
       0
     )
+    assert.equal(
+      await total(User.query().whereHas('posts', (query) => query.where('title', 'active post'))),
+      2
+    )
+    assert.equal(await total(User.query().doesntHave('posts')), 1)
 
     await active.loadCount('posts')
-    assert.equal(Number(active.$extras.posts_count), 2)
+    assert.equal(Number(active.$extras.posts_count), 1)
 
     const aggregate = await User.query()
       .where('id', active.id)
       .withAggregate('posts', (query) => query.count('*').as('posts_count_aggregate'))
       .firstOrFail()
-    assert.equal(Number(aggregate.$extras.posts_count_aggregate), 2)
+    assert.equal(Number(aggregate.$extras.posts_count_aggregate), 1)
 
     await active.loadAggregate('posts', (query) => query.count('*').as('posts_count_aggregate'))
-    assert.equal(Number(active.$extras.posts_count_aggregate), 2)
+    assert.equal(Number(active.$extras.posts_count_aggregate), 1)
+  })
+
+  test('withTrashed and onlyTrashed inside an aggregate callback switch the sub-query mode', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const { User, Post } = createModels()
+    const { active } = await seedUsers(User)
+    const posts = await seedPosts(Post, active.id)
+    await posts.trashed.delete()
+
+    const user = await User.query()
+      .where('id', active.id)
+      .withCount('posts', (query) => query.withTrashed().as('all_posts'))
+      .withCount('posts', (query) => query.onlyTrashed().as('trashed_posts'))
+      .withCount('posts')
+      .firstOrFail()
+    assert.equal(Number(user.$extras.all_posts), 2)
+    assert.equal(Number(user.$extras.trashed_posts), 1)
+    assert.equal(Number(user.$extras.posts_count), 1)
+
+    const withTrashedParents = await User.query()
+      .whereHas('posts', (query) => query.withTrashed().where('title', 'trashed post'))
+      .count('* as total')
+      .first()
+    assert.equal(Number(withTrashedParents?.$extras.total), 1)
   })
 
   test('a relation onQuery callback scopes withCount to active children', async ({ assert }) => {
