@@ -1,9 +1,12 @@
-# Example: soft-deleted users in an AdonisJS 7 app
+# Examples: soft-deleted users in an AdonisJS 7 app
 
-Copy these four pieces into an AdonisJS 7 application that has run
-`node ace configure @kevinjohn/lucid-soft-deletes`. Together they cover every public method the
-package adds. `examples/app/` next to this file is the installed-package test fixture, not an example
-to copy; it exists so `pnpm test:consumer` can install the packed tarball into a real app.
+Follow the complete [recycle-bin tutorial](../docs/tutorial.md) to install the package from this
+source checkout, configure a fixture app, migrate its database, and exercise create, hide, list,
+restore, and permanent purge. It uses the installed-consumer app under `examples/app/`, which also
+serves as the packed-package test fixture for `pnpm test:consumer`.
+
+This page keeps focused examples of the public methods for reference. It is not a complete method
+catalog; the package README describes the full lifecycle contract.
 
 ## 1. Migration
 
