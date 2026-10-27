@@ -198,5 +198,6 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Reason:** A zero-row soft delete changed no row, so its receipt has no written timestamp and returns `deletedAt: null`.
 - **Reason:** Primary-key results use set semantics, so their order is not part of the API contract.
 - **Reason:** Unsupported dialects, relations, and query shapes cannot guarantee that the receipt describes the intended target-table mutation.
+- **Reason:** Relation `groupLimit()` and `groupOrderBy()` are rejected from their deferred Lucid state before cloning because relation clones drop those constraints.
 - **Reason:** The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
 - **Evidence:** `tests/unit/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.

@@ -297,6 +297,9 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
 - Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.
 
+On has-many builders, the unsupported limit and ordering shapes also include `groupLimit()` and
+`groupOrderBy()`. Receipt mode rejects these before cloning or executing any statement.
+
 | Error                                 | Code                                  | Message                                                                                                | Constructor                                                                                     |
 | ------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `Bulk lifecycle receipts require a caller-owned transaction client`                                    | `()`                                                                                            |

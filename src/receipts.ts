@@ -82,6 +82,13 @@ export function ensureReceiptSupport(query: Query): void {
       `${type} relation builders; query the related model by its IDs instead`
     )
   }
+  // Lucid applies these later and does not retain them on relation-builder clones.
+  const groupConstraints = (
+    query as unknown as { groupConstraints?: { limit?: unknown; orderBy?: unknown } }
+  ).groupConstraints
+  if (groupConstraints?.limit !== undefined || groupConstraints?.orderBy !== undefined) {
+    throw new E_BULK_RECEIPT_UNSUPPORTED('groupLimit or groupOrderBy clauses')
+  }
   const flags = query as unknown as {
     hasAggregates?: boolean
     hasGroupBy?: boolean

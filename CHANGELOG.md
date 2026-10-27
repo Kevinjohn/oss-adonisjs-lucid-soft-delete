@@ -35,6 +35,7 @@ All notable changes to this project are documented here. This changelog follows 
 
 ### Fixed
 
+- Receipt lifecycle writes reject has-many `groupLimit()` and `groupOrderBy()` before cloning, preserving the unsupported limit and ordering boundary.
 - Reusing a has-many relation builder for a second default-mode `forceDelete()` no longer drops the relation constraint.
 - Reject instance `restore()` when a fetched model did not load `deletedAt`.
 - Reject instance `restore()` on an unpersisted model instead of inserting a new row.

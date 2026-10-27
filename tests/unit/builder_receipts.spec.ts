@@ -16,9 +16,8 @@ import {
   column,
   ModelQueryBuilder,
 } from '@adonisjs/lucid/orm'
-import { test } from '@japa/runner'
+import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { getActiveTest } from '@japa/runner'
 import type { PostgreConfig, SqliteConfig } from '@adonisjs/lucid/types/database'
 import { dirname, join } from 'node:path'
 import {
@@ -82,10 +81,6 @@ async function inTransaction<T>(
   commit = true
 ) {
   const trx = await openTransaction(db)
-  const testContext = getActiveTest()
-  testContext?.cleanup(async () => {
-    if (!trx.isCompleted) await trx.rollback()
-  })
   try {
     const result = await run(trx)
     if (commit) await trx.commit()
@@ -456,6 +451,41 @@ test.group('Builder receipts', (group) => {
     await trx.rollback()
   })
 
+  test('has-many group limits and ordering reject receipt writes before any statement', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const parent = await RelationUser.create({ username: 'grouped-receipt-parent' })
+    const posts = await RelationPost.createMany([
+      { userId: parent.id, title: 'active' },
+      { userId: parent.id, title: 'trashed' },
+    ])
+    await posts[1].delete()
+    const trx = await openTransaction(db)
+    const before = await trx.from('posts').orderBy('id')
+    const query = () => parent.related('posts').query().useTransaction(trx)
+    const shapes: Array<(builder: ReturnType<typeof query>) => ReturnType<typeof query>> = [
+      (builder) => builder.groupLimit(1),
+      (builder) => builder.groupOrderBy('id', 'desc'),
+      (builder) => builder.groupLimit(1).groupOrderBy('id', 'desc'),
+      (builder) => builder.groupLimit(0),
+    ]
+    for (const operation of ['forceDelete', 'softDelete', 'restore'] as const) {
+      for (const shape of shapes) {
+        const start = statements.length
+        await assert.rejects(
+          () => shape(query())[operation]({ receipt: true }),
+          E_BULK_RECEIPT_UNSUPPORTED
+        )
+        assert.lengthOf(statements.slice(start), 0)
+      }
+    }
+    assert.deepEqual(await trx.from('posts').orderBy('id'), before)
+    await trx.rollback()
+  })
+
   test('unsupported query shapes reject before any statement', async ({ assert }) => {
     const statements: string[] = []
     const db = await createDatabase((event) => statements.push(event.sql))
@@ -497,9 +527,6 @@ test.group('Builder receipts', (group) => {
     assert.isNull(unchanged.deleted_at)
     for (const mode of ['client', 'useTransaction'] as const) {
       const trx = await openTransaction(db)
-      cleanup(async () => {
-        if (!trx.isCompleted) await trx.rollback()
-      })
       const query =
         mode === 'client'
           ? LifecycleUser.query({ client: trx })
@@ -714,10 +741,29 @@ test.group('Builder receipts', (group) => {
       .whereIn('id', ids)
       .softDelete({ receipt: true })
     assert.equal(receipt.count, 2)
-    const b = LifecycleUser.query().whereIn('id', ids).softDelete()
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    await trxA.commit()
-    assert.equal(await b, 0)
+    const secondQuery = LifecycleUser.query().whereIn('id', ids)
+    let queryStarted = false
+    const started = new Promise<void>((resolve) => {
+      secondQuery.knexQuery.on('query', () => {
+        queryStarted = true
+        resolve()
+      })
+    })
+    let settled = false
+    const b = secondQuery.softDelete().finally(() => {
+      settled = true
+    })
+    try {
+      await Promise.race([started, b])
+      assert.isTrue(queryStarted)
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      assert.isFalse(settled, 'the concurrent write must wait for the receipt transaction')
+      await trxA.commit()
+      assert.equal(await b, 0)
+    } finally {
+      if (!trxA.isCompleted) await trxA.rollback()
+      await b.catch(() => {})
+    }
     const persisted = await db.from('users').whereIn('id', ids)
     assert.lengthOf(persisted, 2)
     assert.isTrue(persisted.every((row) => row.deleted_at !== null))
