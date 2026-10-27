@@ -72,6 +72,7 @@ export default defineConfig({
           'tests/consumer.spec.{ts,js}',
           'tests/lifecycle.spec.{ts,js}',
           'tests/readme.spec.{ts,js}',
+          'tests/recycle_bin.spec.{ts,js}',
         ],
         name: 'consumer',
         timeout: 30000,
