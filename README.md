@@ -146,6 +146,10 @@ await User.query()
 For an aliased table, qualify the mapped column with that alias. Wrap alternatives in
 `.where((query) => query.where(...).orWhere(...))` so they cannot bypass the timestamp predicate.
 
+A builder that has already run keeps the soft-delete filter from that run, so a later `delete()`
+on the same builder removes only the rows that run's mode selected. Start a new query for a bulk
+write.
+
 Soft deletion runs the normal update and delete hooks in this order:
 
 ```text
