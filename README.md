@@ -4,7 +4,7 @@ Give your AdonisJS application recoverable deletion. Deleted records stay in the
 
 Supports AdonisJS 7, Lucid 22 and Luxon 3.4.4 or newer within 3.x, on Node.js 24 or newer. Use TypeScript 5.9 or newer.
 
-**Documentation version:** `0.1.0-alpha`, the first prerelease of this continuation. It is distributed as a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.0-alpha) and is not published to npm. Use the README accompanying the exact version you install. Version 0.1.0-alpha is an alpha with intentional changes from upstream 2.1.0; read the [migration guide](#migration-from-210) before upgrading.
+**Documentation version:** `0.1.1-alpha`, the first tagged prerelease of this continuation. It is distributed as a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm. Use the README accompanying the exact version you install. Version 0.1.1-alpha is an alpha with intentional changes from upstream 2.1.0; read the [migration guide](#migration-from-210) before upgrading.
 
 ## See the value
 
@@ -42,10 +42,10 @@ Calling `await demonstrateRecovery('alex@example.test')` with an unused email re
 
 ## Install
 
-Install the packed tarball attached to the [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.0-alpha) and the required Luxon peer into an existing AdonisJS 7 application. The package is not published to npm:
+Install the packed tarball attached to the [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and the required Luxon peer into an existing AdonisJS 7 application. The package is not published to npm:
 
 ```bash
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.0-alpha/kevinjohn-lucid-soft-deletes-0.1.0-alpha.tgz luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.1-alpha/kevinjohn-lucid-soft-deletes-0.1.1-alpha.tgz luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 

@@ -2,13 +2,15 @@
 
 All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.1.1-alpha - 2026-10-27
+
+First tagged prerelease. It contains every change listed under 0.1.0-alpha, which was not tagged or released.
 
 ### Added
 
 - `pnpm format:check` runs `prettier --check` on tracked files only. `pnpm check:changed` and CI run it before lint, typecheck and tests.
 
-## 0.1.0-alpha - 2026-10-27
+## 0.1.0-alpha - 2026-10-27 (not released)
 
 ### Added
 
