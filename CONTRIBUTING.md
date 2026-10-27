@@ -3,6 +3,7 @@
 Use Node.js 24 and pnpm 11. The default suite uses SQLite; CI also runs it on PostgreSQL 16 and MySQL 8.4. Run the repository checks through these scripts:
 
 ```bash
+pnpm format:check
 pnpm lint
 pnpm docs:check
 pnpm typecheck
@@ -11,8 +12,9 @@ pnpm test
 ```
 
 `pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
-`main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
-still runs the full set. Changes to shipped source, package entry points, dependencies, or TypeScript
+`main`) can affect, including uncommitted and untracked files, and prints one line per step. It always runs
+`pnpm format:check` on every tracked file first; untracked files are never checked. CI still runs the full set, starting with the
+formatting check. Changes to shipped source, package entry points, dependencies, or TypeScript
 configuration also select the packed-consumer gate, which requires network access. Changes only
 to tests, `bin/` tooling, or prose do not select that gate. The fast local documentation check
 runs on every invocation, including prose-only changes; it does not fetch external URLs.
@@ -61,7 +63,7 @@ pnpm test:consumer --compatibility=minimum
 - Branch from `main`. Name the branch `<type>-<issue>-<slug>`, for example `test-12-delete-quietly-paths`.
 - One issue per pull request. Start the body with `Fixes #<issue>`, then a `## Change` section and a `## Verification` section.
 - A behaviour change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
-- Lint, typecheck and the SQLite suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
+- Formatting, lint, typecheck and the SQLite suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
 - Record a decision that the code cannot explain by itself in `docs/DECISIONS.md`.
 
 ## Documentation examples
