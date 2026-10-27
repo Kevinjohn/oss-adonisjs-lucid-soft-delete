@@ -66,6 +66,25 @@ test('installed package exports and soft-delete lifecycle', async ({ assert }) =
   assert.throws(() => plainQuery.withTrashed(), E_MODEL_SOFT_DELETE)
 })
 
+test('installed bulk lifecycle macros return counts and preserve active rows when purging trash', async ({
+  assert,
+}) => {
+  const suffix = `${Date.now()}-${Math.random()}`
+  const active = await User.create({
+    username: 'bulk-active',
+    email: `active-${suffix}@example.test`,
+  })
+  const target = await User.create({
+    username: 'bulk-target',
+    email: `target-${suffix}@example.test`,
+  })
+  assert.equal(await User.query().where('id', target.id).softDelete(), 1)
+  assert.equal(await User.onlyTrashed().whereIn('id', [active.id, target.id]).forceDelete(), 1)
+  assert.isNotNull(await User.find(active.id))
+  assert.isNull(await User.withTrashed().where('id', target.id).first())
+  await active.forceDelete()
+})
+
 class UtcUser extends User {
   static table = 'users'
 

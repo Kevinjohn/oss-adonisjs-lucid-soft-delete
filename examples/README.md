@@ -142,3 +142,39 @@ router.delete('/users/:id/purge', [UsersController, 'purge'])
 
 Relations, pagination, transactions and the cases the scope does not cover are in the
 [README](../README.md#scope-contract).
+
+## Caller-owned transaction service
+
+Policy and bookkeeping belong to the application. This sketch uses a fictional notes table;
+replace `mayRemove` with the application's policy. Send external notifications after this function
+resolves, because model after-hooks run before commit.
+
+```ts
+import db from '@adonisjs/lucid/services/db'
+import User from '#models/user'
+
+export async function removeUser(id: number, mayRemove: (user: User) => boolean) {
+  return db.transaction(async (trx) => {
+    const user = await User.query({ client: trx }).where('id', id).firstOrFail()
+    if (!mayRemove(user)) throw new Error('Removal is not permitted')
+    await user.delete()
+    await trx.table('operation_notes').insert({ user_id: id, message: 'removed' })
+    return user.id
+  })
+}
+```
+
+A policy rejection before deletion changes neither table. An error after deletion rolls back both
+writes. Rollback does not rewind a retained model instance; discard and refetch it before reuse.
+
+## Installed lifecycle evidence
+
+From the repository root, run `pnpm test:consumer` and
+`pnpm test:consumer --compatibility=minimum` with Node 24 and pnpm 11. Both commands pack the
+package, install it into a clean fixture app, migrate, typecheck, build, and run the consumer
+suite, including `examples/app/tests/lifecycle.spec.ts`.
+
+- The package owns deletion timestamps, lifecycle methods, read scopes, and use of the supplied client.
+- The application owns tenant predicates, authorization, archive state, bookkeeping, and transaction boundaries.
+- `withTrashed()` on a root query does not change related queries. Choose it separately for each preload or aggregate callback that needs deleted rows.
+- These fictional fixture tables establish package behavior only. CapacityLens integration evidence remains outstanding in [capacitylens#1640](https://github.com/Kevinjohn/capacitylens/issues/1640); this repository does not test or claim its service paths, policies, or migration status.

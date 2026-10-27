@@ -9,6 +9,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { test } from '@japa/runner'
+import { E_MODEL_UNKNOWN_DELETION_STATE } from '../../index.js'
 
 test.group('Emitted declarations', () => {
   test('the root entry loads the query builder augmentation', async ({ assert }) => {
@@ -23,5 +24,9 @@ test.group('Emitted declarations', () => {
 
     assert.include(rootDeclaration, "import './src/types/querybuilder.js'")
     assert.include(augmentation, "declare module '@adonisjs/lucid/types/model'")
+  })
+
+  test('the root entry exports the unknown deletion state exception', ({ assert }) => {
+    assert.equal(E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
   })
 })

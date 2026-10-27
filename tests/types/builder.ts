@@ -30,6 +30,10 @@ export function assertBuilderTypeContracts(): void {
   const restored: Promise<number> = onlyTrashed.restore()
   const first: Promise<User | null> = withTrashed.first()
 
+  const softDeleted: Promise<number> = original.softDelete()
+  const forceDeleted: Promise<number> = cloned.forceDelete()
+  void softDeleted
+  void forceDeleted
   void cloned
   void restored
   void first
@@ -37,6 +41,10 @@ export function assertBuilderTypeContracts(): void {
   const bare = undefined as unknown as ModelQueryBuilder
   // @ts-expect-error BARE_BUILDER_HAS_NO_PROVEN_SOFT_DELETE_CAPABILITY
   bare.withTrashed()
+  // @ts-expect-error BARE_BUILDER_HAS_NO_PROVEN_SOFT_DELETE_CAPABILITY
+  bare.softDelete()
+  // @ts-expect-error BARE_BUILDER_HAS_NO_PROVEN_SOFT_DELETE_CAPABILITY
+  bare.forceDelete()
 }
 
 /** A helper written once for every soft-delete model keeps the macros. */

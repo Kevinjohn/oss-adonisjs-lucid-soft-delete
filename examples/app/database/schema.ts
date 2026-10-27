@@ -7,6 +7,49 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class LifecycleChildSchema extends BaseModel {
+  static $columns = ['deletedAt', 'id', 'label', 'parentId', 'tenantId'] as const
+  $columns = LifecycleChildSchema.$columns
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string
+  @column()
+  declare parentId: number
+  @column()
+  declare tenantId: number
+}
+
+export class LifecycleNoteSchema extends BaseModel {
+  static $columns = ['action', 'id', 'parentId', 'tenantId'] as const
+  $columns = LifecycleNoteSchema.$columns
+  @column()
+  declare action: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare parentId: number
+  @column()
+  declare tenantId: number
+}
+
+export class LifecycleParentSchema extends BaseModel {
+  static $columns = ['archivedAt', 'deletedAt', 'id', 'label', 'tenantId'] as const
+  $columns = LifecycleParentSchema.$columns
+  @column.dateTime()
+  declare archivedAt: DateTime | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string
+  @column()
+  declare tenantId: number
+}
+
 export class UserSchema extends BaseModel {
   static $columns = ['deletedAt', 'email', 'id', 'username'] as const
   $columns = UserSchema.$columns
