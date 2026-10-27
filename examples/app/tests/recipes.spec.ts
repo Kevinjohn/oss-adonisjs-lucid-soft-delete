@@ -40,6 +40,8 @@ test.group('Published cookbook recipes', (group) => {
     assert.isFalse(result.selectedRowsRemain)
     assert.isTrue(result.otherTenantRemains)
     assert.isTrue(result.unselectedSameTenantRemains)
+    assert.isTrue(result.trashedOtherTenantRemains)
+    assert.isTrue(result.trashedUnselectedSameTenantRemains)
   })
 
   test('chooses parent and child read modes independently', async ({ assert }) => {

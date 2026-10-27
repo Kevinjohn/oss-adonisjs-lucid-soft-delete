@@ -97,7 +97,19 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     label: uniqueLabel('batch-other'),
     archivedAt: null,
   })
-  const selectedIds = [first.id, second.id, otherTenant.id]
+  const trashedOtherTenant = await RecipeParent.create({
+    tenantId: tenantId + 1,
+    label: uniqueLabel('batch-older-trash-other'),
+    archivedAt: null,
+    deletedAt: DateTime.local(),
+  })
+  const trashedUnselectedSameTenant = await RecipeParent.create({
+    tenantId,
+    label: uniqueLabel('batch-older-trash-unselected'),
+    archivedAt: null,
+    deletedAt: DateTime.local(),
+  })
+  const selectedIds = [first.id, second.id, otherTenant.id, trashedOtherTenant.id]
 
   const deleted = await RecipeParent.query()
     .where('tenantId', tenantId)
@@ -117,6 +129,12 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     ),
     otherTenantRemains: Boolean(await RecipeParent.find(otherTenant.id)),
     unselectedSameTenantRemains: Boolean(await RecipeParent.find(unselectedSameTenant.id)),
+    trashedOtherTenantRemains: Boolean(
+      await RecipeParent.onlyTrashed().where('id', trashedOtherTenant.id).first()
+    ),
+    trashedUnselectedSameTenantRemains: Boolean(
+      await RecipeParent.onlyTrashed().where('id', trashedUnselectedSameTenant.id).first()
+    ),
   }
 }
 // #endregion TENANT_BATCH
