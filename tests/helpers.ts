@@ -19,6 +19,12 @@ import { Emitter } from '@adonisjs/core/events'
 import { Database } from '@adonisjs/lucid/database'
 import { BaseModel } from '@adonisjs/lucid/orm'
 
+/** The database the suite runs against: `DB_CLIENT=pg`, `DB_CLIENT=mysql`, or SQLite. */
+export const dbClient: 'sqlite' | 'pg' | 'mysql' =
+  process.env.DB_CLIENT === 'pg' || process.env.DB_CLIENT === 'mysql'
+    ? process.env.DB_CLIENT
+    : 'sqlite'
+
 /**
  * Creates an instance of the database class for making queries
  */
@@ -34,7 +40,7 @@ export async function createDatabase(onQuery?: (event: { sql: string }) => void)
   if (onQuery) emitter.on('db:query', onQuery)
   const db = new Database(
     {
-      connection: process.env.DB_CLIENT === 'pg' ? 'pg' : 'sqlite',
+      connection: dbClient,
       connections: {
         sqlite: {
           client: 'better-sqlite3',
@@ -50,6 +56,17 @@ export async function createDatabase(onQuery?: (event: { sql: string }) => void)
             host: process.env.DB_HOST || '127.0.0.1',
             port: Number(process.env.DB_PORT || 5432),
             user: process.env.DB_USER || process.env.USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE || 'lucid_soft_deletes_test',
+          },
+        },
+        mysql: {
+          client: 'mysql2',
+          debug: true,
+          connection: {
+            host: process.env.DB_HOST || '127.0.0.1',
+            port: Number(process.env.DB_PORT || 3306),
+            user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD,
             database: process.env.DB_DATABASE || 'lucid_soft_deletes_test',
           },
@@ -134,8 +151,8 @@ export async function createTables(db: Database) {
 
   await db.connection().schema.createTable('author_book', (table) => {
     table.increments()
-    table.integer('book_id')
-    table.integer('author_id')
+    table.integer('book_id').unsigned()
+    table.integer('author_id').unsigned()
     table.foreign('book_id').references('books.id')
     table.foreign('author_id').references('authors.id')
     table.timestamp('deleted_at', { useTz: true })
