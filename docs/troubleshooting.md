@@ -251,6 +251,16 @@ This marks the selected active related rows as trashed and leaves pivot rows int
 
 Source and tests: [relation lifecycle guard](../src/bindings/model_query_builder.ts), [builder lifecycle relation tests](../tests/unit/builder_lifecycle.spec.ts).
 
+## A receipt call is rejected or throws E_BULK_RECEIPT_DIVERGED
+
+**Likely cause:** Receipt mode requires a caller-owned transaction on every supported dialect. It also rejects unsupported dialects, has-one and belongs-to relation builders, and query shapes with joins, grouping, having, ordering, limits, offsets, unions, aggregates, or a raw/sub-query `from`.
+
+**Check:** Confirm the builder uses `Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction. Check for unsupported clauses and relation types before the call; these receipt-mode rejections happen before any statement. `E_BULK_RECEIPT_DIVERGED` means the write changed a different number of rows than the preselect returned.
+
+**Correction:** Remove unsupported query shapes or query related model rows by IDs with a supported builder. If `E_BULK_RECEIPT_DIVERGED` is thrown, the write has already run inside the caller's transaction, so roll back that transaction before continuing. The package does not roll it back automatically.
+
+**Expected result:** The caller commits the mutation and bookkeeping together after a matching receipt, or rolls back the transaction after divergence.
+
 ## Hooks, `updatedAt`, custom `prepare`, or serialized fields differ in bulk operations
 
 **Likely cause:** Instance and builder operations use different persistence paths. Instance `delete()` and `restore()` save the model, so Lucid model hooks, automatic timestamps, and column preparation apply as they do to model saves. Builder `softDelete()`, `restore()`, and `forceDelete()` update/delete rows directly: they do not run per-instance hooks, do not automatically update `updatedAt`, and bypass custom column `prepare` functions. Serialization applies when producing serialized output, independently of the write path.

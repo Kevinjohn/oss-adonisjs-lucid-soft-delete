@@ -19,6 +19,7 @@ This reference documents the public API of `0.1.0-alpha`. Check the README for t
   - [`softDelete()`](#softdelete)
   - [`restore()`](#builder-restore)
   - [`forceDelete()`](#builder-forcedelete)
+  - [Receipts](#receipts)
   - [`delete()` and `del()`](#delete-and-del)
 - [Scope boundaries and query behavior](#scope-boundaries-and-query-behavior)
 - [Relationship aggregates and existence queries](#relationship-aggregates-and-existence-queries)
@@ -193,6 +194,7 @@ Sets the mapped deletion column for matching active rows.
 - **Return/no-op:** `Promise<number>` affected count; zero when there are no active matches or mode is `onlyTrashed()`.
 - **Hooks/state:** No model hooks or instance state changes. Does not update `updatedAt`; custom column `prepare` is bypassed.
 - **Client/errors:** Uses the builder's client. Requires the mixin and mapped deletion column; rejects many-to-many and has-many-through relation builders before writing.
+- **Receipt:** `softDelete({ receipt: true })` returns `SoftDeleteReceipt`; see [Receipts](#receipts).
 
 ```ts
 const changed = await User.query().whereIn('id', ids).softDelete()
@@ -206,6 +208,7 @@ Clears the mapped deletion column on matching trashed rows, regardless of the bu
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct bulk update. No model hooks or instance saves; `updatedAt` is unchanged and custom column `prepare` is bypassed.
 - **Client/errors:** Uses the builder's client. A model without the mixin or mapped column rejects with `E_MODEL_SOFT_DELETE`; query errors propagate. Rejects many-to-many and has-many-through relation builders before writing; use a normal related-model query by IDs for relation-target lifecycle writes.
+- **Receipt:** `restore({ receipt: true })` returns `RestoreReceipt`; see [Receipts](#receipts).
 
 ```ts
 const restoredCount = await User.query().whereIn('id', ids).restore()
@@ -219,12 +222,86 @@ Physically removes matching model rows.
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct physical delete. No model hooks, model state updates, or `updatedAt` changes.
 - **Client/errors:** Uses the builder's client. Requires the mixin and mapped column; rejects many-to-many and has-many-through relation builders before writing. Database and foreign-key errors propagate.
+- **Receipt:** `forceDelete({ receipt: true })` returns `ForceDeleteReceipt`; see [Receipts](#receipts).
 
 ```ts
 const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDelete()
 ```
 
 Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches.
+
+### Receipts
+
+Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write:
+
+```ts
+await User.query().whereIn('id', ids).softDelete() // Promise<number>, unchanged
+await User.query().whereIn('id', ids).softDelete({ receipt: true }) // Promise<SoftDeleteReceipt>
+await User.query().whereIn('id', ids).restore({ receipt: true }) // Promise<RestoreReceipt>
+await User.onlyTrashed().whereIn('id', ids).forceDelete({ receipt: true }) // Promise<ForceDeleteReceipt>
+```
+
+`{}` and `{ receipt: false }` behave exactly like no argument. The count-mode SQL and return values do not change.
+
+```ts
+const receipt = await db.transaction(async (trx) => {
+  const result = await User.query({ client: trx }).whereIn('id', ids).softDelete({ receipt: true })
+  for (const id of result.ids) {
+    await trx.table('lifecycle_notes').insert({ tenant_id: 1, parent_id: id, action: 'softDelete' })
+  }
+  return result
+})
+```
+
+The public types are:
+
+```ts
+import type { DateTime } from 'luxon'
+
+/** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
+export type PrimaryKeyValue = number | string
+
+export interface BulkReceiptOptions {
+  receipt?: boolean
+}
+
+export interface BulkReceipt {
+  /** Rows the write changed. Equals ids.length. */
+  count: number
+  /** Primary-key values of the changed rows. Set semantics: no defined order, no duplicates. */
+  ids: PrimaryKeyValue[]
+}
+
+export type RestoreReceipt = BulkReceipt
+export type ForceDeleteReceipt = BulkReceipt
+
+export interface SoftDeleteReceipt extends BulkReceipt {
+  /**
+   * The instant the written literal denotes in the Node process zone, truncated to the
+   * dialect's date-time format precision (milliseconds on PostgreSQL, seconds elsewhere).
+   * null when count is 0.
+   */
+  deletedAt: DateTime | null
+}
+```
+
+- `ids` and `count` describe the rows the executed statement changed, not the rows selected before it ran.
+- The receipt describes an executed mutation inside the caller's transaction. It is not durable until the caller commits. It is not an audit log and does not authorise an undo.
+- `deletedAt` is not unique per call and is not a recovery-group or ownership token. Two calls in the same second (or millisecond on PostgreSQL) produce equal values.
+- Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. No `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalising.
+- Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
+- Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
+- Cost: PostgreSQL runs one statement with `RETURNING`. MySQL and SQLite run a `SELECT … FOR UPDATE` (SQLite ignores `FOR UPDATE`) followed by the write restricted to the selected keys, and hold the row locks until the caller commits. All ids are held in memory and, on MySQL/SQLite, sent back as bind parameters (SQLite's bound-parameter limit is 32766).
+- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, `limit`, `offset`, unions, aggregates, or a raw/sub-query `from`.
+- A prior `returning()` on the builder is overridden on PostgreSQL and ignored elsewhere.
+- Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
+- Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.
+
+| Error                                 | Code                                  | Message                                                                                                | Constructor                                                                                     |
+| ------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `Bulk lifecycle receipts require a caller-owned transaction client`                                    | `()`                                                                                            |
+| `E_BULK_RECEIPT_UNSUPPORTED`          | `E_BULK_RECEIPT_UNSUPPORTED`          | `Bulk lifecycle receipts do not support ${reason}`                                                     | `(reason: string)`                                                                              |
+| `E_BULK_RECEIPT_DIVERGED`             | `E_BULK_RECEIPT_DIVERGED`             | `Bulk lifecycle write changed ${actual} rows but ${expected} were selected; roll back the transaction` | `(expected: number, actual: number)`; exposes `expected` and `actual` as public readonly fields |
 
 ### `delete()` and `del()`
 
@@ -265,15 +342,17 @@ After an outer rollback, the database state is reverted but the retained model's
 
 The package root exports:
 
-| Export                                                                                                    | Purpose                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `configure`                                                                                               | Registers the provider in an AdonisJS application.                                                                            |
-| `SoftDeletes`                                                                                             | Model mixin.                                                                                                                  |
-| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                     | Type contracts for instance, static, and composed constructor APIs.                                                           |
-| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                      | Symbol marker, runtime capability guard, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
-| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE` | Named exception classes and error-code definitions.                                                                           |
+| Export                                                                                                              | Purpose                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `configure`                                                                                                         | Registers the provider in an AdonisJS application.                                                                            |
+| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                  |
+| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                           |
+| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, runtime capability guard, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
+| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                           |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                   |
+| `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                   |
 
-The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
+The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`; lifecycle methods include `{ receipt: true }` overloads. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
 
 ```ts
 import { hasSoftDeletes, SOFT_DELETES } from '@kevinjohn/lucid-soft-deletes'
@@ -290,12 +369,15 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 
 ## Errors
 
-| Error                            | When it is thrown                                                                                                                                                                                                     |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `E_MODEL_SOFT_DELETE`            | A read mode or lifecycle builder macro is used with a model without the mixin, or a scope/lifecycle macro needs a mapped `deletedAt` column that is missing.                                                          |
-| `E_MODEL_NOT_PERSISTED`          | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
-| `E_MODEL_FORCE_DELETED`          | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
-| `E_MODEL_UNKNOWN_DELETION_STATE` | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
-| Query/hook/database error        | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
+| Error                                 | When it is thrown                                                                                                                                                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `E_MODEL_SOFT_DELETE`                 | A read mode or lifecycle builder macro is used with a model without the mixin, or a scope/lifecycle macro needs a mapped `deletedAt` column that is missing.                                                          |
+| `E_MODEL_NOT_PERSISTED`               | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
+| `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
+| `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
+| `E_BULK_RECEIPT_UNSUPPORTED`          | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
+| `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
+| Query/hook/database error             | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
 
 See [troubleshooting](troubleshooting.md) for recovery steps for projected models, uniqueness conflicts, transactions, and builder write surprises.

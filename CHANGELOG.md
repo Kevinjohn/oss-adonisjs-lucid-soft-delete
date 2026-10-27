@@ -6,6 +6,7 @@ All notable changes to this project are documented here. This changelog follows 
 
 ### Added
 
+- Builder `softDelete()`, `restore()` and `forceDelete()` accept `{ receipt: true }` inside a caller transaction and return the changed primary keys, count and (for soft deletes) the written timestamp. Count-mode returns are unchanged.
 - Builder `softDelete()` and `forceDelete()` return affected counts, preserve caller predicates and transaction clients, and provide explicit bulk lifecycle writes. `onlyTrashed().forceDelete()` purges only trashed rows. Many-to-many and has-many-through relation builders reject these macros and builder `restore()` before writing.
 
 - Document serialisation, factory state, seeder uniqueness conflicts, PostgreSQL and SQLite partial indexes, MySQL generated-column guidance, restore conflicts, and cascade boundaries.

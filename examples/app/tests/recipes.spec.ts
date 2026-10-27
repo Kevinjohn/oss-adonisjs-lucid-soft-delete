@@ -17,6 +17,7 @@ import {
   restoreAccidentallyDeletedRecord,
   restoreAfterUniqueConflict,
   softDeleteAndPurgeSelectedBatch,
+  softDeleteWithReceipt,
 } from '#services/soft_delete_recipes'
 
 test.group('Published cookbook recipes', (group) => {
@@ -71,6 +72,14 @@ test.group('Published cookbook recipes', (group) => {
       trashed: false,
       noteCount: 0,
       externalEffects: 0,
+    })
+  })
+
+  test('records one bookkeeping note for every changed receipt id', async ({ assert }) => {
+    assert.deepEqual(await softDeleteWithReceipt(77), {
+      count: 2,
+      noteCount: 2,
+      hasTimestamp: true,
     })
   })
 

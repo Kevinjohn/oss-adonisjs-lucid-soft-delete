@@ -100,6 +100,7 @@ export async function createTables(db: Database) {
     await db.connection().schema.dropTableIfExists('users')
     await db.connection().schema.dropTableIfExists('industries')
     await db.connection().schema.dropTableIfExists('roles')
+    await db.connection().schema.dropTableIfExists('big_keys')
   })
 
   await db.connection().schema.createTable('users', (table) => {
@@ -141,6 +142,12 @@ export async function createTables(db: Database) {
     table.increments()
     table.string('title')
     table.timestamps()
+  })
+
+  await db.connection().schema.createTable('big_keys', (table) => {
+    table.bigInteger('id').primary()
+    table.string('label')
+    table.timestamp('deleted_at', { useTz: true })
   })
 
   await db.connection().schema.createTable('industry_user', (table) => {

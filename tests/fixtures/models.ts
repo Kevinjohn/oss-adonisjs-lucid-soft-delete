@@ -25,6 +25,7 @@ import type {
 } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
 import { SoftDeletes } from '../../src/mixin.js'
+import { type DateTime } from 'luxon'
 
 class SoftDeleteModel extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
@@ -113,4 +114,22 @@ export class RelationIndustry extends SoftDeleteModel {
 
   @column()
   declare title: string
+}
+
+export class CustomPost extends compose(BaseModel, SoftDeletes) {
+  static table = 'posts'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare title: string
+
+  @column.dateTime({
+    columnName: 'deletedAt',
+    prepare: () => {
+      throw new Error('prepare must be bypassed')
+    },
+  })
+  declare deletedAt: DateTime | null
 }

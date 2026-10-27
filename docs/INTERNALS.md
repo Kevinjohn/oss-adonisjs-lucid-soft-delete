@@ -49,6 +49,8 @@ scope nodes while preserving caller predicates. `forceDelete()` groups the calle
 default/with mode and replaces the earlier scope with `whereNotNull` in only mode. Any builder the
 package has grouped is regrouped on every `applyWhere()`.
 
+Lucid's `returning()` is gated by `dialect.supportsReturningStatement` (PostgreSQL only). Knex 3.3.0 compiles `RETURNING` for SQLite `UPDATE` but not `DELETE`, so SQLite uses the select-then-write path. The preselect sets `knexQuery._method = 'select'` and calls `pojo()` on a clone. `knexQuery.client.transacting` is the same transaction test that `QueryRunner.isInTransaction()` uses. mysql2's default `FOUND_ROWS` flag makes `affectedRows` a matched-row count, which equals the changed-row count only because the lifecycle filter guarantees a value change.
+
 The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
 builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target
 to the pivot table for update and delete actions, which would mutate pivot rows instead of

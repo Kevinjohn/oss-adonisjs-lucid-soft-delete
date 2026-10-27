@@ -20,7 +20,7 @@ import { DateTime, Settings } from 'luxon'
 import { E_MODEL_SOFT_DELETE, SoftDeletes } from '../../index.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from '../helpers.js'
-import { RelationComment, RelationUser, RelationPost } from '../fixtures/models.js'
+import { CustomPost, RelationComment, RelationUser, RelationPost } from '../fixtures/models.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -35,19 +35,6 @@ class LifecycleUser extends compose(BaseModel, SoftDeletes) {
     this.hooksRun++
   }
 }
-class CustomPost extends compose(BaseModel, SoftDeletes) {
-  static table = 'posts'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare title: string
-  @column.dateTime({
-    columnName: 'deletedAt',
-    prepare: () => {
-      throw new Error('prepare must be bypassed')
-    },
-  })
-  declare deletedAt: DateTime | null
-}
-
 test.group('Builder lifecycle', (group) => {
   group.setup(() => extendModelQueryBuilder(ModelQueryBuilder))
   test('softDelete mode matrix, zero one many counts and timestamp stability', async ({

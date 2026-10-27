@@ -13,9 +13,10 @@ already run.
 3. [Read a deleted parent with independent child modes](#read-a-deleted-parent-with-independent-child-modes)
 4. [Count active, all, and trashed related rows](#count-active-all-and-trashed-related-rows)
 5. [Commit mutation and bookkeeping together](#commit-mutation-and-bookkeeping-together)
-6. [Recover from a restore uniqueness conflict](#recover-from-a-restore-uniqueness-conflict)
-7. [Map a custom deletion column and serialize UTC ISO](#map-a-custom-deletion-column-and-serialize-utc-iso)
-8. [Recover an application-owned deletion group](#recover-an-application-owned-deletion-group)
+6. [Record the rows a batch changed](#record-the-rows-a-batch-changed)
+7. [Recover from a restore uniqueness conflict](#recover-from-a-restore-uniqueness-conflict)
+8. [Map a custom deletion column and serialize UTC ISO](#map-a-custom-deletion-column-and-serialize-utc-iso)
+9. [Recover an application-owned deletion group](#recover-an-application-owned-deletion-group)
 
 ## Shared fixture and imports
 
@@ -343,6 +344,45 @@ bound to the model query; the application owns authorization, bookkeeping, trans
 and delivery retries for external effects. An after-commit callback avoids sending before the
 transaction commits, but durable delivery across process failure requires an application outbox or
 equivalent mechanism.
+
+## Record the rows a batch changed
+
+Use a receipt inside a caller-owned transaction when the application needs to write bookkeeping
+for exactly the rows changed by a batch mutation. The mutation and notes commit or roll back
+together.
+
+<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RECEIPT_BOOKKEEPING -->
+
+```ts
+export async function softDeleteWithReceipt(tenantId: number) {
+  const rows = await Promise.all(
+    ['receipt-a', 'receipt-b'].map((prefix) =>
+      RecipeParent.create({ tenantId, label: uniqueLabel(prefix), archivedAt: null })
+    )
+  )
+  const receipt = await db.transaction(async (trx) => {
+    const result = await RecipeParent.query({ client: trx })
+      .where('tenantId', tenantId)
+      .whereIn(
+        'id',
+        rows.map((row) => row.id)
+      )
+      .softDelete({ receipt: true })
+    for (const id of result.ids) {
+      await trx
+        .table('lifecycle_notes')
+        .insert({ tenant_id: tenantId, parent_id: id, action: 'softDelete' })
+    }
+    return result
+  })
+  const notes = await db.from('lifecycle_notes').where('tenant_id', tenantId)
+  return { count: receipt.count, noteCount: notes.length, hasTimestamp: receipt.deletedAt !== null }
+}
+```
+
+**Expected result:** two notes, one per changed id, committed with the mutation.
+
+The receipt's timestamp is `null` and its `ids` list is empty when nothing matched.
 
 ## Recover from a restore uniqueness conflict
 
