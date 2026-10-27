@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.1.0-alpha`. Check the README for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.1.1-alpha`. Check the README for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
