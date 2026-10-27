@@ -427,11 +427,11 @@ test.group('Builder receipts', (group) => {
       { userId: other.id, title: 'other' },
     ])
     const trx = await openTransaction(db)
-    const related = () => parent.related('posts').query().useTransaction(trx)
-    const first = await related().softDelete({ receipt: true })
+    const related = parent.related('posts').query().useTransaction(trx)
+    const first = await related.softDelete({ receipt: true })
     assert.equal(first.count, 1)
     assert.sameMembers(first.ids, [posts[0].id])
-    const second = await related().softDelete({ receipt: true })
+    const second = await related.softDelete({ receipt: true })
     assert.equal(second.count, 0)
     const start = statements.length
     await assert.rejects(
@@ -681,11 +681,11 @@ test.group('Builder receipts', (group) => {
   test('MySQL: a predicate that changes between select and write diverges', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trx = await openTransaction(db)
-    await trx.rawQuery('SET @n = 0')
-    await trx
+    await db
       .table('users')
       .insert([{ username: 'mysql-diverge-a' }, { username: 'mysql-diverge-b' }])
+    const trx = await openTransaction(db)
+    await trx.rawQuery('SET @n = 0')
     let caught: unknown
     try {
       await LifecycleUser.query({ client: trx })
