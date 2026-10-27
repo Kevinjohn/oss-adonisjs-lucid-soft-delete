@@ -41,3 +41,15 @@ relation constraints are prepared; other non-child builders reapply an existing 
 from anywhere in the where stack. Reapplication groups predicates appended by subclass hooks
 without rereading the mode or installing a missing filter. Fetch and paginate hooks still call
 `applyScope()` so group-limit detection runs at hook time, outside the wrapper.
+
+Builder `softDelete()` writes the mapped column with `DateTime.local()` formatted using the
+query client's dialect date-time format. Like builder `restore()`, it bypasses custom column
+preparation and instance hooks and leaves `updatedAt` unchanged. Each macro replaces earlier
+scope nodes while preserving caller predicates. `forceDelete()` removes an earlier lifecycle
+scope in default/with mode, or replaces it with `whereNotNull` in only mode.
+
+The lifecycle macros reject many-to-many relation builders before writing: Lucid's
+`ManyToManyQueryBuilder.applyConstraints()` changes the target to the pivot table for update
+and delete actions. This would mutate pivot rows instead of related models. Has-many builders
+retain their normal relation constraint. As with builder `restore()`, a prior `returning()`
+clause is unsupported.
