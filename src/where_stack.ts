@@ -33,20 +33,24 @@ function replayGroups(query: GroupedQuery, knexQuery: KnexWhere, groups: WhereNo
   }
 }
 
-/** Collect the caller's where groups, unwrapping a replay node and dropping scope filters. */
+/**
+ * Collect the caller's where groups, unwrapping a replay node and dropping scope filters.
+ * Predicates after a replay or scope node were siblings of that wrapped group, so they start a
+ * new group instead of joining the caller's last one, where an AND would bind to its final OR.
+ */
 function collectGroups(grouped: GroupedQuery): WhereNode[][] {
   const groups: WhereNode[][] = []
   for (const collection of grouped.whereStack) {
     let target: WhereNode[] | undefined
     for (const node of collection) {
       const saved = node[SCOPE_NODE]
-      if (Array.isArray(saved)) {
-        groups.push(...saved.map((group) => [...group]))
-        target = groups.at(-1)
-      } else if (!saved) {
-        if (!target) groups.push((target = []))
-        target.push(node)
+      if (Array.isArray(saved)) groups.push(...saved.map((group) => [...group]))
+      if (saved) {
+        target = undefined
+        continue
       }
+      if (!target) groups.push((target = []))
+      target.push(node)
     }
   }
   return groups
@@ -87,4 +91,13 @@ export function removeScopeFilter(query: ModelQueryBuilderContract<LucidModel>):
     collection.some((node) => node[SCOPE_NODE] === true)
   )
   if (hasFilter) rebuildStack(grouped, collectGroups(grouped))
+}
+
+/** Regroup predicates appended after a hook installed the scope, retaining that filter's mode. */
+export function reapplyScopeFilter(query: ModelQueryBuilderContract<LucidModel>): void {
+  const grouped = query as unknown as GroupedQuery
+  const filter = grouped.whereStack.flat().find((node) => node[SCOPE_NODE] === true)
+  if (filter) {
+    addScopeFilter(query, filter.method as 'whereNull' | 'whereNotNull', filter.args[0] as string)
+  }
 }

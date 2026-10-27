@@ -35,3 +35,9 @@ that will execute. This depends on Lucid/Knex internals and is covered by group-
 On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
 before the relation key and soft-delete filter. Builder `restore()` does not support a prior
 `returning()` clause.
+
+The `applyWhere()` wrapper has two branches: relation subqueries install their scope after
+relation constraints are prepared; other non-child builders reapply an existing scope node
+from anywhere in the where stack. Reapplication groups predicates appended by subclass hooks
+without rereading the mode or installing a missing filter. Fetch and paginate hooks still call
+`applyScope()` so group-limit detection runs at hook time, outside the wrapper.
