@@ -102,6 +102,7 @@ query is cloned or paginated.
 | Aliased base tables and self-joins                                                                                 | Qualifies the scope against the base alias or table                                                               | `tests/unit/scope.spec.ts`: `uses object and string aliases for the base table`; `qualifies the base table in a self join`                                                                                                                                                                                                                                                                    |
 | Group-limited has-many and many-to-many preloads                                                                   | Apply the filter before each parent's limit                                                                       | `tests/unit/group_limit.spec.ts`: `scopes has-many rows before applying per-parent limits in each mode`; `scopes many-to-many rows before applying per-parent limits in each mode`                                                                                                                                                                                                            |
 | Reusing a builder: awaiting the same query twice, `paginate()` then `first()`, or builder `restore()` twice        | Keeps the caller's predicates; the scope filter is replaced on each run, not stacked                              | `tests/unit/scope.spec.ts`: `keeps caller predicates when a builder executes more than once`; `tests/unit/builder_restore.spec.ts`: `keeps caller predicates when the same builder restores twice`                                                                                                                                                                                            |
+
 | Subclass query hooks that append OR predicates                                                                     | Regroups appended predicates before the existing soft-delete filter                                               | `tests/unit/subclass_hooks.spec.ts`                                                                                                                                                                                                                                                                                                                                                           |
 
 Subclass hooks that switch to `withTrashed()` after the mixin hook retain the filter already added. Hooks that call `clearWhere()` remove that filter along with caller predicates; append-only hook protection does not restore a removed scope.
@@ -118,12 +119,33 @@ intermediate row must be active. This behavior is covered by
 | Operation                    | Behavior                                                                                                                                | Result             |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | Instance `delete()`          | Sets `deletedAt` and saves the instance, including other dirty attributes. Repeated calls skip the write when `deletedAt` is unchanged. | `Promise<void>`    |
-| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                                     | `Promise<void>`    |
-| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                          | `Promise<void>`    |
-| Instance `restore()`         | Requires a persisted instance. Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
-| Builder `delete()` / `del()` | Physically deletes matching rows, including trashed rows.                                                                                     | Lucid write result |
-| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                          | `Promise<number>`  |
-| Builder `forceDelete()`      | Not available.                                                                                                                                | —                  |
+| Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                               | `Promise<void>`    |
+| Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                    | `Promise<void>`    |
+| Instance `restore()`         | Requires a persisted instance. Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                  | `Promise<this>`    |
+| Builder `delete()` / `del()` | Physically deletes matching rows, including active rows even after `onlyTrashed()` (see warning below).                                 | Lucid write result |
+| Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                    | `Promise<number>`  |
+| Builder `forceDelete()`      | Not available.                                                                                                                          | —                  |
+
+**Warning:** `withTrashed()` and `onlyTrashed()` are read modes. They are not applied to
+builder `delete()`, `del()`, `update()` or `increment()`. For example, this physically
+deletes both active and trashed matching rows:
+
+```ts
+await User.onlyTrashed().whereIn('id', [activeId, deletedId]).delete()
+```
+
+Until the explicit `onlyTrashed().forceDelete()` API in #57 is available, select trashed
+rows with the model's mapped column and keep OR predicates grouped:
+
+```ts
+await User.query()
+  .whereNotNull(User.$getColumn('deletedAt')!.columnName)
+  .whereIn('id', ids)
+  .delete()
+```
+
+For an aliased table, qualify the mapped column with that alias. Wrap alternatives in
+`.where((query) => query.where(...).orWhere(...))` so they cannot bypass the timestamp predicate.
 
 Soft deletion runs the normal update and delete hooks in this order:
 
