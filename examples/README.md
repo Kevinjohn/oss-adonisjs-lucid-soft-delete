@@ -166,3 +166,15 @@ export async function removeUser(id: number, mayRemove: (user: User) => boolean)
 
 A policy rejection before deletion changes neither table. An error after deletion rolls back both
 writes. Rollback does not rewind a retained model instance; discard and refetch it before reuse.
+
+## Installed lifecycle evidence
+
+From the repository root, run `pnpm test:consumer` and
+`pnpm test:consumer --compatibility=minimum` with Node 24 and pnpm 11. Both commands pack the
+package, install it into a clean fixture app, migrate, typecheck, build, and run the consumer
+suite, including `examples/app/tests/lifecycle.spec.ts`.
+
+- The package owns deletion timestamps, lifecycle methods, read scopes, and use of the supplied client.
+- The application owns tenant predicates, authorization, archive state, bookkeeping, and transaction boundaries.
+- `withTrashed()` on a root query does not change related queries. Choose it separately for each preload or aggregate callback that needs deleted rows.
+- These fictional fixture tables establish package behavior only. CapacityLens integration evidence remains outstanding in [capacitylens#1640](https://github.com/Kevinjohn/capacitylens/issues/1640); this repository does not test or claim its service paths, policies, or migration status.
