@@ -181,3 +181,16 @@ suite, including `examples/app/tests/lifecycle.spec.ts`.
 - The application owns tenant predicates, authorization, archive state, bookkeeping, and transaction boundaries.
 - `withTrashed()` on a root query does not change related queries. Choose it separately for each preload or aggregate callback that needs deleted rows.
 - These fictional fixture tables establish package behavior only. CapacityLens integration evidence remains outstanding in [capacitylens#1640](https://github.com/Kevinjohn/capacitylens/issues/1640); this repository does not test or claim its service paths, policies, or migration status.
+
+## Application-owned recovery groups
+
+The [group recovery cookbook recipe](../docs/cookbook.md#recover-an-application-owned-deletion-group)
+composes the existing count-returning mutation APIs into a one-use recovery lifecycle. The
+maintained service, generic fixture migration and installed-consumer tests live in this example
+app; group validity, tenant authorization, cleanup eligibility and the transaction boundary belong
+to the application. It does not require a richer bulk-result API or a package-owned undo framework.
+
+The recipe keeps a fresh group identity and a current deletion association separately from the
+soft-delete timestamp. This prevents an earlier group from restoring or purging a later deletion,
+even if their deletion timestamps happen to be equal. Both installed-consumer commands above run
+the same service functions shown in the cookbook.

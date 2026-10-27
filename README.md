@@ -34,7 +34,7 @@ Calling `await demonstrateRecovery('alex@example.test')` with an unused email re
 ## Choose your next step
 
 - [Build a recycle bin](docs/tutorial.md): complete setup, migration, demo records, deletion, recovery and permanent purge, with expected results.
-- [Solve a practical task](docs/cookbook.md): batches, tenant predicates, related records, counts, transactions, uniqueness and JSON timestamps.
+- [Solve a practical task](docs/cookbook.md): batches, recovery groups, tenant predicates, related records, counts, transactions, uniqueness and JSON timestamps.
 - [Look up the API](docs/api.md): method results, state requirements, hooks, timestamps, errors and TypeScript contracts.
 - [Understand query boundaries](docs/scope-contract.md): exactly which queries are scoped and the regression evidence behind the contract.
 - [Troubleshoot a symptom](docs/troubleshooting.md): diagnostics and corrective examples for common integration and lifecycle problems.

@@ -74,6 +74,8 @@ export default defineConfig({
           'tests/readme.spec.{ts,js}',
           'tests/recycle_bin.spec.{ts,js}',
           'tests/recipes.spec.{ts,js}',
+          'tests/group_recovery_example.spec.{ts,js}',
+          'tests/group_recovery.spec.{ts,js}',
         ],
         name: 'consumer',
         timeout: 30000,

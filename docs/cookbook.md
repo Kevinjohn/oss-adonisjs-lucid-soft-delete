@@ -15,6 +15,7 @@ already run.
 5. [Commit mutation and bookkeeping together](#commit-mutation-and-bookkeeping-together)
 6. [Recover from a restore uniqueness conflict](#recover-from-a-restore-uniqueness-conflict)
 7. [Map a custom deletion column and serialize UTC ISO](#map-a-custom-deletion-column-and-serialize-utc-iso)
+8. [Recover an application-owned deletion group](#recover-an-application-owned-deletion-group)
 
 ## Shared fixture and imports
 
@@ -448,3 +449,410 @@ Expected result: the model attribute is still a Luxon `DateTime`, `archived_at` 
 timestamp, the mixin's default `deleted_at` column stays null, and `serialized.deletedAt` is
 `2026-02-02T22:35:06.000Z`. The serializer normalizes the instant to UTC ISO 8601; it does not
 change the database timezone or the value held by the model.
+
+## Recover an application-owned deletion group
+
+An application can recover the rows actually deleted by one operation using the existing
+count-returning APIs. Keep recovery groups and each row's current deletion owner in application
+storage. A deletion timestamp is useful state, but it is not a unique deletion-generation ID:
+two delete operations can write the same timestamp.
+
+This recipe uses fictional records and a plain tenant column. Authorization, whether a group is
+usable, when it may be invalidated or cleaned up, and transaction ownership are application
+responsibilities. Complete the policy check before invoking these functions; pass an explicit
+tenant and selected row IDs. All mutation and bookkeeping queries use the caller's transaction.
+Only publish notifications or other external effects after that transaction commits.
+
+### Schema and setup
+
+Keep the shared `lifecycle_parents` table above. Apply the example's
+[recovery migration](../examples/app/database/migrations/0003_create_recovery_tables.ts)
+with the existing application migrations before invoking the service. It adds only:
+
+- `recovery_groups`: UUID primary key `id`, integer `tenant_id`, `label`, `status` and `created_at`.
+  Status is `usable`, `invalidated` or `consumed`; a consumed group cannot be reused.
+- `recovery_records`: integer `tenant_id` and `record_id` as a composite primary key, `group_id`
+  referencing a recovery group, and the captured `deleted_at`. This is the **current** association,
+  not an immutable history table. A new deletion replaces an earlier association for the same row.
+
+The fixture migrations run automatically in both installed-consumer gates. No new package
+configuration or installation command is needed; follow the [tutorial setup](tutorial.md#prerequisites-and-source-checkout)
+for an installed app. The service imports only public packed package exports:
+
+<!-- source: ../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_SETUP -->
+
+```ts
+import { randomUUID } from 'node:crypto'
+import { compose } from '@adonisjs/core/helpers'
+import { BaseModel, column } from '@adonisjs/lucid/orm'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { DateTime } from 'luxon'
+import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+
+export class RecoverableRecord extends compose(BaseModel, SoftDeletes) {
+  static table = 'lifecycle_parents'
+  @column({ isPrimary: true }) declare id: number
+  @column() declare tenantId: number
+  @column() declare label: string
+  @column.dateTime() declare archivedAt: DateTime | null
+  @column.dateTime() declare deletedAt: DateTime | null
+}
+
+function requireAffected(count: number | number[], message: string) {
+  const affected = Array.isArray(count) ? count.length : count
+  if (affected !== 1) throw new Error(message)
+}
+```
+
+### Transactional operations
+
+Save the following operations in the same service file. `deleteGroup` reads active candidates
+with tenant and ID predicates, then includes a row only when its conditional `softDelete()` reports
+one changed row. Rows already deleted and rows from another tenant never enter the new group.
+The captured deletion timestamp is bookkeeping; the UUID association identifies its generation.
+
+`restoreGroup` requires a usable group and current trashed rows, consumes the group, restores
+those rows and removes their associations in one transaction. It preserves IDs and unrelated
+application timestamps such as `archived_at`; `deleted_at` becomes null. `invalidateGroup`
+disables restoration while retaining ownership for cleanup. `purgeGroup` requires an invalidated
+group and explicit selected IDs that still belong to it. It uses `onlyTrashed().forceDelete()`;
+a partial purge keeps the group invalidated until its final current association is removed.
+
+Every writer of these rows and associations must follow the same serialization protocol.
+The service locks the relevant rows and associations using the supplied transaction. Databases
+with row locks honor `forUpdate()`; SQLite uses its transaction write lock. Applications must
+handle transaction conflicts/deadlocks and retry the **whole** transaction as appropriate for
+their database. Do not combine this protocol with uncoordinated restore, delete or ownership
+writes and assume a timestamp comparison can reconstruct deletion ownership.
+
+<!-- source: ../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_OPERATIONS -->
+
+```ts
+/**
+ * Create a one-use recovery group for rows this transaction actually soft-deletes.
+ * All code that changes these rows must use this transaction protocol and serialize
+ * writes per tenant and ID. Row locks help on databases that support them; SQLite
+ * relies on its transaction write lock. Every caller must use the same rule.
+ */
+export async function deleteGroup(
+  trx: TransactionClientContract,
+  input: { tenantId: number; ids: number[]; label: string }
+) {
+  const ids = [...new Set(input.ids)]
+  if (ids.length === 0) throw new Error('A recovery group requires at least one row ID')
+
+  // Lock and read only active rows. The conditional package operation below remains
+  // authoritative: a row enters this group only when softDelete reports one update.
+  const candidates = await RecoverableRecord.query({ client: trx })
+    .where('tenantId', input.tenantId)
+    .whereIn('id', ids)
+    .forUpdate()
+  const groupId = randomUUID()
+  const createdAt = new Date()
+  await trx.table('recovery_groups').insert({
+    id: groupId,
+    tenant_id: input.tenantId,
+    label: input.label,
+    status: 'usable',
+    created_at: createdAt,
+  })
+
+  let captured = 0
+  for (const candidate of candidates) {
+    const affected = await RecoverableRecord.query({ client: trx })
+      .where('tenantId', input.tenantId)
+      .where('id', candidate.id)
+      .softDelete()
+    if (affected !== 1) continue
+
+    const deleted = await RecoverableRecord.query({ client: trx })
+      .withTrashed()
+      .where('tenantId', input.tenantId)
+      .where('id', candidate.id)
+      .firstOrFail()
+    if (!deleted.trashed || !deleted.deletedAt)
+      throw new Error('Deleted row timestamp was not recorded')
+
+    // The row may have been restored outside this recipe after a group's mapping
+    // became stale. Reassign its current ownership before recording this deletion.
+    await trx
+      .from('recovery_records')
+      .where('tenant_id', input.tenantId)
+      .where('record_id', candidate.id)
+      .delete()
+
+    await trx.table('recovery_records').insert({
+      tenant_id: input.tenantId,
+      record_id: candidate.id,
+      group_id: groupId,
+      deleted_at: deleted.deletedAt.toJSDate(),
+    })
+    captured += 1
+  }
+
+  if (captured === 0) throw new Error('No active rows were deleted for this recovery group')
+  return groupId
+}
+
+/** Disable restoration while retaining current ownership records for cleanup. */
+export async function invalidateGroup(
+  trx: TransactionClientContract,
+  input: { tenantId: number; groupId: string }
+) {
+  const affected = await trx
+    .from('recovery_groups')
+    .where('tenant_id', input.tenantId)
+    .where('id', input.groupId)
+    .where('status', 'usable')
+    .update({ status: 'invalidated' })
+  requireAffected(affected, 'Recovery group is missing or is no longer usable')
+}
+
+/** Restore a usable group once, preserving all non-deletion fields and original IDs. */
+export async function restoreGroup(
+  trx: TransactionClientContract,
+  input: { tenantId: number; groupId: string }
+) {
+  const group = await trx
+    .from('recovery_groups')
+    .where('tenant_id', input.tenantId)
+    .where('id', input.groupId)
+    .forUpdate()
+    .first()
+  if (!group || group.status !== 'usable')
+    throw new Error('Recovery group is missing or already consumed')
+
+  const records = await trx
+    .from('recovery_records')
+    .where('tenant_id', input.tenantId)
+    .where('group_id', input.groupId)
+    .forUpdate()
+  if (records.length === 0) throw new Error('Recovery group has no current row associations')
+
+  const ids = records.map((record) => record.record_id)
+  const rows = await RecoverableRecord.query({ client: trx })
+    .withTrashed()
+    .where('tenantId', input.tenantId)
+    .whereIn('id', ids)
+    .forUpdate()
+  if (rows.length !== ids.length || rows.some((row) => !row.trashed)) {
+    throw new Error('Recovery group no longer owns every selected trashed row')
+  }
+
+  requireAffected(
+    await trx
+      .from('recovery_groups')
+      .where('tenant_id', input.tenantId)
+      .where('id', input.groupId)
+      .where('status', 'usable')
+      .update({ status: 'consumed' }),
+    'Recovery group is missing or already consumed'
+  )
+  const restored = await RecoverableRecord.query({ client: trx })
+    .onlyTrashed()
+    .where('tenantId', input.tenantId)
+    .whereIn('id', ids)
+    .restore()
+  if (restored !== rows.length) throw new Error('Restore did not recover every current row')
+  await trx
+    .from('recovery_records')
+    .where('tenant_id', input.tenantId)
+    .where('group_id', input.groupId)
+    .delete()
+  return rows.length
+}
+
+/**
+ * Permanently remove explicitly selected rows from an invalidated group. The current
+ * association is checked before using onlyTrashed().forceDelete(), so an old group
+ * cannot delete a row that a later deletion assigned to another group.
+ */
+export async function purgeGroup(
+  trx: TransactionClientContract,
+  input: { tenantId: number; groupId: string; ids: number[] }
+) {
+  const group = await trx
+    .from('recovery_groups')
+    .where('tenant_id', input.tenantId)
+    .where('id', input.groupId)
+    .forUpdate()
+    .first()
+  if (!group || group.status !== 'invalidated') {
+    throw new Error('Recovery group is missing or is not invalidated')
+  }
+
+  const ids = [...new Set(input.ids)]
+  if (ids.length === 0) throw new Error('Purge requires at least one selected row ID')
+  const records = await trx
+    .from('recovery_records')
+    .where('tenant_id', input.tenantId)
+    .where('group_id', input.groupId)
+    .whereIn('record_id', ids)
+    .forUpdate()
+  if (records.length !== ids.length)
+    throw new Error('Selected rows are not currently owned by this group')
+
+  const rows = await RecoverableRecord.query({ client: trx })
+    .onlyTrashed()
+    .where('tenantId', input.tenantId)
+    .whereIn('id', ids)
+    .forUpdate()
+  if (rows.length !== ids.length)
+    throw new Error('Selected rows are not currently trashed for this tenant')
+
+  const affected = await RecoverableRecord.query({ client: trx })
+    .onlyTrashed()
+    .where('tenantId', input.tenantId)
+    .whereIn('id', ids)
+    .forceDelete()
+  if (affected !== ids.length) throw new Error('Purge did not remove every selected row')
+
+  await trx
+    .from('recovery_records')
+    .where('tenant_id', input.tenantId)
+    .where('group_id', input.groupId)
+    .whereIn('record_id', ids)
+    .delete()
+  const remaining = await trx
+    .from('recovery_records')
+    .where('tenant_id', input.tenantId)
+    .where('group_id', input.groupId)
+    .count('* as total')
+    .first()
+  if (Number(remaining?.total ?? 0) === 0) {
+    requireAffected(
+      await trx
+        .from('recovery_groups')
+        .where('tenant_id', input.tenantId)
+        .where('id', input.groupId)
+        .where('status', 'invalidated')
+        .update({ status: 'consumed' }),
+      'Recovery group changed during purge'
+    )
+  }
+  return affected
+}
+```
+
+### Invoke a complete lifecycle
+
+This maintained invocation is exercised by
+[`group_recovery_example.spec.ts`](../examples/app/tests/group_recovery_example.spec.ts).
+Run it in the migrated fixture app, for example by importing and awaiting
+`demonstrateGroupRecovery()` from an application command. Each `db.transaction` below is the
+caller-owned unit of work; the recipe operations never commit it themselves.
+
+<!-- source: ../examples/app/app/services/group_recovery_example.ts#GROUP_RECOVERY_EXAMPLE -->
+
+```ts
+import db from '@adonisjs/lucid/services/db'
+import { DateTime } from 'luxon'
+import {
+  RecoverableRecord,
+  deleteGroup,
+  invalidateGroup,
+  purgeGroup,
+  restoreGroup,
+} from '#services/group_recovery'
+
+export async function demonstrateGroupRecovery() {
+  const tenantId = 41
+  const archivedAt = DateTime.fromISO('2026-01-02T03:04:05.000Z')
+  const first = await RecoverableRecord.create({ tenantId, label: 'Alder', archivedAt })
+  const second = await RecoverableRecord.create({ tenantId, label: 'Birch', archivedAt })
+  const active = await RecoverableRecord.create({ tenantId, label: 'Cedar', archivedAt })
+  const older = await RecoverableRecord.create({
+    tenantId,
+    label: 'Elm',
+    archivedAt,
+    deletedAt: DateTime.fromISO('2026-01-03T00:00:00.000Z'),
+  })
+  const other = await RecoverableRecord.create({ tenantId: 42, label: 'Fir', archivedAt })
+  const ids = [first.id, second.id]
+
+  const originalGroup = await db.transaction((trx) =>
+    deleteGroup(trx, {
+      tenantId,
+      ids: [...ids, older.id, other.id],
+      label: 'First removal',
+    })
+  )
+  const restored = await db.transaction((trx) =>
+    restoreGroup(trx, { tenantId, groupId: originalGroup })
+  )
+  const restoredRows = await RecoverableRecord.query()
+    .where('tenantId', tenantId)
+    .whereIn('id', ids)
+  const nextGroup = await db.transaction((trx) =>
+    deleteGroup(trx, { tenantId, ids, label: 'Second removal' })
+  )
+
+  // A consumed group cannot restore or purge this later deletion. See the tests
+  // for rejected calls and rollback after either operation's bookkeeping.
+  const purged = await db.transaction(async (trx) => {
+    // The application's authorization and cleanup-eligibility checks precede this.
+    await invalidateGroup(trx, { tenantId, groupId: nextGroup })
+    return purgeGroup(trx, { tenantId, groupId: nextGroup, ids: [first.id] })
+  })
+  const remaining = await RecoverableRecord.withTrashed()
+    .whereIn('id', [...ids, active.id, older.id, other.id])
+    .orderBy('id')
+  const groups = await db.from('recovery_groups').whereIn('id', [originalGroup, nextGroup])
+  const associations = await db.from('recovery_records').where('group_id', nextGroup)
+  return {
+    ids,
+    originalGroup,
+    nextGroup,
+    restored,
+    restoredRows,
+    purged,
+    remaining,
+    groups,
+    associations,
+  }
+}
+```
+
+The IDs are assigned by the database. `originalGroup` and `nextGroup` are different UUIDs even
+when two deletion timestamps coincide. Both Alder and Birch retain their original IDs and
+`archived_at = 2026-01-02T03:04:05.000Z` when restored. Expected state:
+
+| Record | Tenant | Before             | First deletion | Restore original group | Second deletion | Purge selected Alder      |
+| ------ | ------ | ------------------ | -------------- | ---------------------- | --------------- | ------------------------- |
+| Alder  | 41     | Active             | Original group | Active, same ID        | Next group      | Permanently removed       |
+| Birch  | 41     | Active             | Original group | Active, same ID        | Next group      | Still trashed, next group |
+| Cedar  | 41     | Active, unselected | Active         | Active                 | Active          | Active                    |
+| Elm    | 41     | Already trashed    | Outside group  | Still trashed          | Still trashed   | Still trashed             |
+| Fir    | 42     | Active             | Outside group  | Active                 | Active          | Active                    |
+
+`restored` is 2 and `purged` is 1. The original group is consumed; the next group is invalidated
+with only Birch still associated. A later eligible cleanup can purge Birch by its explicit ID.
+The tests also prove that successful selected cleanup preserves another tenant's already-trashed
+row, and rejected cleanup preserves an active row with a stale association. Restoring one usable
+group leaves another usable group in the same tenant unchanged.
+
+### Errors and rollback
+
+Let errors escape the caller's transaction callback so both the package mutation and application
+bookkeeping roll back. Catch them outside `await db.transaction(...)`. Catching an error inside
+the callback and committing would defeat this atomicity guarantee.
+
+- Missing, wrong-tenant, consumed or invalidated groups cannot be restored. Calling restoration
+  twice rejects the second call. A usable group with no current associations also rejects.
+- After restoring and deleting again, attempts to restore or purge with the original consumed
+  group reject, leaving the newer deletion timestamp and ownership unchanged.
+- Cleanup rejects usable groups, unowned IDs, active rows, and IDs now associated with a newer
+  group. A failed selection does not partially purge the group. Invalidation is an application
+  policy decision; it is not authorization by itself.
+- If the caller throws after `deleteGroup` completes its bookkeeping, the rows remain active,
+  no new group is persisted and no associations remain.
+- If the caller throws after `restoreGroup` completes its bookkeeping, the rows retain their
+  exact deletion timestamps, the group stays usable and its original associations remain.
+  A later valid transaction may retry restoration.
+
+The installed-consumer
+[`group_recovery.spec.ts`](../examples/app/tests/group_recovery.spec.ts) imports these exact
+operations and compares persisted row, group and association state across success, stale cleanup
+and rollback. Run `pnpm docs:check`, `pnpm test:consumer` and
+`pnpm test:consumer --compatibility=minimum` from the repository root with Node 24 and pnpm 11.
+This recipe composes existing APIs and does not depend on a future rich bulk-result API.
