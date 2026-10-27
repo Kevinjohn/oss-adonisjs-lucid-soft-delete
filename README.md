@@ -120,7 +120,7 @@ intermediate row must be active. This behavior is covered by
 | Instance `delete()`          | Sets `deletedAt` and saves the instance, including other dirty attributes. Repeated calls skip the write when `deletedAt` is unchanged. | `Promise<void>`    |
 | Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                               | `Promise<void>`    |
 | Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                    | `Promise<void>`    |
-| Instance `restore()`         | Requires a persisted instance. Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                  | `Promise<this>`    |
+| Instance `restore()`         | Requires a persisted instance and a loaded `deletedAt` value on fetched models. Clears the timestamp on trashed rows; active instances are returned unchanged. Force-deleted models throw `E_MODEL_FORCE_DELETED`.                  | `Promise<this>`    |
 | Builder `delete()` / `del()` | Physically deletes matching rows, including active rows even after `onlyTrashed()` (see warning below).                                 | Lucid write result |
 | Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                    | `Promise<number>`  |
 | Builder `softDelete()`       | Sets the mapped timestamp on matching active rows only; `onlyTrashed()` returns zero.                                                   | `Promise<number>`  |
@@ -166,9 +166,15 @@ Soft deletion runs the normal update and delete hooks in this order:
 beforeDelete → beforeUpdate → beforeSave → write → afterUpdate → afterSave → afterDelete
 ```
 
-`deleteQuietly()` skips hooks. Calls to `delete()` or `deleteQuietly()` on an unpersisted instance throw
-`E_MODEL_NOT_PERSISTED`. See the [Scope contract](#scope-contract) for builder writes and operations
-that bypass model fetch hooks. Transactions work through `useTransaction(trx)` and `query({ client: trx })`; builder `restore()` honors its query client. A soft-deleted parent retains child and pivot rows. A physical `forceDelete()` follows database foreign-key rules.
+`deleteQuietly()` skips hooks. Calls to `delete()`, `deleteQuietly()`, or `restore()` on an
+unpersisted instance throw `E_MODEL_NOT_PERSISTED`. Restoring a fetched instance whose projection
+omitted `deletedAt` throws `E_MODEL_UNKNOWN_DELETION_STATE`; select `deletedAt` or call `refresh()`
+before restoring. `E_MODEL_NOT_PERSISTED` and `E_MODEL_UNKNOWN_DELETION_STATE` are exported from
+the package root. See the [Scope contract](#scope-contract) for builder writes and operations that
+bypass model fetch hooks.
+Transactions work through `useTransaction(trx)` and `query({ client: trx })`; builder `restore()`
+honors its query client. A soft-deleted parent retains child and pivot rows. A physical
+`forceDelete()` follows database foreign-key rules.
 
 On an already-trashed instance, both `delete()` and `deleteQuietly()` skip the write when `deletedAt` is unchanged. Any other dirty attributes remain in memory; call `save()` or `saveQuietly()` to persist them.
 
@@ -228,7 +234,7 @@ Match the generated column type and length to your email column. Application-sid
 - `deleteQuietly()` soft-deletes without running hooks.
 - A failed `forceDelete()` resets `$forceDelete`; `$isDeleted` is set only after a physical delete resolves.
 - Repeating `delete()` on an already-trashed instance skips the write when `deletedAt` is unchanged, even if other attributes are dirty. Calling `delete()` or `deleteQuietly()` on an unpersisted instance throws `E_MODEL_NOT_PERSISTED`.
-- Dedicated exceptions identify unsupported models, force-deleted instances, and unpersisted instances.
+- Dedicated exceptions identify unsupported models, force-deleted instances, unpersisted instances, and fetched models with unknown deletion state (`E_MODEL_UNKNOWN_DELETION_STATE`).
 - The `ModelWithSoftDeletes` type augmented onto `@adonisjs/lucid/types/model` is removed. Import `SoftDeletesModel` from `@kevinjohn/lucid-soft-deletes` instead; it requires the `SOFT_DELETES` marker that the mixin sets, not the `ignoreDeleted` methods.
 - Group-limited preload callbacks group OR predicates in the tested Lucid 22 release. See [docs/INTERNALS.md](docs/INTERNALS.md).
 - Relationship aggregates and existence checks are scoped to active related rows. 2.1.0 counted trashed rows; use `withTrashed()` in the callback to keep that behaviour.

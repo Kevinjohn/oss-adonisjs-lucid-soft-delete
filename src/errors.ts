@@ -45,8 +45,21 @@ class ModelNotPersistedException extends Exception {
   }
 }
 
+class ModelUnknownDeletionStateException extends Exception {
+  static code = 'E_MODEL_UNKNOWN_DELETION_STATE'
+  static status = 500
+
+  constructor() {
+    super('Cannot restore a model without loading deletedAt; select deletedAt or call refresh()', {
+      code: ModelUnknownDeletionStateException.code,
+      status: ModelUnknownDeletionStateException.status,
+    })
+  }
+}
+
 export {
   ModelSoftDeleteException as E_MODEL_SOFT_DELETE,
   ModelForceDeletedException as E_MODEL_FORCE_DELETED,
   ModelNotPersistedException as E_MODEL_NOT_PERSISTED,
+  ModelUnknownDeletionStateException as E_MODEL_UNKNOWN_DELETION_STATE,
 }
