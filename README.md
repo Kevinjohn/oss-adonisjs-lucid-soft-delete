@@ -4,7 +4,7 @@ Give your AdonisJS application recoverable deletion. Deleted records stay in the
 
 Supports AdonisJS 7, Lucid 22 and Luxon 3.4.4 or newer within 3.x, on Node.js 24 or newer. Use TypeScript 5.9 or newer.
 
-**Documentation version:** the development candidate for `3.0.0-alpha.1`, including the reviewed lifecycle changes. A branch or merged PR is not an npm release. Use the README accompanying the exact version you install; the [source-checkout tutorial](docs/tutorial.md) works without assuming this candidate has been published. Version 3.0.0 is an alpha with intentional changes from 2.1.0; read the [migration guide](#migration-from-210) before upgrading.
+**Documentation version:** `0.1.0-alpha`, the first prerelease of this continuation. It is distributed as a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.0-alpha) and is not published to npm. Use the README accompanying the exact version you install. Version 0.1.0-alpha is an alpha with intentional changes from upstream 2.1.0; read the [migration guide](#migration-from-210) before upgrading.
 
 ## See the value
 
@@ -42,10 +42,10 @@ Calling `await demonstrateRecovery('alex@example.test')` with an unused email re
 
 ## Install
 
-For a published compatible alpha, install the package and its required Luxon peer into an existing AdonisJS 7 application:
+Install the packed tarball attached to the [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.0-alpha) and the required Luxon peer into an existing AdonisJS 7 application. The package is not published to npm:
 
 ```bash
-pnpm add @kevinjohn/lucid-soft-deletes@alpha luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.0-alpha/kevinjohn-lucid-soft-deletes-0.1.0-alpha.tgz luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 

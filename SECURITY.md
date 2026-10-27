@@ -7,7 +7,7 @@ receives fixes for six months. Only the latest release on each supported line re
 
 | Package line                               | AdonisJS | Status              |
 | ------------------------------------------ | -------- | ------------------- |
-| 3.x                                        | 7        | Supported           |
+| 0.x                                        | 7        | Supported           |
 | 2.x (upstream `adonis-lucid-soft-deletes`) | 6        | Not maintained here |
 
 ## Reporting a vulnerability

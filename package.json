@@ -1,7 +1,7 @@
 {
   "name": "@kevinjohn/lucid-soft-deletes",
   "description": "Soft deletes for AdonisJS 7 Lucid models",
-  "version": "3.0.0-alpha.1",
+  "version": "0.1.0-alpha",
   "engines": {
     "node": ">=24.0.0"
   },
