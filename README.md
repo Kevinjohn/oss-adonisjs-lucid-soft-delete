@@ -202,6 +202,15 @@ class User extends compose(BaseModel, SoftDeletes) {
 }
 ```
 
+For a UTC ISO string in JSON or a DTO, keep the model attribute typed as Luxon `DateTime | null` and redeclare its serialiser:
+
+```ts
+@column.dateTime({ serialize: (value: DateTime | null) => value?.toUTC().toISO() ?? null })
+declare deletedAt: DateTime | null
+```
+
+The recipe serialises null as null and converts other zones to UTC. Persistence, `trashed`, query scopes and restore keep their usual behaviour. Redeclaring the decorator replaces the whole column definition, so the column name and serialized key fall back to the naming strategy defaults: repeat any `columnName` or `serializeAs` option from the original declaration in this decorator. A string-typed model attribute or string-accepting `prepare` is not supported; validate a domain timestamp string at the serialisation or DTO boundary.
+
 If a `select()` omits `deletedAt`, the loaded instance reports `trashed === false`: the getter reflects loaded attributes, not database state. Include `deletedAt` when checking it on a projection. A Lucid factory can set `deletedAt = DateTime.local()` in a `state('trashed')` callback; the created row then appears through `withTrashed()`. A seeder using `updateOrCreate()` against a trashed row may attempt an insert. If a unique constraint still covers the trashed value, the database rejects it. Fetch with `withTrashed()` and explicitly decide whether to restore or update it. A soft delete inside a Lucid transaction rolls back with the transaction.
 
 ## Uniqueness
