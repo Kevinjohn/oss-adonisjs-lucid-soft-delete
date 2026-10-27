@@ -4,6 +4,7 @@ Use Node.js 24 and pnpm 11. The default suite uses SQLite; CI also runs it on Po
 
 ```bash
 pnpm lint
+pnpm docs:check
 pnpm typecheck
 pnpm build
 pnpm test
@@ -11,7 +12,8 @@ pnpm test
 
 `pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
 `main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
-still runs the full set.
+still runs the full set. The fast local documentation check runs on every invocation, including
+prose-only changes; it does not fetch external URLs.
 
 ## PostgreSQL
 
@@ -56,3 +58,25 @@ pnpm test:consumer --compatibility=minimum
 - A behaviour change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
 - Lint, typecheck and the SQLite suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
 - Record a decision that the code cannot explain by itself in `docs/DECISIONS.md`.
+
+## Documentation examples
+
+`pnpm docs:check` checks local Markdown file links and GitHub-style ATX heading anchors, explicit
+HTML anchors, source-file line anchors, inline/image/reference links, and marked source-region
+examples. It ignores links/headings inside fenced code and inline code; it does not fetch external
+URLs. Run it from the repository root. Optional file arguments select a smaller set of Markdown
+files; tracked and unignored new Markdown files are checked by default. Keep published guides in
+Markdown and use ATX headings (`## Heading`).
+
+For a runnable TypeScript example, keep its implementation in the installed-consumer fixture and
+mark the maintained region with `// #region example_name` and `// #endregion example_name`. Put
+`<!-- source: relative/path/to/file.ts#example_name -->` immediately before the matching fenced
+code in the guide (a blank line is allowed). The path is relative to that Markdown file. The
+checker requires the fence to match the region; it does not run Markdown as code.
+
+The README recovery example, tutorial service and cookbook functions are imported by their fixture
+tests. `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum` install the public packed
+package into a fresh app, migrate, generate the schema, strictly typecheck, build and exercise those
+same functions. When changing a recipe, update its documented source region and meaningful expected
+results together. Follow the tutorial setup in a clean disposable directory when changing its setup
+commands; a green fixture gate alone does not prove the written setup works.
