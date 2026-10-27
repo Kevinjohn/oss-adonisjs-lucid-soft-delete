@@ -102,8 +102,8 @@ Instance methods act on one model and use that instance's Lucid query client, in
 
 Soft-deletes a persisted active instance by saving a local deletion timestamp. It also saves other dirty attributes on that write.
 
-- **Eligible state:** Persisted active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`.
-- **Return/no-op:** `Promise<void>`. If already trashed and `deletedAt` is unchanged, it skips the write and hooks; other dirty attributes remain dirty and are not saved by that no-op. If `deletedAt` is dirty, it writes again with a new deletion timestamp.
+- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its immutable-model guard.
+- **Return/no-op:** `Promise<void>`. If already trashed, not physically deleted, and `deletedAt` is unchanged, it skips the write and hooks; other dirty attributes remain dirty and are not saved by that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** On the soft-delete write, Lucid runs `beforeDelete` → `beforeUpdate` → `beforeSave` → database write → `afterUpdate` → `afterSave` → `afterDelete`. Hook and database errors propagate. An after-hook can fail after the write completed.
 - **Dirty fields and timestamps:** Dirty fields are saved with the deletion timestamp. Configured automatic `updatedAt` advances. Lucid column `prepare` functions run.
 - **Client:** Uses the instance's client; a caller transaction must be attached to the instance.
@@ -119,8 +119,8 @@ Use `deleteQuietly()` when the same soft-delete save should omit hooks.
 
 Takes the same active-to-trashed path as `delete()` using Lucid's quiet save methods.
 
-- **Eligible state:** Persisted active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`.
-- **Return/no-op:** `Promise<void>`. Repeating a delete with unchanged `deletedAt` is a no-op; other dirty attributes remain unsaved on that no-op. If `deletedAt` is dirty, it writes again with a new deletion timestamp.
+- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its immutable-model guard.
+- **Return/no-op:** `Promise<void>`. Repeating a delete on a trashed, non-deleted instance with unchanged `deletedAt` is a no-op; other dirty attributes remain unsaved on that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** No model hooks run. Errors from the persistence operation propagate.
 - **Dirty fields and timestamps:** A soft-delete write saves other dirty fields and advances configured `updatedAt`; column `prepare` runs. The no-op writes nothing.
 - **Client:** Uses the instance's client, including any caller transaction attached to it.
@@ -290,7 +290,7 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 
 | Error                            | When it is thrown                                                                                                                                                                                                     |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `E_MODEL_SOFT_DELETE`            | A lifecycle builder macro is used with a model without the mixin or mapped `deletedAt` column.                                                                                                                        |
+| `E_MODEL_SOFT_DELETE`            | A read mode or lifecycle builder macro is used with a model without the mixin, or a scope/lifecycle macro needs a mapped `deletedAt` column that is missing.                                                          |
 | `E_MODEL_NOT_PERSISTED`          | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
 | `E_MODEL_FORCE_DELETED`          | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
 | `E_MODEL_UNKNOWN_DELETION_STATE` | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
