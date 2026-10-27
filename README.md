@@ -173,8 +173,14 @@ using the same transaction for the read and writes when needed.
 Bulk `softDelete()` prepares its timestamp with Luxon's local time and the connection dialect's
 date-time format, as Lucid does. Builder updates bypass custom column `prepare` functions;
 this also applies when `deletedAt` has a UTC ISO serialiser (the serialiser still controls reads).
-Many-to-many relation builders are rejected before writing because Lucid redirects their
-writes to the pivot table. Query the related model directly with explicit IDs instead.
+Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through
+relation builders before writing: Lucid redirects many-to-many writes to the pivot table and
+builds has-many-through writes with a sub-query the database rejects. Query the related model
+directly with explicit IDs instead.
+
+A builder that has already run keeps the soft-delete filter from that run, so a later `delete()`
+on the same builder removes only the rows that run's mode selected. Start a new query for a bulk
+write.
 
 
 ## Serialisation, factories, and seeders
