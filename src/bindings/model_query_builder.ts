@@ -14,6 +14,7 @@ import { E_MODEL_SOFT_DELETE } from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
+import { installSubQueryScope } from '../sub_query_scope.js'
 import { resolveTableReference } from '../table_reference.js'
 import { addScopeFilter } from '../where_stack.js'
 
@@ -31,6 +32,7 @@ function ensureModelWithSoftDeletes(model: LucidModel) {
  */
 export function extendModelQueryBuilder(builder: any) {
   installModePropagation(builder)
+  installSubQueryScope(builder)
 
   builder.macro('restore', async function (this: ModelQueryBuilderContract<LucidModel>) {
     ensureModelWithSoftDeletes(this.model)

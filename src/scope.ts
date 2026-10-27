@@ -41,14 +41,18 @@ function resolveGroupLimit(query: ModelQueryBuilderContract<LucidModel>): GroupL
   return { inner, alias: aliasFromTable((inner as KnexBuilderLike)._single?.table) }
 }
 
+function deletedAtColumn(query: ModelQueryBuilderContract<LucidModel>): string {
+  const column = query.model.$getColumn('deletedAt')?.columnName
+  if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
+  return column
+}
+
 export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
   const groupLimit = resolveGroupLimit(query)
   const mode = getSoftDeletesMode(groupLimit?.inner ?? query)
   if (mode === 'with') return removeScopeFilter(query)
 
-  const column = query.model.$getColumn('deletedAt')?.columnName
-  if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
-
+  const column = deletedAtColumn(query)
   const reference = `${groupLimit?.alias ?? resolveTableReference(query)}.${column}`
   const filter = mode === 'only' ? 'whereNotNull' : 'whereNull'
 
@@ -58,4 +62,18 @@ export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
   }
 
   addScopeFilter(query, filter, reference)
+}
+
+/**
+ * Scope a relation sub-query (`withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`,
+ * `loadCount`, `loadAggregate`). Lucid never runs fetch hooks for these, and they have no
+ * group-limit path. Reading SQL from a clone would recurse through the same hook, so the
+ * group-limit detection is skipped here on purpose.
+ */
+export function applySubQueryScope(query: ModelQueryBuilderContract<LucidModel>): void {
+  const mode = getSoftDeletesMode(query)
+  if (mode === 'with') return removeScopeFilter(query)
+
+  const reference = `${resolveTableReference(query)}.${deletedAtColumn(query)}`
+  addScopeFilter(query, mode === 'only' ? 'whereNotNull' : 'whereNull', reference)
 }
