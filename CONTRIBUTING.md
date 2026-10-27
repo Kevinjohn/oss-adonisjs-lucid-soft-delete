@@ -12,8 +12,10 @@ pnpm test
 
 `pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
 `main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
-still runs the full set. The fast local documentation check runs on every invocation, including
-prose-only changes; it does not fetch external URLs.
+still runs the full set. Changes to shipped source, package entry points, dependencies, or TypeScript
+configuration also select the packed-consumer gate, which requires network access. Changes only
+to tests, `bin/` tooling, or prose do not select that gate. The fast local documentation check
+runs on every invocation, including prose-only changes; it does not fetch external URLs.
 
 ## PostgreSQL
 

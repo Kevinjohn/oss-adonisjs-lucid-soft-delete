@@ -136,7 +136,7 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
 } else console.log('tests: skip (no tests affected)')
 
 if (plan.consumer) await step('consumer', 'pnpm', ['test:consumer'])
-else console.log('consumer: skip (consumer gate unchanged)')
+else console.log('consumer: skip (no consumer inputs changed)')
 
 await step('docs', 'pnpm', ['docs:check'])
 
