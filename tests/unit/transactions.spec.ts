@@ -169,6 +169,11 @@ test.group('Soft-delete transactions', (group) => {
       .where('username', 'secondary-only')
       .firstOrFail()) as RelationUser
     assert.isTrue(deletedOnSecondary.trashed)
+    assert.equal(await RelationUser.query({ client: secondary }).restore(), 1)
+    assert.equal(await RelationUser.query({ client: secondary }).softDelete(), 1)
+    assert.equal(await RelationUser.query({ client: secondary }).onlyTrashed().forceDelete(), 1)
+    assert.lengthOf(await secondary.from('users'), 0)
+    assert.lengthOf(await db.from('users'), 0)
 
     if (dbClient === 'pg') {
       await db.rawQuery('DROP SCHEMA second CASCADE').exec()

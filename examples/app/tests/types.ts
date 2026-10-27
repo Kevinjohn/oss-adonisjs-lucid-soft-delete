@@ -108,6 +108,10 @@ function checkTypes(user: User, extended: ExtendedUser, related: RelatedUser) {
   const secondMarker: 'present' = new MarkerThenDeletes().marker
 
   void queryResult
+  const softDeleted: Promise<number> = User.query().softDelete()
+  const forceDeleted: Promise<number> = User.query().onlyTrashed().forceDelete()
+  void softDeleted
+  void forceDeleted
   void restoreCount
   void instanceRestore
   void subclassRestore

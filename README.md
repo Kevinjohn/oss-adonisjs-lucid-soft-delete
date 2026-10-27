@@ -123,7 +123,8 @@ intermediate row must be active. This behavior is covered by
 | Instance `restore()`         | Requires a persisted instance. Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                  | `Promise<this>`    |
 | Builder `delete()` / `del()` | Physically deletes matching rows, including active rows even after `onlyTrashed()` (see warning below).                                 | Lucid write result |
 | Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                    | `Promise<number>`  |
-| Builder `forceDelete()`      | Not available.                                                                                                                          | —                  |
+| Builder `softDelete()`       | Sets the mapped timestamp on matching active rows only; `onlyTrashed()` returns zero.                                                   | `Promise<number>`  |
+| Builder `forceDelete()`      | Physically deletes matching rows; `onlyTrashed()` preserves active rows.                                                                | `Promise<number>`  |
 
 **Warning:** `withTrashed()` and `onlyTrashed()` are read modes. They are not applied to
 builder `delete()`, `del()`, `update()` or `increment()`. For example, this physically
@@ -133,18 +134,27 @@ deletes both active and trashed matching rows:
 await User.onlyTrashed().whereIn('id', [activeId, deletedId]).delete()
 ```
 
-Until the explicit `onlyTrashed().forceDelete()` API in #57 is available, select trashed
-rows with the model's mapped column and keep OR predicates grouped:
+Use the explicit purge API to preserve matching active rows:
 
 ```ts
-await User.query()
-  .whereNotNull(User.$getColumn('deletedAt')!.columnName)
-  .whereIn('id', ids)
-  .delete()
+await User.onlyTrashed().whereIn('id', ids).forceDelete()
 ```
 
-For an aliased table, qualify the mapped column with that alias. Wrap alternatives in
-`.where((query) => query.where(...).orWhere(...))` so they cannot bypass the timestamp predicate.
+Builder `softDelete()` affects matching active rows in default and `withTrashed()` modes;
+`onlyTrashed().softDelete()` returns zero. Builder `forceDelete()` affects matching trashed
+rows in `onlyTrashed()` mode and all matching rows in default and `withTrashed()` modes.
+Both return affected counts, preserve grouped caller predicates and use the query's client.
+Neither runs instance hooks or changes `updatedAt`. For hooks and instance timestamp behavior,
+fetch the selected models and call `await row.delete()` or `await row.forceDelete()` in a loop,
+using the same transaction for the read and writes when needed.
+
+Bulk `softDelete()` prepares its timestamp with Luxon's local time and the connection dialect's
+date-time format, as Lucid does. Builder updates bypass custom column `prepare` functions;
+this also applies when `deletedAt` has a UTC ISO serialiser (the serialiser still controls reads).
+Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through
+relation builders before writing: Lucid redirects many-to-many writes to the pivot table and
+builds has-many-through writes with a sub-query the database rejects. Query the related model
+directly with explicit IDs instead.
 
 A builder that has already run keeps the soft-delete filter from that run, so a later `delete()`
 on the same builder removes only the rows that run's mode selected. Start a new query for a bulk
@@ -242,7 +252,7 @@ Has-many-through scopes the target model, not the intermediate model, matching p
 
 - No general global-scope framework; this mixin concerns `deleted_at` only.
 - No cascade soft delete or restore. Child and pivot rows remain after a parent soft delete; `forceDelete()` follows the database's foreign-key and cascade rules.
-- No bulk soft delete, builder `forceDelete()`, or migration generator beyond `configure` registering the provider.
+- No migration generator beyond `configure` registering the provider.
 - No AdonisJS 5 or 6 support. AdonisJS 6 users can stay on upstream 2.1.0.
 - No `adonis-lucid-filter` compatibility promise while its available release targets older AdonisJS and Lucid peers.
 
