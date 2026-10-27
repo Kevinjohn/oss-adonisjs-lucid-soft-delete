@@ -68,7 +68,9 @@ function parseMarkdown(contents: string): Markdown {
 function anchors(markdown: Markdown): Set<string> {
   const found = new Set<string>()
   for (const line of markdown.visible) {
-    for (const match of line.matchAll(/<a\s+(?:id|name)=["']([^"']+)["'][^>]*>/g))
+    for (const match of line
+      .replace(/(`+).*?\1/g, '')
+      .matchAll(/<a\s+(?:id|name)=["']([^"']+)["'][^>]*>/g))
       found.add(match[1])
     const heading = line.match(/^ {0,3}#{1,6}\s+(.+?)(?:\s+#+)?\s*$/)?.[1]
     if (!heading) continue
@@ -76,6 +78,7 @@ function anchors(markdown: Markdown): Set<string> {
       .toLowerCase()
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
       .replace(/<[^>]+>/g, '')
+      .replace(/(?<![\p{L}\p{N}])_{1,2}([^_]+)_{1,2}(?![\p{L}\p{N}])/gu, '$1')
       .replace(/[`*~]/g, '')
       .replace(/[^\p{L}\p{N}\s_-]/gu, '')
       .replace(/\s/g, '-')
@@ -118,7 +121,10 @@ function links(markdown: Markdown): { target: string; line: number }[] {
     if (definition) references.set(key(definition[1]), definition[2].replace(/^<|>$/g, ''))
   }
   for (const [index, raw] of markdown.visible.entries()) {
-    const line = raw.replace(/(`+).*?\1/g, '')
+    const code = [...raw.matchAll(/(`+).*?\1/g)]
+    const inCode = (index: number) =>
+      code.some((match) => index >= match.index! && index < match.index! + match[0].length)
+    const line = raw.replace(/(`+).*?\1/g, (match) => ' '.repeat(match.length))
     if (/^ {0,3}\[[^\]]+\]:/.test(line)) continue
     for (const match of line.matchAll(
       /!?\[[^\]]*\]\((<[^>]+>|(?:\\.|[^()\s]|\([^()]*\))+)(?:\s+["'][^"']*["'])?\)/g
@@ -128,12 +134,18 @@ function links(markdown: Markdown): { target: string; line: number }[] {
         line: index + 1,
       })
     }
-    for (const match of line.matchAll(/!?\[([^\]]+)\]\[([^\]]*)\]/g)) {
+    for (const match of raw.matchAll(/!?\[([^\]]+)\]\[([^\]]*)\]/g)) {
+      if (inCode(match.index!)) continue
       const label = key(match[2] || match[1])
       output.push({
         target: references.get(label) ?? `missing-reference:${label}`,
         line: index + 1,
       })
+    }
+    for (const match of raw.matchAll(/!?\[([^\]]+)\](?![\[(])/g)) {
+      if (inCode(match.index!) || raw[match.index! - 1] === ']') continue
+      const target = references.get(key(match[1]))
+      if (target) output.push({ target, line: index + 1 })
     }
   }
   return output
@@ -194,7 +206,8 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
             : lineAnchor &&
               Number(lineAnchor[1]) > 0 &&
               Number(lineAnchor[2] ?? lineAnchor[1]) >= Number(lineAnchor[1]) &&
-              Number(lineAnchor[2] ?? lineAnchor[1]) <= content.trimEnd().split(/\r?\n/).length
+              Number(lineAnchor[2] ?? lineAnchor[1]) <=
+                content.split(/\r?\n/).length - (content.endsWith('\n') ? 1 : 0)
         if (!valid)
           report(link.line, `Missing anchor: #${target.fragment} in ${relative(root, targetFile)}`)
       } catch (error) {
