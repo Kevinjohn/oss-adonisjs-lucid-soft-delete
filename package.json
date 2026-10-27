@@ -27,7 +27,7 @@
     "./provider": "./build/providers/lucid_soft_deletes_provider.js"
   },
   "scripts": {
-    "format:check": "git ls-files -z | xargs -0 prettier --check --ignore-unknown",
+    "format:check": "git ls-files -z | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
