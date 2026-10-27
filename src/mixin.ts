@@ -16,7 +16,11 @@ import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid
 import type { BaseModel } from '@adonisjs/lucid/orm'
 import { getSoftDeletesMode, setSoftDeletesMode } from './mode.js'
 import { applyScope } from './scope.js'
-import { E_MODEL_FORCE_DELETED, E_MODEL_NOT_PERSISTED } from './errors.js'
+import {
+  E_MODEL_FORCE_DELETED,
+  E_MODEL_NOT_PERSISTED,
+  E_MODEL_UNKNOWN_DELETION_STATE,
+} from './errors.js'
 import { SOFT_DELETES } from './guard.js'
 
 export interface SoftDeletesInstance {
@@ -204,6 +208,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      */
     async restore(): Promise<this> {
       if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
+      if (!this.$isLocal && !('deletedAt' in this.$attributes)) {
+        throw new E_MODEL_UNKNOWN_DELETION_STATE()
+      }
       if (this.$isDeleted) {
         throw new E_MODEL_FORCE_DELETED()
       }
