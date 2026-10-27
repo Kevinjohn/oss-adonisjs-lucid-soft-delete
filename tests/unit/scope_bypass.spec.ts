@@ -149,7 +149,7 @@ test.group('Scope bypasses', (group) => {
       await User.query({ client: trx })
         .from('users as selected')
         .whereNotNull(`selected.${User.$getColumn('deletedAt')!.columnName}`)
-        .where((query) => query.where('id', active.id).orWhere('id', trashed.id))
+        .where((query) => query.where('id', trashed.id).orWhere('id', active.id))
         .delete()
       const remainingUsers = await trx.from('users')
       assert.deepEqual(
