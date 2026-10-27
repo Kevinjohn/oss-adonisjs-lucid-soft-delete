@@ -93,11 +93,19 @@ export function removeScopeFilter(query: ModelQueryBuilderContract<LucidModel>):
   if (hasFilter) rebuildStack(grouped, collectGroups(grouped))
 }
 
+/** Group caller predicates so relation constraints survive Lucid draining the where stack. */
+export function groupCallerPredicates(query: ModelQueryBuilderContract<LucidModel>): void {
+  const grouped = query as unknown as GroupedQuery
+  rebuildStack(grouped, collectGroups(grouped))
+}
+
 /** Regroup predicates appended after a hook installed the scope, retaining that filter's mode. */
 export function reapplyScopeFilter(query: ModelQueryBuilderContract<LucidModel>): void {
   const grouped = query as unknown as GroupedQuery
   const filter = grouped.whereStack.flat().find((node) => node[SCOPE_NODE] === true)
   if (filter) {
     addScopeFilter(query, filter.method as 'whereNull' | 'whereNotNull', filter.args[0] as string)
+  } else if (grouped.whereStack.flat().some((node) => Array.isArray(node[SCOPE_NODE]))) {
+    rebuildStack(grouped, collectGroups(grouped))
   }
 }

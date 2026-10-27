@@ -18,7 +18,7 @@ import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
 import { installSubQueryScope } from '../sub_query_scope.js'
 import { resolveTableReference } from '../table_reference.js'
-import { addScopeFilter, removeScopeFilter } from '../where_stack.js'
+import { addScopeFilter, groupCallerPredicates } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
@@ -76,7 +76,7 @@ export function extendModelQueryBuilder(builder: any) {
     if (getSoftDeletesMode(this) === 'only') {
       addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${column}`)
     } else {
-      removeScopeFilter(this)
+      groupCallerPredicates(this)
     }
     const result = await this.delete()
     return typeof result[0] === 'number' ? result[0] : result.length
