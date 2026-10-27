@@ -20,7 +20,7 @@ import { DateTime, Settings } from 'luxon'
 import { E_MODEL_SOFT_DELETE, SoftDeletes } from '../../index.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from '../helpers.js'
-import { RelationUser, RelationPost } from '../fixtures/models.js'
+import { RelationComment, RelationUser, RelationPost } from '../fixtures/models.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -211,9 +211,26 @@ test.group('Builder lifecycle', (group) => {
     await db.table('industry_user').insert({ user_id: parent.id, industry_id: 1 })
     await assert.rejects(() => parent.related('industries').query().softDelete(), /many-to-many/)
     await assert.rejects(() => parent.related('industries').query().forceDelete(), /many-to-many/)
+    await assert.rejects(
+      () => parent.related('industries').query().onlyTrashed().restore(),
+      /many-to-many/
+    )
     assert.lengthOf(await db.from('industry_user'), 1)
     const industry = await db.from('industries').firstOrFail()
     assert.isNull(industry.deleted_at)
+  })
+  test('has-many-through writes reject before running the sub-query', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const parent = await RelationUser.create({ username: 'parent' })
+    const post = await RelationPost.create({ userId: parent.id, title: 'post' })
+    await RelationComment.create({ postId: post.id, body: 'kept' })
+    const comments = () => parent.related('comments').query()
+    await assert.rejects(() => comments().softDelete(), /has-many-through/)
+    await assert.rejects(() => comments().forceDelete(), /has-many-through/)
+    await assert.rejects(() => comments().onlyTrashed().restore(), /has-many-through/)
+    const [comment] = await db.from('comments')
+    assert.isNull(comment.deleted_at)
   })
   test('plain models reject both macros and foreign key errors reach the caller', async ({
     assert,
