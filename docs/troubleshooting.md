@@ -227,11 +227,11 @@ For a rolled-back force delete, query again by a stable key instead of calling `
 
 Source and tests: [transaction state tests](../tests/unit/transactions.spec.ts), [instance persistence and force-delete state](../src/mixin.ts).
 
-## A many-to-many bulk lifecycle write is rejected
+## A many-to-many or has-many-through bulk lifecycle write is rejected
 
-**Likely cause:** Lucid routes a many-to-many relation builder's writes through the pivot table. The package rejects `softDelete()` and `forceDelete()` on that builder because those methods target related model rows, not pivot links.
+**Likely cause:** Lucid routes a many-to-many relation builder's writes through the pivot table and builds has-many-through writes with a sub-query the database rejects. The package rejects builder `restore()`, `softDelete()` and `forceDelete()` on both relation builders before writing, because those methods target related model rows, not pivot links or the intermediate model.
 
-**Check:** Confirm whether the write is being called on `parent.related('tags').query()`. The error explains that lifecycle writes on many-to-many builders are unsupported.
+**Check:** Confirm whether the write is being called on a many-to-many or has-many-through relation query, such as `parent.related('tags').query()`. The error explains that lifecycle writes on these relation builders are unsupported.
 
 **Correction:** Read the related IDs through the relation query, then issue a lifecycle write on the related model query with those IDs. The related query scopes the selected IDs to the parent relation; choosing a normal model builder for the write avoids redirecting the update/delete to the pivot:
 
@@ -249,7 +249,7 @@ This marks the selected active related rows as trashed and leaves pivot rows int
 
 **Expected result:** The lifecycle macro operates on related model rows selected through the parent relation; the pivot table is not mistaken for the model table, and its foreign-key references are preserved.
 
-Source and tests: [many-to-many lifecycle guard](../src/bindings/model_query_builder.ts), [builder lifecycle relation tests](../tests/unit/builder_lifecycle.spec.ts).
+Source and tests: [relation lifecycle guard](../src/bindings/model_query_builder.ts), [builder lifecycle relation tests](../tests/unit/builder_lifecycle.spec.ts).
 
 ## Hooks, `updatedAt`, custom `prepare`, or serialized fields differ in bulk operations
 
