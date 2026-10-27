@@ -219,6 +219,56 @@ test.group('Builder lifecycle', (group) => {
     const industry = await db.from('industries').firstOrFail()
     assert.isNull(industry.deleted_at)
   })
+  test('reused has-many builders keep the parent constraint on every lifecycle run', async ({
+    assert,
+  }) => {
+    const sql: string[] = []
+    const db = await createDatabase((event) => sql.push(event.sql))
+    await createTables(db)
+    const parent = await RelationUser.create({ username: 'parent' })
+    const other = await RelationUser.create({ username: 'other' })
+    await RelationPost.createMany([
+      { userId: parent.id, title: 'selected' },
+      { userId: other.id, title: 'other' },
+    ])
+    const query = () => parent.related('posts').query().where('title', 'like', '%')
+    const assertStatementsKeepParent = (start: number) => {
+      assert.lengthOf(sql.slice(start), 2)
+      assert.isTrue(sql.slice(start).every((statement) => statement.includes('user_id')))
+    }
+
+    let start = sql.length
+    const softDelete = query()
+    assert.equal(await softDelete.softDelete(), 1)
+    assert.equal(await softDelete.softDelete(), 0)
+    assertStatementsKeepParent(start)
+
+    start = sql.length
+    const restore = query()
+    assert.equal(await restore.restore(), 1)
+    assert.equal(await restore.restore(), 0)
+    assertStatementsKeepParent(start)
+
+    start = sql.length
+    const forceDelete = query()
+    assert.equal(await forceDelete.forceDelete(), 1)
+    assert.equal(await forceDelete.forceDelete(), 0)
+    assertStatementsKeepParent(start)
+    let posts = await db.from('posts')
+    assert.lengthOf(posts, 1)
+    assert.equal(posts[0].user_id, other.id)
+
+    await RelationPost.create({ userId: parent.id, title: 'selected' })
+    assert.equal(await query().softDelete(), 1)
+    const trashed = query().withTrashed()
+    start = sql.length
+    assert.equal(await trashed.forceDelete(), 1)
+    assert.equal(await trashed.forceDelete(), 0)
+    assertStatementsKeepParent(start)
+    posts = await db.from('posts')
+    assert.lengthOf(posts, 1)
+    assert.equal(posts[0].user_id, other.id)
+  })
   test('has-many-through writes reject before running the sub-query', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)

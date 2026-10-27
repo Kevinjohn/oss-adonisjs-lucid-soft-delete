@@ -45,8 +45,9 @@ without rereading the mode or installing a missing filter. Fetch and paginate ho
 Builder `softDelete()` writes the mapped column with `DateTime.local()` formatted using the
 query client's dialect date-time format. Like builder `restore()`, it bypasses custom column
 preparation and instance hooks and leaves `updatedAt` unchanged. Each macro replaces earlier
-scope nodes while preserving caller predicates. `forceDelete()` removes an earlier lifecycle
-scope in default/with mode, or replaces it with `whereNotNull` in only mode.
+scope nodes while preserving caller predicates. `forceDelete()` groups the caller's predicates in
+default/with mode and replaces the earlier scope with `whereNotNull` in only mode. Any builder the
+package has grouped is regrouped on every `applyWhere()`.
 
 The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
 builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target
