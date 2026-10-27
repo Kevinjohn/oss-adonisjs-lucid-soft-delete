@@ -1,82 +1,74 @@
 # @kevinjohn/lucid-soft-deletes
 
-This package continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) for AdonisJS 7 and Lucid 22. Upstream 2.1.0 targets AdonisJS 6 and Lucid 21. This continuation retains the upstream history and MIT license while updating the integration and defining the scope and lifecycle behavior in tests.
+Give your AdonisJS application recoverable deletion. Deleted records stay in the database, ordinary model queries hide them, and explicit methods let you inspect, restore or permanently purge them. The package supplies the deletion mechanism; your application chooses who may delete, when to restore, and which records belong to the caller.
 
-<!-- TODO(owner): After posting docs/upstream-comment.md to upstream issue 32, add a sentence here linking to the posted comment. -->
+Supports AdonisJS 7, Lucid 22 and Luxon 3.4.4 or newer within 3.x, on Node.js 24 or newer. Use TypeScript 5.9 or newer.
 
-Version 3.0.0 is an alpha with intentional changes from 2.1.0. Read [Migration from 2.1.0](#migration-from-210) before upgrading.
+**Documentation version:** the development candidate for `3.0.0-alpha.1`, including the reviewed lifecycle changes. A branch or merged PR is not an npm release. Use the README accompanying the exact version you install; the [source-checkout tutorial](docs/tutorial.md) works without assuming this candidate has been published. Version 3.0.0 is an alpha with intentional changes from 2.1.0; read the [migration guide](#migration-from-210) before upgrading.
+
+## See the value
+
+With the configured fixture `User` model (an `id`, `email`, `username` and nullable `deleted_at` column), the same record can disappear from normal reads and then return after restoration. This function is a service example, not model boot code:
+
+<!-- source: examples/app/app/services/readme_example.ts#readme -->
+```ts
+import User from '#models/user'
+
+export async function demonstrateRecovery(email: string) {
+  const user = await User.create({ email, username: 'recycle-bin-demo' })
+  await user.delete()
+  const hidden = (await User.find(user.id)) === null
+
+  const deleted = await User.onlyTrashed().where('id', user.id).firstOrFail()
+  const inRecycleBin = deleted.trashed
+  await deleted.restore()
+  const visibleAgain = (await User.find(user.id)) !== null
+
+  return { id: user.id, hidden, inRecycleBin, visibleAgain }
+}
+```
+
+Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns `{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The restored row remains in the database. The [tutorial](docs/tutorial.md) supplies the complete setup and exercises this journey, including a separate deliberate physical purge.
+
+## Choose your next step
+
+- [Build a recycle bin](docs/tutorial.md): complete setup, migration, demo records, deletion, recovery and permanent purge, with expected results.
+- [Solve a practical task](docs/cookbook.md): batches, tenant predicates, related records, counts, transactions, uniqueness and JSON timestamps.
+- [Look up the API](docs/api.md): method results, state requirements, hooks, timestamps, errors and TypeScript contracts.
+- [Understand query boundaries](docs/scope-contract.md): exactly which queries are scoped and the regression evidence behind the contract.
+- [Troubleshoot a symptom](docs/troubleshooting.md): diagnostics and corrective examples for common integration and lifecycle problems.
+- [Contribute or verify the package](CONTRIBUTING.md): supported toolchain, database checks and packed-consumer modes.
 
 ## Install
 
-Use Node.js 24 or newer with AdonisJS core 7, Lucid 22, and Luxon 3.4.4 or newer within 3.x. Install the alpha and its required Luxon peer:
+For a published compatible alpha, install the package and its required Luxon peer into an existing AdonisJS 7 application:
 
 ```bash
 pnpm add @kevinjohn/lucid-soft-deletes@alpha luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
-`configure` registers `@kevinjohn/lucid-soft-deletes/provider` in `adonisrc.ts`. For manual registration, add `() => import('@kevinjohn/lucid-soft-deletes/provider')` to its `providers` array once.
+`configure` registers `@kevinjohn/lucid-soft-deletes/provider` in `adonisrc.ts` once. Manual registration uses `() => import('@kevinjohn/lucid-soft-deletes/provider')` in its `providers` array. Add a nullable timestamp column before using the mixin; configuration does not generate or run your migration.
 
-## Usage
+For an existing `users` table, the migration's `up()` adds `table.timestamp('deleted_at').nullable()` through `this.schema.alterTable('users', ...)`. Run `node ace migration:run` after creating the complete migration in the [tutorial](docs/tutorial.md#add-the-column-and-model). That guide also explains fresh fixture setup and generated-schema composition.
 
-Add a nullable timestamp to each table whose model uses the mixin. For an existing table:
+## Choose an operation
 
-```ts
-import { BaseSchema } from '@adonisjs/lucid/schema'
+| Your goal | Operation | What happens |
+| --- | --- | --- |
+| Delete one recoverable record with hooks | `await user.delete()` | Saves a deletion timestamp; ordinary model reads hide the row. |
+| Soft-delete a selected batch | `await User.query().whereIn('id', ids).softDelete()` | Changes matching active rows without instance hooks; returns a count. |
+| Inspect the recycle bin | `await User.onlyTrashed()` | Returns deleted model rows. |
+| Restore selected deleted rows | `await User.onlyTrashed().whereIn('id', ids).restore()` | Clears matching deletion timestamps; returns a count. |
+| Permanently purge selected deleted rows | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain. |
 
-export default class AddDeletedAtToUsers extends BaseSchema {
-  protected tableName = 'users'
+**Destructive-operation warning:** builder `delete()` and `del()` are physical deletes. Read modes such as `onlyTrashed()` do not make those writes a safe purge. Use the explicit lifecycle methods, preserve your application predicates, and consult the [API reference](docs/api.md) before choosing between instance and bulk behavior. Soft deletion does not automatically cascade, enforce authorization, or erase retained personal data.
 
-  async up() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.timestamp('deleted_at').nullable()
-    })
-  }
+## Project lineage
 
-  async down() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.dropColumn('deleted_at')
-    })
-  }
-}
-```
+This package continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) for AdonisJS 7 and Lucid 22. Upstream 2.1.0 targets AdonisJS 6 and Lucid 21. This continuation retains the upstream history and [MIT licence](LICENSE.md) while updating the integration and defining the scope and lifecycle behavior in tests.
 
-Compose the model and use instance methods for soft and physical deletion:
-
-```ts
-import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
-
-export default class User extends compose(BaseModel, SoftDeletes) {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @column()
-  declare email: string
-}
-
-const user = await User.findOrFail(1)
-await user.delete() // sets deleted_at; row remains
-
-const trashedUser = await User.withTrashed().where('id', 1).firstOrFail()
-console.log(trashedUser.trashed) // true
-await trashedUser.restore()
-await trashedUser.forceDelete() // physical DELETE
-```
-
-Read modes are available as model statics and builder macros. They survive cloning and pagination:
-
-```ts
-const active = await User.query().exec()
-const all = await User.withTrashed().paginate(1)
-const trashed = await User.query().onlyTrashed().exec()
-const restoredCount = await User.query().onlyTrashed().where('email', 'a@example.test').restore()
-```
-
-For another database column, override the model mapping with `@column.dateTime({ columnName: 'removed_at' })` on `declare deletedAt: DateTime | null` and add that nullable column in your migration. `trashed` reads the loaded attribute; it is not a separate database column.
-
-[examples/README.md](examples/README.md) has a complete migration, model, controller and route set using every method above.
+<!-- TODO(owner): After posting docs/upstream-comment.md to upstream issue 32, add a sentence here linking to the posted comment. -->
 
 ## Scope contract
 
