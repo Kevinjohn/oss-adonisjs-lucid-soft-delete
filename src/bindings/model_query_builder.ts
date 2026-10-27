@@ -8,10 +8,16 @@
  * file that was distributed with this source code.
  */
 
-import { DateTime } from 'luxon'
-
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
+import type { BulkReceiptOptions } from '../receipts.js'
+import {
+  parseReceiptOptions,
+  ensureReceiptSupport,
+  deletionTimestamp,
+  normaliseWriteCount,
+  executeWithReceipt,
+} from '../receipts.js'
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
@@ -51,36 +57,57 @@ export function extendModelQueryBuilder(builder: any) {
   installModePropagation(builder)
   installSubQueryScope(builder)
 
-  builder.macro('restore', async function (this: ModelQueryBuilderContract<LucidModel>) {
-    ensureLifecycleWrite(this)
-    const deletedAtColumn = this.model.$getColumn('deletedAt')!.columnName
-    addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${deletedAtColumn}`)
-    const result = await this.update({ [deletedAtColumn]: null })
-    return typeof result[0] === 'number' ? result[0] : result.length
-  })
-
-  builder.macro('softDelete', async function (this: ModelQueryBuilderContract<LucidModel>) {
-    ensureLifecycleWrite(this)
-    const column = this.model.$getColumn('deletedAt')!.columnName
-    if (getSoftDeletesMode(this) === 'only') return 0
-    addScopeFilter(this, 'whereNull', `${resolveTableReference(this)}.${column}`)
-    const result = await this.update({
-      [column]: DateTime.local().toFormat(this.client.dialect.dateTimeFormat),
-    })
-    return typeof result[0] === 'number' ? result[0] : result.length
-  })
-
-  builder.macro('forceDelete', async function (this: ModelQueryBuilderContract<LucidModel>) {
-    ensureLifecycleWrite(this)
-    const column = this.model.$getColumn('deletedAt')!.columnName
-    if (getSoftDeletesMode(this) === 'only') {
+  builder.macro(
+    'restore',
+    async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
+      const receipt = parseReceiptOptions(options)
+      ensureLifecycleWrite(this)
+      if (receipt) ensureReceiptSupport(this)
+      const column = this.model.$getColumn('deletedAt')!.columnName
       addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${column}`)
-    } else {
-      groupCallerPredicates(this)
+      const write = (target: ModelQueryBuilderContract<LucidModel>) =>
+        target.update({ [column]: null })
+      if (!receipt) return normaliseWriteCount(await write(this))
+      return executeWithReceipt(this, write)
     }
-    const result = await this.delete()
-    return typeof result[0] === 'number' ? result[0] : result.length
-  })
+  )
+
+  builder.macro(
+    'softDelete',
+    async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
+      const receipt = parseReceiptOptions(options)
+      ensureLifecycleWrite(this)
+      if (receipt) ensureReceiptSupport(this)
+      const column = this.model.$getColumn('deletedAt')!.columnName
+      if (getSoftDeletesMode(this) === 'only')
+        return receipt ? { count: 0, ids: [], deletedAt: null } : 0
+      addScopeFilter(this, 'whereNull', `${resolveTableReference(this)}.${column}`)
+      const deletedAt = deletionTimestamp(this)
+      const values = { [column]: deletedAt.toFormat(this.client.dialect.dateTimeFormat) }
+      const write = (target: ModelQueryBuilderContract<LucidModel>) => target.update(values)
+      if (!receipt) return normaliseWriteCount(await write(this))
+      const { count, ids } = await executeWithReceipt(this, write)
+      return { count, ids, deletedAt: count === 0 ? null : deletedAt }
+    }
+  )
+
+  builder.macro(
+    'forceDelete',
+    async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
+      const receipt = parseReceiptOptions(options)
+      ensureLifecycleWrite(this)
+      if (receipt) ensureReceiptSupport(this)
+      const column = this.model.$getColumn('deletedAt')!.columnName
+      if (getSoftDeletesMode(this) === 'only') {
+        addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${column}`)
+      } else {
+        groupCallerPredicates(this)
+      }
+      const write = (target: ModelQueryBuilderContract<LucidModel>) => target.delete()
+      if (!receipt) return normaliseWriteCount(await write(this))
+      return executeWithReceipt(this, write)
+    }
+  )
 
   builder.macro('withTrashed', function (this: ModelQueryBuilderContract<SoftDeletesModel>) {
     ensureModelWithSoftDeletes(this.model)

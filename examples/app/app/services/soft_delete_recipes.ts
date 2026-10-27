@@ -248,6 +248,33 @@ export async function mutateAndBookkeepTogether(outcome: 'commit' | 'rollback') 
 }
 // #endregion TRANSACTION_BOOKKEEPING
 
+// #region RECEIPT_BOOKKEEPING
+export async function softDeleteWithReceipt(tenantId: number) {
+  const rows = await Promise.all(
+    ['receipt-a', 'receipt-b'].map((prefix) =>
+      RecipeParent.create({ tenantId, label: uniqueLabel(prefix), archivedAt: null })
+    )
+  )
+  const receipt = await db.transaction(async (trx) => {
+    const result = await RecipeParent.query({ client: trx })
+      .where('tenantId', tenantId)
+      .whereIn(
+        'id',
+        rows.map((row) => row.id)
+      )
+      .softDelete({ receipt: true })
+    for (const id of result.ids) {
+      await trx
+        .table('lifecycle_notes')
+        .insert({ tenant_id: tenantId, parent_id: id, action: 'softDelete' })
+    }
+    return result
+  })
+  const notes = await db.from('lifecycle_notes').where('tenant_id', tenantId)
+  return { count: receipt.count, noteCount: notes.length, hasTimestamp: receipt.deletedAt !== null }
+}
+// #endregion RECEIPT_BOOKKEEPING
+
 // #region RESTORE_UNIQUENESS_CONFLICT
 export async function restoreAfterUniqueConflict() {
   // The fixture uses a temporary index; applications should create this index in a migration.

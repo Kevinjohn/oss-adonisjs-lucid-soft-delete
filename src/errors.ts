@@ -57,7 +57,52 @@ class ModelUnknownDeletionStateException extends Exception {
   }
 }
 
+class BulkReceiptRequiresTransactionException extends Exception {
+  static code = 'E_BULK_RECEIPT_REQUIRES_TRANSACTION'
+  static status = 500
+
+  constructor() {
+    super('Bulk lifecycle receipts require a caller-owned transaction client', {
+      code: BulkReceiptRequiresTransactionException.code,
+      status: BulkReceiptRequiresTransactionException.status,
+    })
+  }
+}
+
+class BulkReceiptUnsupportedException extends Exception {
+  static code = 'E_BULK_RECEIPT_UNSUPPORTED'
+  static status = 500
+
+  constructor(reason: string) {
+    super(`Bulk lifecycle receipts do not support ${reason}`, {
+      code: BulkReceiptUnsupportedException.code,
+      status: BulkReceiptUnsupportedException.status,
+    })
+  }
+}
+
+class BulkReceiptDivergedException extends Exception {
+  static code = 'E_BULK_RECEIPT_DIVERGED'
+  static status = 500
+
+  constructor(
+    public readonly expected: number,
+    public readonly actual: number
+  ) {
+    super(
+      `Bulk lifecycle write changed ${actual} rows but ${expected} were selected; roll back the transaction`,
+      {
+        code: BulkReceiptDivergedException.code,
+        status: BulkReceiptDivergedException.status,
+      }
+    )
+  }
+}
+
 export {
+  BulkReceiptRequiresTransactionException as E_BULK_RECEIPT_REQUIRES_TRANSACTION,
+  BulkReceiptUnsupportedException as E_BULK_RECEIPT_UNSUPPORTED,
+  BulkReceiptDivergedException as E_BULK_RECEIPT_DIVERGED,
   ModelSoftDeleteException as E_MODEL_SOFT_DELETE,
   ModelForceDeletedException as E_MODEL_FORCE_DELETED,
   ModelNotPersistedException as E_MODEL_NOT_PERSISTED,

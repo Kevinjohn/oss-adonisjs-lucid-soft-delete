@@ -189,3 +189,15 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Decision:** Release the first prerelease of this continuation as `0.1.0-alpha`, tagged `v0.1.0-alpha`, with the `pnpm pack` tarball attached to a GitHub prerelease. Do not publish it to npm. This replaces the planned `3.0.0-alpha.1` npm alpha.
 - **Reason:** Owner decision (#84). The package has a new name, so its version line does not need to continue upstream's 2.x numbering.
 - **Evidence:** `package.json`, `CHANGELOG.md`, `docs/RELEASING.md`, `SECURITY.md` and the README install instructions name `0.1.0-alpha` and the release tarball.
+
+## 2026-10-27: Opt-in bulk lifecycle receipts
+
+- **Decision:** Add `{ receipt: true }` overloads with dialect-specific mutation-key retrieval, require a caller-owned transaction on every supported dialect, return `null` timestamps for zero changed rows, leave receipt IDs unordered, and reject unsupported dialects, relations, and query shapes.
+- **Reason:** PostgreSQL `RETURNING` provides keys in one statement; Knex 3.3.0 lacks SQLite `DELETE RETURNING`, so SQLite uses select-then-write.
+- **Reason:** A uniform caller-owned transaction keeps receipt persistence and the caller's bookkeeping under one explicit transaction boundary on every dialect.
+- **Reason:** A zero-row soft delete changed no row, so its receipt has no written timestamp and returns `deletedAt: null`.
+- **Reason:** Primary-key results use set semantics, so their order is not part of the API contract.
+- **Reason:** Unsupported dialects, relations, and query shapes cannot guarantee that the receipt describes the intended target-table mutation.
+- **Reason:** Relation `groupLimit()` and `groupOrderBy()` are rejected from their deferred Lucid state before cloning because relation clones drop those constraints.
+- **Reason:** The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
+- **Evidence:** `tests/unit/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.

@@ -55,15 +55,17 @@ For an existing `users` table, the migration's `up()` adds `table.timestamp('del
 
 ## Choose an operation
 
-| Your goal                                | Operation                                                   | What happens                                                          |
-| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| Delete one recoverable record with hooks | `await user.delete()`                                       | Saves a deletion timestamp; ordinary model reads hide the row.        |
-| Soft-delete a selected batch             | `await User.query().whereIn('id', ids).softDelete()`        | Changes matching active rows without instance hooks; returns a count. |
-| Inspect the recycle bin                  | `await User.onlyTrashed()`                                  | Returns deleted model rows.                                           |
-| Restore selected deleted rows            | `await User.onlyTrashed().whereIn('id', ids).restore()`     | Clears matching deletion timestamps; returns a count.                 |
-| Permanently purge selected deleted rows  | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain.         |
+| Your goal                                | Operation                                                   | What happens                                                                                                                            |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Delete one recoverable record with hooks | `await user.delete()`                                       | Saves a deletion timestamp; ordinary model reads hide the row.                                                                          |
+| Soft-delete a selected batch             | `await User.query().whereIn('id', ids).softDelete()`        | Changes matching active rows without instance hooks; returns a count; add `{ receipt: true }` inside a transaction for the changed ids. |
+| Inspect the recycle bin                  | `await User.onlyTrashed()`                                  | Returns deleted model rows.                                                                                                             |
+| Restore selected deleted rows            | `await User.onlyTrashed().whereIn('id', ids).restore()`     | Clears matching deletion timestamps; returns a count; add `{ receipt: true }` inside a transaction for the changed ids.                 |
+| Permanently purge selected deleted rows  | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain; add `{ receipt: true }` inside a transaction for the changed ids.         |
 
 **Destructive-operation warning:** builder `delete()` and `del()` are physical deletes. Read modes such as `onlyTrashed()` do not make those writes a safe purge. Use the explicit lifecycle methods, preserve your application predicates, and consult the [API reference](docs/api.md) before choosing between instance and bulk behavior. Soft deletion does not automatically cascade, enforce authorization, or erase retained personal data.
+
+Receipts describe an uncommitted mutation and are not an audit log.
 
 ## Project lineage
 

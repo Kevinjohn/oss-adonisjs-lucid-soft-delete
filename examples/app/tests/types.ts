@@ -16,6 +16,9 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { hasSoftDeletes, SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
 import type {
+  ForceDeleteReceipt,
+  RestoreReceipt,
+  SoftDeleteReceipt,
   SOFT_DELETES,
   SoftDeletesInstance,
   SoftDeletesModel,
@@ -74,6 +77,22 @@ export type ConsumerTypeAssertions = [
 function checkTypes(user: User, extended: ExtendedUser, related: RelatedUser) {
   const queryResult: Promise<User | null> = User.query().withTrashed().first()
   const restoreCount: Promise<number> = User.query().onlyTrashed().restore()
+  const receipt: Promise<SoftDeleteReceipt> = User.query().softDelete({ receipt: true })
+  const restoreReceipt: Promise<RestoreReceipt> = User.query()
+    .onlyTrashed()
+    .restore({ receipt: true })
+  const purgeReceipt: Promise<ForceDeleteReceipt> = User.query()
+    .onlyTrashed()
+    .forceDelete({ receipt: true })
+  const stillCount: Promise<number> = User.query().softDelete({ receipt: false })
+  const emptyOptions: Promise<number> = User.query().softDelete({})
+  const widened: Promise<number | SoftDeleteReceipt> = User.query().softDelete({
+    receipt: Math.random() > 0.5,
+  })
+  // @ts-expect-error UNKNOWN_RECEIPT_OPTION
+  User.query().softDelete({ reciept: true })
+  // @ts-expect-error BARE_BUILDER_HAS_NO_PROVEN_SOFT_DELETE_CAPABILITY
+  BaseModel.query().softDelete({ receipt: true })
   const instanceRestore: Promise<User> = user.restore()
   const subclassRestore: Promise<ExtendedUser> = extended.restore()
   const transactionResult: User = user.useTransaction({} as TransactionClientContract)
@@ -85,6 +104,8 @@ function checkTypes(user: User, extended: ExtendedUser, related: RelatedUser) {
     const builderRole: string = fromBuilder.role
     void role
     void builderRole
+    const n: number = await User.query().softDelete()
+    void n
   }
 
   related.related('posts').query().withTrashed().groupLimit(1)
@@ -113,6 +134,12 @@ function checkTypes(user: User, extended: ExtendedUser, related: RelatedUser) {
   void softDeleted
   void forceDeleted
   void restoreCount
+  void receipt
+  void restoreReceipt
+  void purgeReceipt
+  void stillCount
+  void emptyOptions
+  void widened
   void instanceRestore
   void subclassRestore
   void transactionResult
