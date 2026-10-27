@@ -68,7 +68,13 @@ export default defineConfig({
   tests: {
     suites: [
       {
-        files: ['tests/consumer.spec.{ts,js}', 'tests/lifecycle.spec.{ts,js}'],
+        files: [
+          'tests/consumer.spec.{ts,js}',
+          'tests/lifecycle.spec.{ts,js}',
+          'tests/readme.spec.{ts,js}',
+          'tests/recycle_bin.spec.{ts,js}',
+          'tests/recipes.spec.{ts,js}',
+        ],
         name: 'consumer',
         timeout: 30000,
       },

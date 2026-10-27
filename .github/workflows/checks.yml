@@ -82,6 +82,8 @@ jobs:
       - if: matrix.database == 'better-sqlite3'
         run: pnpm lint
       - if: matrix.database == 'better-sqlite3'
+        run: pnpm docs:check
+      - if: matrix.database == 'better-sqlite3'
         run: pnpm typecheck
       - if: matrix.database == 'better-sqlite3'
         run: pnpm build

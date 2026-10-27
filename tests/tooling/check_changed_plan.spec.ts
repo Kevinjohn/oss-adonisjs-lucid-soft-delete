@@ -46,7 +46,7 @@ test.group('check:changed plan', () => {
       assert.equal(planChecks(changed(path, 'src/scope.ts')).lint, 'all')
     })
 
-  test('docs and changelog select no checks', ({ assert }) => {
+  test('docs and changelog select no code or consumer checks', ({ assert }) => {
     assert.deepEqual(planChecks(changed('README.md', 'CHANGELOG.md', 'docs/upgrade.md')), {
       lint: [],
       typecheck: false,
