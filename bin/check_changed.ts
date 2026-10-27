@@ -85,12 +85,14 @@ async function step(name: string, command: string, args: string[]): Promise<bool
   return code === 0
 }
 
-const [base = 'main', ...extra] = process.argv.slice(2)
+const args = process.argv.slice(2)
+const staticOnly = args.includes('--static')
+const [base = 'main', ...extra] = args.filter((arg) => arg !== '--static')
 if (
   extra.length ||
   !spawnSync('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).stdout.length
 ) {
-  console.error(`Usage: pnpm check:changed [base]. "${base}" is not a known git ref.`)
+  console.error(`Usage: pnpm check:changed [--static] [base]. "${base}" is not a known git ref.`)
   process.exit(2)
 }
 
@@ -103,7 +105,7 @@ if (current !== wanted) {
   process.exit(1)
 }
 
-const plan = planChecks(changedFiles(base))
+const plan = planChecks(changedFiles(base), staticOnly)
 
 console.log('format: skip (Prettier runs inside ESLint for code files)')
 
@@ -133,9 +135,11 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   const { code, output } = await run('pnpm', ['quick:test', ...files])
   const outcome = readTestOutcome(output, code, explicit)
   report('tests', outcome.passed, `${outcome.executed} tests run`, output)
-} else console.log('tests: skip (no tests affected)')
+} else if (!plan.skipped.includes('unit suite')) console.log('tests: skip (no tests affected)')
+if (plan.skipped.includes('unit suite')) console.log('unit suite: skip (--static)')
 
 if (plan.consumer) await step('consumer', 'pnpm', ['test:consumer'])
+else if (plan.skipped.includes('consumer')) console.log('consumer: skip (--static)')
 else console.log('consumer: skip (no consumer inputs changed)')
 
 await step('docs', 'pnpm', ['docs:check'])

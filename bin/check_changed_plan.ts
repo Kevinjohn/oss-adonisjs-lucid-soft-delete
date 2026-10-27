@@ -16,6 +16,8 @@ export type Plan = {
   /** Spec files to run, or the full unit suite. Empty skips the step. */
   tests: 'all' | string[]
   consumer: boolean
+  /** Suites selected by the change but left out by `--static`. */
+  skipped: string[]
 }
 
 const IGNORED = /^(build|tmp|examples|coverage)\//
@@ -39,9 +41,12 @@ const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 const CONSUMER =
   /^(scripts|examples\/app|src|providers)\/|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
 
-/** Map changed files to the checks they can affect. */
-export function planChecks(changes: Change[]): Plan {
-  const plan: Plan = { lint: [], typecheck: false, tests: [], consumer: false }
+/**
+ * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but
+ * leaves out the full unit suite and the consumer gate, which a batch run covers once.
+ */
+export function planChecks(changes: Change[], staticOnly = false): Plan {
+  const plan: Plan = { lint: [], typecheck: false, tests: [], consumer: false, skipped: [] }
   const lint = new Set<string>()
   const tests = new Set<string>()
   let lintAll = false
@@ -63,7 +68,12 @@ export function planChecks(changes: Change[]): Plan {
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
-  plan.tests = testAll ? 'all' : [...tests].sort()
+  plan.tests = testAll && !staticOnly ? 'all' : [...tests].sort()
+  if (staticOnly && testAll) plan.skipped.push('unit suite')
+  if (staticOnly && plan.consumer) {
+    plan.consumer = false
+    plan.skipped.push('consumer')
+  }
   return plan
 }
 
