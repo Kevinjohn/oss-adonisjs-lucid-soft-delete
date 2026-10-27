@@ -95,8 +95,10 @@ export default class User extends compose(BaseModel, SoftDeletes) {
 }
 ```
 
-The fixture uses the equivalent generated `UserSchema` in `examples/app/app/models/user.ts`. Its
-reusable service is the same code exercised by the companion test:
+The fixture uses the equivalent generated `UserSchema` in `examples/app/app/models/user.ts`. The
+reusable service is [`examples/app/app/services/recycle_bin.ts`](../examples/app/app/services/recycle_bin.ts),
+and [`examples/app/tests/recycle_bin.spec.ts`](../examples/app/tests/recycle_bin.spec.ts) exercises
+the same exported functions:
 
 <!-- source: ../examples/app/app/services/recycle_bin.ts#tutorial -->
 
