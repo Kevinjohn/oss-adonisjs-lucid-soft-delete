@@ -173,8 +173,8 @@ test.group('Documentation checks', () => {
   test('discovers tracked and unignored new Markdown with Git', async ({ assert, cleanup }) => {
     const root = await fixture(
       {
-        'README.md': '# Home\n[New](docs/new.md)\n',
-        'docs/new.md': '# New\n',
+        'README.md': '# Home\n[Missing](tracked-missing.md)\n',
+        'docs/new.md': '[Missing](untracked-missing.md)\n',
         '.gitignore': 'ignored.md\n',
         'ignored.md': '[wrong](missing.md)\n',
       },
@@ -182,7 +182,12 @@ test.group('Documentation checks', () => {
     )
     execFileSync('git', ['-c', 'init.defaultBranch=main', 'init', '--quiet', root])
     execFileSync('git', ['add', 'README.md'], { cwd: root })
-    assert.deepEqual(await checkDocumentation(root), [])
+    const diagnostics = await checkDocumentation(root)
+    assert.sameMembers(
+      diagnostics.map((item) => item.file),
+      ['README.md', 'docs/new.md']
+    )
+    assert.isTrue(diagnostics.every((item) => item.message.startsWith('Missing file:')))
   })
 
   test('reports an unreadable selected Markdown file and undefined reference', async ({
@@ -251,5 +256,49 @@ test.group('Documentation checks', () => {
     const bad = run()
     assert.equal(bad.status, 1)
     assert.include(bad.stderr, ':1: Missing file: missing.md')
+  })
+  test('checks shortcut and code-labelled references without interpreting inline code as links', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      { 'README.md': '[guide]\n[`guide`][guide]\n`[guide]`\n[guide]: missing.md\n' },
+      cleanup
+    )
+    const diagnostics = await checkDocumentation(root, ['README.md'])
+    assert.lengthOf(diagnostics, 2)
+    assert.isTrue(diagnostics.every((item) => item.message === 'Missing file: missing.md'))
+  })
+
+  test('heading anchors remove underscore emphasis and preserve literal identifier underscores', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md':
+          '# _Emphasized_ heading\n[Read](#emphasized-heading)\n## foo_bar\n[Code](#foo_bar)\n',
+      },
+      cleanup
+    )
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
+  })
+
+  test('an HTML anchor displayed as inline code is not a real anchor', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture({ 'README.md': '`<a id="fake"></a>`\n[Wrong](#fake)\n' }, cleanup)
+    const diagnostics = await checkDocumentation(root, ['README.md'])
+    assert.lengthOf(diagnostics, 1)
+    assert.include(diagnostics[0].message, 'Missing anchor: #fake')
+  })
+
+  test('source line anchors include genuine trailing blank lines', async ({ assert, cleanup }) => {
+    const root = await fixture(
+      { 'README.md': '[Blank line](demo.ts#L2)\n', 'demo.ts': 'one\n\n' },
+      cleanup
+    )
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
   })
 })
