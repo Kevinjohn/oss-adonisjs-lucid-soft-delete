@@ -154,6 +154,10 @@ this also applies when `deletedAt` has a UTC ISO serialiser (the serialiser stil
 Many-to-many relation builders are rejected before writing because Lucid redirects their
 writes to the pivot table. Query the related model directly with explicit IDs instead.
 
+A builder that has already run keeps the soft-delete filter from that run, so a later `delete()`
+on the same builder removes only the rows that run's mode selected. Start a new query for a bulk
+write.
+
 Soft deletion runs the normal update and delete hooks in this order:
 
 ```text
