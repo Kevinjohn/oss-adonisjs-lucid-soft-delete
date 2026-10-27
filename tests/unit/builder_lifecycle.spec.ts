@@ -152,6 +152,7 @@ test.group('Builder lifecycle', (group) => {
   })
   test('honors transaction clients for commit and rollback using both entry points', async ({
     assert,
+    cleanup,
   }) => {
     const db = await createDatabase()
     await createTables(db)
@@ -159,6 +160,9 @@ test.group('Builder lifecycle', (group) => {
     for (const entry of ['client', 'useTransaction'] as const) {
       for (const commit of [false, true]) {
         const trx = await db.transaction()
+        cleanup(async () => {
+          if (!trx.isCompleted) await trx.rollback()
+        })
         const query =
           entry === 'client'
             ? LifecycleUser.query({ client: trx })
@@ -172,6 +176,9 @@ test.group('Builder lifecycle', (group) => {
         assert.equal(persisted.deleted_at !== null, commit)
         await db.from('users').update({ deleted_at: null })
         const purgeTrx = await db.transaction()
+        cleanup(async () => {
+          if (!purgeTrx.isCompleted) await purgeTrx.rollback()
+        })
         const purge =
           entry === 'client'
             ? LifecycleUser.query({ client: purgeTrx })
