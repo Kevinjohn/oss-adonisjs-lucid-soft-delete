@@ -117,13 +117,10 @@ test.group('Soft delete serialization', (group) => {
       const db = await createDatabase()
       await createTables(db)
       const originalNow = Settings.now
-      const originalZone = Settings.defaultZone
       cleanup(() => {
         Settings.now = originalNow
-        Settings.defaultZone = originalZone
       })
       Settings.now = () => Date.UTC(2026, 9, 27, 11, 30, 19)
-      Settings.defaultZone = 'America/New_York'
       const expected = '2026-10-27T11:30:19.000Z'
 
       const post = await Model.create({ title: 'UTC recipe', deletedAt: null })
@@ -135,6 +132,13 @@ test.group('Soft delete serialization', (group) => {
       assert.isTrue(DateTime.isDateTime(post.deletedAt))
       assert.isTrue(post.trashed)
       assert.equal(post.serialize().deletedAt, expected)
+      const stored = await db.from('posts').where('id', post.id).firstOrFail()
+      if (Model === RenamedUtcPost) {
+        assert.isNotNull(stored.deletedAt)
+        assert.isNull(stored.deleted_at)
+      } else {
+        assert.isNotNull(stored.deleted_at)
+      }
       assert.isNull(await Model.find(post.id))
 
       const fetched = await Model.onlyTrashed().where('id', post.id).firstOrFail()
