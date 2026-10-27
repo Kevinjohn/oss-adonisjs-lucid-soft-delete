@@ -510,6 +510,63 @@ test.group('Soft-delete lifecycle', (group) => {
     )
   })
 
+  test('restore rejects an unpersisted model without writing or running hooks', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    statements.length = 0
+    const transaction = await db.transaction()
+
+    try {
+      for (const [withDeletedAt, useTransaction] of [
+        [false, false],
+        [true, false],
+        [true, true],
+      ] as const) {
+        const record = new LifecycleRecord()
+        record.fill({ username: 'unsaved-restore', email: 'unsaved-restore@example.test' })
+        if (withDeletedAt) record.deletedAt = DateTime.local()
+        if (useTransaction) record.useTransaction(transaction)
+        const attributesBefore = { ...record.$attributes }
+        const originalBefore = { ...record.$original }
+        const dirtyBefore = { ...record.$dirty }
+
+        try {
+          await record.restore()
+          assert.fail('Expected restore to reject an unpersisted instance')
+        } catch (error) {
+          assert.instanceOf(error, E_MODEL_NOT_PERSISTED)
+          assert.equal((error as { code: string }).code, E_MODEL_NOT_PERSISTED.code)
+          assert.equal((error as { status: number }).status, E_MODEL_NOT_PERSISTED.status)
+        }
+
+        assert.deepEqual(record.$attributes, attributesBefore)
+        assert.deepEqual(record.$original, originalBefore)
+        assert.deepEqual(record.$dirty, dirtyBefore)
+        assert.isFalse(record.$isPersisted)
+      }
+
+      assert.deepEqual(
+        statements.filter((sql) => /^(insert|update)\b/i.test(sql)),
+        []
+      )
+      assert.deepEqual(LifecycleRecord.events, [])
+    } finally {
+      await transaction.rollback()
+    }
+
+    assert.equal(
+      await db
+        .from('users')
+        .count('* as total')
+        .first()
+        .then((row) => row?.total),
+      0
+    )
+  })
+
   test('restore on an active model returns the same instance without writing', async ({
     assert,
   }) => {
