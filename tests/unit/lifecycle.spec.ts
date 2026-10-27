@@ -22,7 +22,11 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { SoftDeletes } from '../../src/mixin.js'
-import { E_MODEL_NOT_PERSISTED, E_MODEL_UNKNOWN_DELETION_STATE } from '../../src/errors.js'
+import {
+  E_MODEL_FORCE_DELETED,
+  E_MODEL_NOT_PERSISTED,
+  E_MODEL_UNKNOWN_DELETION_STATE,
+} from '../../src/errors.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 
@@ -631,6 +635,18 @@ test.group('Soft-delete lifecycle', (group) => {
     )
     const persistedTrashed = await db.from('users').where('id', trashed.id).first()
     assert.isNotNull(persistedTrashed?.deleted_at)
+  })
+
+  test('restore preserves the force-deleted error for a fetched projection', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const saved = await seedRecord('force-deleted-projection')
+    const projected = await LifecycleRecord.query().select('id').where('id', saved.id).firstOrFail()
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    await projected.forceDelete()
+    assert.isTrue(projected.$isDeleted)
+    await assert.rejects(() => projected.restore(), E_MODEL_FORCE_DELETED)
+    assert.isNull(await LifecycleRecord.withTrashed().where('id', saved.id).first())
   })
 
   test('active full fetches and locally saved models remain no-op restores', async ({ assert }) => {

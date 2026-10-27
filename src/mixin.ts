@@ -208,11 +208,11 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      */
     async restore(): Promise<this> {
       if (!this.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
-      if (!this.$isLocal && !('deletedAt' in this.$attributes)) {
-        throw new E_MODEL_UNKNOWN_DELETION_STATE()
-      }
       if (this.$isDeleted) {
         throw new E_MODEL_FORCE_DELETED()
+      }
+      if (!this.$isLocal && !('deletedAt' in this.$attributes)) {
+        throw new E_MODEL_UNKNOWN_DELETION_STATE()
       }
       if (!this.trashed) {
         return this
