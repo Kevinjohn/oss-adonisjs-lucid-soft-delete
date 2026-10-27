@@ -70,6 +70,8 @@ declare deletedAt: DateTime | null
 
 `serializeAs` controls only serialized output. The default serialized key is the model property name (`deletedAt`), even when `columnName` is `removed_at`. `trashed` is a computed getter and is not serialized as a column by default. A query projection that omits `deletedAt` must load it before `restore()`; see [restore](#restore).
 
+Redeclaring the `deletedAt` decorator, for example to add the [UTC ISO serialiser](cookbook.md#map-a-custom-deletion-column-and-serialize-utc-iso), replaces the whole column definition, so the column name and serialized key fall back to the naming strategy defaults. Repeat any `columnName` or `serializeAs` option from the original declaration in the new decorator.
+
 ### `trashed`
 
 Read-only getter. It returns whether the loaded `deletedAt` value is neither `null` nor `undefined`; it does not query the database. An omitted projection reads as `false` because the getter sees `undefined`, not because the row is known to be active.
@@ -181,7 +183,7 @@ There is no dedicated `forceDeleteQuietly()` method; `deleteQuietly()` uses the 
 
 Builder lifecycle methods operate on matching database rows, not hydrated instances. They return affected counts where noted, never run model hooks, never update model `updatedAt`, and bypass custom column `prepare` functions. `softDelete()` formats its local Luxon timestamp for the query connection's dialect. Pass a caller-owned client with `User.query({ client: trx })` or attach it with `.useTransaction(trx)`; the package does not begin, commit, or roll back a transaction.
 
-The lifecycle macros require a model composed with `SoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. `softDelete()` and `forceDelete()` explicitly reject many-to-many relation builders before writing; select related IDs and use a normal related-model query instead. The builder `restore()` macro filters by the related model's `deletedAt` column but has no explicit many-to-many guard, so do not use it on a many-to-many relation builder.
+The lifecycle macros require a model composed with `SoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through relation builders before writing: Lucid redirects many-to-many writes to the pivot table and builds has-many-through writes with a sub-query the database rejects. Select related IDs and use a normal related-model query instead. A builder that has already run keeps the soft-delete filter from that run, so a later `delete()` on the same builder removes only the rows that run's mode selected. Start a new query for a bulk write.
 
 ### `softDelete()`
 
@@ -190,7 +192,7 @@ Sets the mapped deletion column for matching active rows.
 - **Eligible rows:** Active matches in default or `withTrashed()` mode. In `onlyTrashed()` mode the method returns `0` without writing. Already trashed rows are excluded in other modes too.
 - **Return/no-op:** `Promise<number>` affected count; zero when there are no active matches or mode is `onlyTrashed()`.
 - **Hooks/state:** No model hooks or instance state changes. Does not update `updatedAt`; custom column `prepare` is bypassed.
-- **Client/errors:** Uses the builder's client. Requires the mixin and mapped deletion column; rejects many-to-many relation builders with an error before update.
+- **Client/errors:** Uses the builder's client. Requires the mixin and mapped deletion column; rejects many-to-many and has-many-through relation builders before writing.
 
 ```ts
 const changed = await User.query().whereIn('id', ids).softDelete()
@@ -203,7 +205,7 @@ Clears the mapped deletion column on matching trashed rows, regardless of the bu
 - **Eligible rows:** Matches whose deletion column is non-null; active matches remain unchanged.
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct bulk update. No model hooks or instance saves; `updatedAt` is unchanged and custom column `prepare` is bypassed.
-- **Client/errors:** Uses the builder's client. A model without the mixin or mapped column rejects with `E_MODEL_SOFT_DELETE`; query errors propagate. The macro has no explicit many-to-many guard; use a normal related-model query by IDs for relation-target lifecycle writes.
+- **Client/errors:** Uses the builder's client. A model without the mixin or mapped column rejects with `E_MODEL_SOFT_DELETE`; query errors propagate. Rejects many-to-many and has-many-through relation builders before writing; use a normal related-model query by IDs for relation-target lifecycle writes.
 
 ```ts
 const restoredCount = await User.query().whereIn('id', ids).restore()
@@ -216,7 +218,7 @@ Physically removes matching model rows.
 - **Eligible rows:** In `onlyTrashed()` mode, only trashed matches; in default and `withTrashed()` modes, both active and trashed matches.
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct physical delete. No model hooks, model state updates, or `updatedAt` changes.
-- **Client/errors:** Uses the builder's client. Requires the mixin and mapped column; rejects many-to-many relation builders before writing. Database and foreign-key errors propagate.
+- **Client/errors:** Uses the builder's client. Requires the mixin and mapped column; rejects many-to-many and has-many-through relation builders before writing. Database and foreign-key errors propagate.
 
 ```ts
 const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDelete()
@@ -226,7 +228,7 @@ Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is de
 
 ### `delete()` and `del()`
 
-Lucid builder `delete()` and its alias `del()` are physical deletes. They are not soft-delete methods, and `withTrashed()` or `onlyTrashed()` does not constrain these writes. They operate on all matching active and trashed rows, run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
+Lucid builder `delete()` and its alias `del()` are physical deletes. They are not soft-delete methods, and `withTrashed()` or `onlyTrashed()` does not constrain these writes. On a fresh builder they operate on all matching active and trashed rows; a builder that has already run keeps that run's soft-delete filter, so start a new query for a bulk write. They run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
 
 ```ts
 // Physical deletion, even though onlyTrashed() is a read mode:
