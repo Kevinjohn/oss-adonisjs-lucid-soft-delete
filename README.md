@@ -220,7 +220,7 @@ Has-many-through scopes the target model, not the intermediate model, matching p
 
 ## Support promise
 
-This package supports the current AdonisJS major. When the next major ships, the previous line receives fixes for six months. Report bugs and security issues through [GitHub issues](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues). There is no response-time promise.
+This package supports the current AdonisJS major. When the next major ships, the previous line receives fixes for six months. Report bugs through [GitHub issues](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues) and security issues as described in [SECURITY.md](SECURITY.md). There is no response-time promise.
 
 ## TypeScript floor
 
@@ -228,50 +228,8 @@ Use TypeScript 5.9 or newer. TypeScript is not a package peer dependency.
 
 ## Contributing
 
-Use Node.js 24 and pnpm 11. The default suite uses SQLite; CI also runs it on PostgreSQL 16 and MySQL 8.4. Run the repository checks through these scripts:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm test
-```
-
-`pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
-`main`) can affect, including uncommitted and untracked files, and prints one line per step. CI
-still runs the full set.
-
-To run the runtime suite against PostgreSQL 16 on
-macOS, start the local service and create the test database:
-
-```bash
-brew services start postgresql@16
-createdb lucid_soft_deletes_test
-pg_isready
-DB_CLIENT=pg DB_USER="$USER" DB_DATABASE=lucid_soft_deletes_test pnpm test
-```
-
-Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local PostgreSQL setup.
-
-For MySQL 8.4 on macOS, start the Homebrew service, create the test database, and run with
-`DB_CLIENT=mysql`. The transactions test also creates and drops `lucid_soft_deletes_second`:
-
-```bash
-brew services start mysql@8.4
-mysql -uroot -e "CREATE DATABASE IF NOT EXISTS lucid_soft_deletes_test"
-DB_CLIENT=mysql pnpm test
-```
-
-CI runs the suite on all three databases.
-
-The installed-package gate builds and packs this package, installs it into a fresh copy of the
-AdonisJS fixture app, and runs configure, schema generation, migration, typecheck, production build,
-and app tests. It requires network access for the fixture dependencies:
-
-```bash
-pnpm test:consumer
-pnpm test:consumer --compatibility=minimum
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain, the PostgreSQL, MySQL and
+installed-package checks, and the pull request conventions. Security reports follow [SECURITY.md](SECURITY.md).
 
 ## Known internals
 
