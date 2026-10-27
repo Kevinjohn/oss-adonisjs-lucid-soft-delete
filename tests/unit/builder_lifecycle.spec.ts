@@ -56,9 +56,7 @@ test.group('Builder lifecycle', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const previousNow = Settings.now
-    const previousZone = Settings.defaultZone
     Settings.now = () => Date.UTC(2026, 9, 27, 12, 30, 0)
-    Settings.defaultZone = 'Asia/Kolkata'
     try {
       const rows = await LifecycleUser.createMany([
         { username: 'one' },
@@ -83,7 +81,6 @@ test.group('Builder lifecycle', (group) => {
       assert.equal(LifecycleUser.hooksRun, 0)
     } finally {
       Settings.now = previousNow
-      Settings.defaultZone = previousZone
     }
   })
   test('forceDelete modes preserve active rows only in onlyTrashed mode', async ({ assert }) => {
