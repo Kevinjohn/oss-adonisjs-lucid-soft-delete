@@ -87,12 +87,17 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     label: uniqueLabel('batch-b'),
     archivedAt: null,
   })
+  const unselectedSameTenant = await RecipeParent.create({
+    tenantId,
+    label: uniqueLabel('batch-unselected'),
+    archivedAt: null,
+  })
   const otherTenant = await RecipeParent.create({
     tenantId: tenantId + 1,
     label: uniqueLabel('batch-other'),
     archivedAt: null,
   })
-  const selectedIds = [first.id, second.id]
+  const selectedIds = [first.id, second.id, otherTenant.id]
 
   const deleted = await RecipeParent.query()
     .where('tenantId', tenantId)
@@ -108,9 +113,10 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     deleted,
     purged,
     selectedRowsRemain: Boolean(
-      await RecipeParent.withTrashed().whereIn('id', selectedIds).first()
+      await RecipeParent.withTrashed().whereIn('id', [first.id, second.id]).first()
     ),
     otherTenantRemains: Boolean(await RecipeParent.find(otherTenant.id)),
+    unselectedSameTenantRemains: Boolean(await RecipeParent.find(unselectedSameTenant.id)),
   }
 }
 // #endregion TENANT_BATCH
@@ -226,9 +232,9 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
-  const label = uniqueLabel('unique')
-  const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
   try {
+    const label = uniqueLabel('unique')
+    const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
     await deleted.delete()
     const currentOwner = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
 
@@ -267,8 +273,16 @@ export async function customDeletionColumnWithUtcSerialization() {
 
   const serialized = row.serialize()
   const deletedAt = row.deletedAt
+  const stored = await db.from('lifecycle_parents').where('id', row.id).first()
+  const customColumnWritten = stored.archived_at !== null
+  const defaultDeletedColumnIsNull = stored.deleted_at === null
   await row.forceDelete()
 
-  return { serialized, deletedAtIsLuxon: DateTime.isDateTime(deletedAt) }
+  return {
+    serialized,
+    deletedAtIsLuxon: DateTime.isDateTime(deletedAt),
+    customColumnWritten,
+    defaultDeletedColumnIsNull,
+  }
 }
 // #endregion CUSTOM_COLUMN_UTC_SERIALIZATION

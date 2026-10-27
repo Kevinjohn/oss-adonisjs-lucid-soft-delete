@@ -39,6 +39,7 @@ test.group('Published cookbook recipes', (group) => {
     assert.equal(result.purged, 2)
     assert.isFalse(result.selectedRowsRemain)
     assert.isTrue(result.otherTenantRemains)
+    assert.isTrue(result.unselectedSameTenantRemains)
   })
 
   test('chooses parent and child read modes independently', async ({ assert }) => {
@@ -80,8 +81,11 @@ test.group('Published cookbook recipes', (group) => {
   test('maps the deletion attribute to a custom column and serializes UTC ISO', async ({
     assert,
   }) => {
-    const { serialized, deletedAtIsLuxon } = await customDeletionColumnWithUtcSerialization()
+    const { serialized, deletedAtIsLuxon, customColumnWritten, defaultDeletedColumnIsNull } =
+      await customDeletionColumnWithUtcSerialization()
     assert.isTrue(deletedAtIsLuxon)
+    assert.isTrue(customColumnWritten)
+    assert.isTrue(defaultDeletedColumnIsNull)
     assert.equal(serialized.deletedAt, '2026-02-02T22:35:06.000Z')
   })
 })

@@ -3,7 +3,8 @@
 Use these recipes for common application tasks. They use the fixture models and tables described
 below so each snippet has a concrete schema and imports. Replace the fixture table and tenant
 values with your application's equivalents. These examples assume the package is configured in an
-AdonisJS application and the package migrations have already run.
+AdonisJS application and the fixture/application migrations that create the required columns have
+already run.
 
 ## Contents
 
@@ -136,12 +137,17 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     label: uniqueLabel('batch-b'),
     archivedAt: null,
   })
+  const unselectedSameTenant = await RecipeParent.create({
+    tenantId,
+    label: uniqueLabel('batch-unselected'),
+    archivedAt: null,
+  })
   const otherTenant = await RecipeParent.create({
     tenantId: tenantId + 1,
     label: uniqueLabel('batch-other'),
     archivedAt: null,
   })
-  const selectedIds = [first.id, second.id]
+  const selectedIds = [first.id, second.id, otherTenant.id]
 
   const deleted = await RecipeParent.query()
     .where('tenantId', tenantId)
@@ -157,17 +163,18 @@ export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
     deleted,
     purged,
     selectedRowsRemain: Boolean(
-      await RecipeParent.withTrashed().whereIn('id', selectedIds).first()
+      await RecipeParent.withTrashed().whereIn('id', [first.id, second.id]).first()
     ),
     otherTenantRemains: Boolean(await RecipeParent.find(otherTenant.id)),
+    unselectedSameTenantRemains: Boolean(await RecipeParent.find(unselectedSameTenant.id)),
   }
 }
 ```
 
-Expected result: two rows are soft-deleted and then physically removed; a row from another tenant
-remains active. The builder methods do not run per-model hooks. They operate on the rows selected by
-your predicates and return the affected-row count. Ensure the IDs and tenant scope come from
-trusted application state.
+Expected result: two rows are soft-deleted and then physically removed; the selected ID from
+another tenant and an unselected row from the same tenant both remain active. The builder methods do
+not run per-model hooks. They operate on the rows selected by your predicates and return the
+affected-row count. Ensure the IDs and tenant scope come from trusted application state.
 
 ## Read a deleted parent with independent child modes
 
@@ -314,10 +321,11 @@ equivalent mechanism.
 
 ## Recover from a restore uniqueness conflict
 
-Restoring changes only the deletion column; it does not resolve collisions on another unique key.
-This executable fixture adds a temporary partial unique index on active parent labels to demonstrate
-the conflict. In your application, put the equivalent index in a migration for the real key that
-must be unique among active rows.
+Instance `restore()` clears `deletedAt` through model `save()`, so other dirty attributes may be
+persisted and model hooks and `updatedAt` behavior apply. Restore does not resolve a collision on
+another unique key. This executable fixture adds a temporary partial unique index on active parent
+labels to demonstrate the conflict. In your application, put the equivalent index in a migration
+for the real key that must be unique among active rows.
 
 <!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RESTORE_UNIQUENESS_CONFLICT -->
 
@@ -328,9 +336,9 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
-  const label = uniqueLabel('unique')
-  const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
   try {
+    const label = uniqueLabel('unique')
+    const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
     await deleted.delete()
     const currentOwner = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
 
@@ -398,12 +406,21 @@ export async function customDeletionColumnWithUtcSerialization() {
 
   const serialized = row.serialize()
   const deletedAt = row.deletedAt
+  const stored = await db.from('lifecycle_parents').where('id', row.id).first()
+  const customColumnWritten = stored.archived_at !== null
+  const defaultDeletedColumnIsNull = stored.deleted_at === null
   await row.forceDelete()
 
-  return { serialized, deletedAtIsLuxon: DateTime.isDateTime(deletedAt) }
+  return {
+    serialized,
+    deletedAtIsLuxon: DateTime.isDateTime(deletedAt),
+    customColumnWritten,
+    defaultDeletedColumnIsNull,
+  }
 }
 ```
 
-Expected result: the model attribute is still a Luxon `DateTime`, while `serialized.deletedAt` is
+Expected result: the model attribute is still a Luxon `DateTime`, `archived_at` contains the
+timestamp, the mixin's default `deleted_at` column stays null, and `serialized.deletedAt` is
 `2026-02-02T22:35:06.000Z`. The serializer normalizes the instant to UTC ISO 8601; it does not
 change the database timezone or the value held by the model.
