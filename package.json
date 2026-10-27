@@ -38,7 +38,8 @@
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
     "prepublishOnly": "pnpm build",
-    "version": "pnpm build"
+    "version": "pnpm build",
+    "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.0.0",

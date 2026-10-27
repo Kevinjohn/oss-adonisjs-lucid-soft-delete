@@ -138,6 +138,6 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
 if (plan.consumer) await step('consumer', 'pnpm', ['test:consumer'])
 else console.log('consumer: skip (no consumer inputs changed)')
 
-console.log('docs: skip (no docs build in this repository)')
+await step('docs', 'pnpm', ['docs:check'])
 
 process.exit(failed ? 1 : 0)

@@ -34,6 +34,7 @@ const FULL_SUITE = [
   /^tsconfig\.json$/,
 ]
 const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
+const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
   /^(scripts|examples\/app|src|providers)\/|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
@@ -58,6 +59,7 @@ export function planChecks(changes: Change[]): Plan {
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
     else if (/^bin\/check_changed/.test(path)) tests.add(PLAN_SPEC)
+    else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()

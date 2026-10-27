@@ -46,7 +46,7 @@ test.group('check:changed plan', () => {
       assert.equal(planChecks(changed(path, 'src/scope.ts')).lint, 'all')
     })
 
-  test('docs and changelog select no checks', ({ assert }) => {
+  test('docs and changelog select no code or consumer checks', ({ assert }) => {
     assert.deepEqual(planChecks(changed('README.md', 'CHANGELOG.md', 'docs/upgrade.md')), {
       lint: [],
       typecheck: false,
@@ -122,6 +122,12 @@ test.group('check:changed plan', () => {
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
       'tests/tooling/check_changed_plan.spec.ts',
+    ])
+  })
+
+  test('the documentation checker runs its own spec', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/docs_check.ts')).tests, [
+      'tests/tooling/docs_check.spec.ts',
     ])
   })
 
