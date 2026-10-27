@@ -1,0 +1,4 @@
+# Generated files that Prettier does not see through nested .gitignore files
+pnpm-lock.yaml
+.adonisjs/
+examples/*/public/assets/

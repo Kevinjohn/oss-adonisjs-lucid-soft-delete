@@ -80,6 +80,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - if: matrix.database == 'better-sqlite3'
+        name: Check formatting
+        run: pnpm format:check
+      - if: matrix.database == 'better-sqlite3'
         run: pnpm lint
       - if: matrix.database == 'better-sqlite3'
         run: pnpm docs:check

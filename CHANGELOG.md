@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- `pnpm format:check` runs `prettier --check .`. `pnpm check:changed` and CI run it before lint, typecheck and tests.
+
 ## 0.1.0-alpha - 2026-10-27
 
 ### Added

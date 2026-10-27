@@ -107,7 +107,7 @@ if (current !== wanted) {
 
 const plan = planChecks(changedFiles(base), staticOnly)
 
-console.log('format: skip (Prettier runs inside ESLint for code files)')
+await step('format', 'pnpm', ['format:check'])
 
 if (plan.lint === 'all') {
   await step('lint', 'pnpm', ['exec', 'eslint', '--max-warnings', '0', '.'])
