@@ -1,6 +1,6 @@
 # Decision log
 
-This log records implementation decisions made while delivering version 3.0.0-alpha.1. The PRD defines the product contract; an entry here records how that contract was carried out or why evidence required a change.
+This log records implementation decisions made while delivering version 0.1.0-alpha. The PRD defines the product contract; an entry here records how that contract was carried out or why evidence required a change.
 
 ## 2026-10-25: Preserve upstream history with a merge commit
 
@@ -181,5 +181,11 @@ This log records implementation decisions made while delivering version 3.0.0-al
 
 - **Decision:** Choose option 1 from #59: retain physical, unscoped builder `delete()` and `del()` on soft-delete models. Use the existing builder `restore()` macro and the explicit `softDelete()` and `forceDelete()` macros proposed in #57 for lifecycle operations. No next-major runtime change is planned by this decision.
 - **Reason:** Rejecting existing writes would break bulk-delete and related-query callers. Applying read modes to writes would change their selection rules and complicate the shared read-scope wrapper. Explicit operations supply the safe vocabulary without changing the established write contract.
-- **Boundaries:** This records the next-major choice only; it does not introduce a version bump, migration, or runtime change for 3.0.0. A future proposal to reject or scope `delete()` / `del()` must reopen the decision with consumer migration evidence, a major version, migration notes and revised bulk-write contract tests.
+- **Boundaries:** This records the next-major choice only; it does not introduce a version bump, migration, or runtime change for 0.1.0-alpha. A future proposal to reject or scope `delete()` / `del()` must reopen the decision with consumer migration evidence, a major version, migration notes and revised bulk-write contract tests.
 - **Evidence:** The existing bulk-write characterisations in `tests/unit/scope_bypass.spec.ts` retain the documented physical-delete contract. #52 documents its hazard; #57 owns the explicit alternative APIs and their tests.
+
+## 2026-10-27: Number the first release 0.1.0-alpha and distribute it through GitHub
+
+- **Decision:** Release the first prerelease of this continuation as `0.1.0-alpha`, tagged `v0.1.0-alpha`, with the `pnpm pack` tarball attached to a GitHub prerelease. Do not publish it to npm. This replaces the planned `3.0.0-alpha.1` npm alpha.
+- **Reason:** Owner decision (#84). The package has a new name, so its version line does not need to continue upstream's 2.x numbering.
+- **Evidence:** `package.json`, `CHANGELOG.md`, `docs/RELEASING.md`, `SECURITY.md` and the README install instructions name `0.1.0-alpha` and the release tarball.
