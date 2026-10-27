@@ -548,7 +548,10 @@ test.group('Soft-delete lifecycle', (group) => {
         assert.isFalse(record.$isPersisted)
       }
 
-      assert.deepEqual(statements.filter((sql) => /^(insert|update)\b/i.test(sql)), [])
+      assert.deepEqual(
+        statements.filter((sql) => /^(insert|update)\b/i.test(sql)),
+        []
+      )
       assert.deepEqual(LifecycleRecord.events, [])
     } finally {
       await transaction.rollback()
