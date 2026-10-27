@@ -159,6 +159,14 @@ test.group('Subclass query hooks', (group) => {
     }).User
     assert.deepEqual(await rowIds(and.all()), [active.id])
   })
+  test('keeps an appended AND outside a caller OR', async ({ assert }) => {
+    const { User, active } = await setup((q) => {
+      q.where('username', 'active')
+    })
+    const other = await User.create({ username: 'other' })
+    const query = User.query().where('id', other.id).orWhere('id', active.id)
+    assert.deepEqual(await rowIds(query), [active.id])
+  })
   test('retains the existing filter when a later hook changes mode', async ({ assert }) => {
     const { User, active } = await setup((q) => {
       q.withTrashed()

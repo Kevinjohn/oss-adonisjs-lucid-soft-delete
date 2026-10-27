@@ -29,13 +29,17 @@ function ensureModelWithSoftDeletes(model: LucidModel) {
   }
 }
 
-/** Lucid redirects many-to-many writes to the pivot, rather than the related model. */
+/**
+ * Lucid redirects many-to-many writes to the pivot, and builds has-many-through writes with a
+ * `select *` sub-query that no supported database accepts.
+ */
 function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
   ensureModelWithSoftDeletes(query.model)
   if (!query.model.$getColumn('deletedAt')) throw new E_MODEL_SOFT_DELETE(query.model.name)
-  if ((query as unknown as { relation?: { type?: string } }).relation?.type === 'manyToMany') {
+  const type = (query as unknown as { relation?: { type?: string } }).relation?.type
+  if (type === 'manyToMany' || type === 'hasManyThrough') {
     throw new Error(
-      'Bulk lifecycle writes do not support many-to-many builders; query the related model by its IDs instead'
+      'Bulk lifecycle writes do not support many-to-many or has-many-through builders; query the related model by its IDs instead'
     )
   }
 }
@@ -48,11 +52,8 @@ export function extendModelQueryBuilder(builder: any) {
   installSubQueryScope(builder)
 
   builder.macro('restore', async function (this: ModelQueryBuilderContract<LucidModel>) {
-    ensureModelWithSoftDeletes(this.model)
-
-    const deletedAtColumn = this.model.$getColumn('deletedAt')?.columnName
-    if (!deletedAtColumn) throw new E_MODEL_SOFT_DELETE(this.model.name)
-
+    ensureLifecycleWrite(this)
+    const deletedAtColumn = this.model.$getColumn('deletedAt')!.columnName
     addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${deletedAtColumn}`)
     const result = await this.update({ [deletedAtColumn]: null })
     return typeof result[0] === 'number' ? result[0] : result.length
