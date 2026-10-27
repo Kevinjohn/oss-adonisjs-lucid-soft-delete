@@ -117,7 +117,7 @@ intermediate row must be active. This behavior is covered by
 | Instance `delete()`          | Sets `deletedAt` and saves the instance, including other dirty attributes. Repeated calls skip the write when `deletedAt` is unchanged. | `Promise<void>`    |
 | Instance `deleteQuietly()`   | Soft-deletes through `saveQuietly()` without model hooks.                                                                                     | `Promise<void>`    |
 | Instance `forceDelete()`     | Physically deletes the row. The force-delete flag is reset after success or failure.                                                          | `Promise<void>`    |
-| Instance `restore()`         | Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
+| Instance `restore()`         | Requires a persisted instance. Clears `deletedAt`; an active instance is returned unchanged. A force-deleted instance throws `E_MODEL_FORCE_DELETED`.                        | `Promise<this>`    |
 | Builder `delete()` / `del()` | Physically deletes matching rows, including trashed rows.                                                                                     | Lucid write result |
 | Builder `restore()`          | Clears `deletedAt` only on matching trashed rows and returns the affected row count.                                                          | `Promise<number>`  |
 | Builder `forceDelete()`      | Not available.                                                                                                                                | —                  |

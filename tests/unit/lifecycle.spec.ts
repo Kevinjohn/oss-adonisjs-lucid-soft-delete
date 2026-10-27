@@ -21,6 +21,8 @@ import {
 } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
+import { EventEmitter } from 'node:events'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { SoftDeletes } from '../../src/mixin.js'
 import { E_MODEL_NOT_PERSISTED } from '../../src/errors.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
@@ -508,6 +510,49 @@ test.group('Soft-delete lifecycle', (group) => {
         .then((row) => row?.total),
       0
     )
+  })
+
+  test('restore rejects an unpersisted model without writing or running hooks', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    statements.length = 0
+    const transaction = new EventEmitter() as TransactionClientContract
+
+    for (const [withDeletedAt, useTransaction] of [
+      [false, false],
+      [true, true],
+    ] as const) {
+      const record = new LifecycleRecord()
+      record.fill({ username: 'unsaved-restore', email: 'unsaved-restore@example.test' })
+      if (withDeletedAt) record.deletedAt = DateTime.local()
+      if (useTransaction) record.useTransaction(transaction)
+      const attributesBefore = { ...record.$attributes }
+      const originalBefore = { ...record.$original }
+      const dirtyBefore = { ...record.$dirty }
+
+      let error: unknown
+      try {
+        await record.restore()
+      } catch (caught) {
+        error = caught
+      }
+
+      assert.isDefined(error)
+      assert.instanceOf(error, E_MODEL_NOT_PERSISTED)
+      assert.equal((error as { code: string }).code, E_MODEL_NOT_PERSISTED.code)
+      assert.equal((error as { status: number }).status, E_MODEL_NOT_PERSISTED.status)
+
+      assert.deepEqual(record.$attributes, attributesBefore)
+      assert.deepEqual(record.$original, originalBefore)
+      assert.deepEqual(record.$dirty, dirtyBefore)
+      assert.isFalse(record.$isPersisted)
+    }
+
+    assert.deepEqual(statements, [])
+    assert.deepEqual(LifecycleRecord.events, [])
   })
 
   test('restore on an active model returns the same instance without writing', async ({

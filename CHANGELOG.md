@@ -29,4 +29,5 @@ All notable changes to this project are documented here. This changelog follows 
 
 ### Fixed
 
+- Reject instance `restore()` on an unpersisted model instead of inserting a new row.
 - Drop the filter from an earlier run when an executed builder switches to `withTrashed()`, so trashed rows are returned.

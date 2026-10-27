@@ -38,7 +38,7 @@ class ModelNotPersistedException extends Exception {
   static status = 500
 
   constructor() {
-    super('Cannot soft delete a model instance that is not persisted', {
+    super('Cannot mutate a model instance that is not persisted', {
       code: ModelNotPersistedException.code,
       status: ModelNotPersistedException.status,
     })
