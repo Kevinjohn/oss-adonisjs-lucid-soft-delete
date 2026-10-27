@@ -34,8 +34,9 @@ const FULL_SUITE = [
   /^tsconfig\.json$/,
 ]
 const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
-/** The consumer gate's scripts, its fixture app, and the manifest it packs. */
-const CONSUMER = /^(scripts|examples\/app)\/|^package\.json$/
+/** The consumer gate, its fixture, and every source/configuration input it packs. */
+const CONSUMER =
+  /^(scripts|examples\/app|src|providers)\/|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
 
 /** Map changed files to the checks they can affect. */
 export function planChecks(changes: Change[]): Plan {
