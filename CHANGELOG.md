@@ -30,4 +30,6 @@ All notable changes to this project are documented here. This changelog follows 
 ### Fixed
 
 - Reject instance `restore()` on an unpersisted model instead of inserting a new row.
+- Preserve the existing soft-delete filter after subclass query hooks append OR predicates. Reusing a fetched builder for physical deletion now regroups later OR predicates before its retained filter too.
+
 - Drop the filter from an earlier run when an executed builder switches to `withTrashed()`, so trashed rows are returned.
