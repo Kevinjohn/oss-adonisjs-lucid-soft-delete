@@ -11,6 +11,7 @@ Supports AdonisJS 7, Lucid 22 and Luxon 3.4.4 or newer within 3.x, on Node.js 24
 With the configured fixture `User` model (an `id`, `email`, `username` and nullable `deleted_at` column), the same record can disappear from normal reads and then return after restoration. This function is a service example, not model boot code:
 
 <!-- source: examples/app/app/services/readme_example.ts#readme -->
+
 ```ts
 import User from '#models/user'
 
@@ -50,17 +51,17 @@ node ace configure @kevinjohn/lucid-soft-deletes
 
 `configure` registers `@kevinjohn/lucid-soft-deletes/provider` in `adonisrc.ts` once. Manual registration uses `() => import('@kevinjohn/lucid-soft-deletes/provider')` in its `providers` array. Add a nullable timestamp column before using the mixin; configuration does not generate or run your migration.
 
-For an existing `users` table, the migration's `up()` adds `table.timestamp('deleted_at').nullable()` through `this.schema.alterTable('users', ...)`. Run `node ace migration:run` after creating the complete migration in the [tutorial](docs/tutorial.md#add-the-column-and-model). That guide also explains fresh fixture setup and generated-schema composition.
+For an existing `users` table, the migration's `up()` adds `table.timestamp('deleted_at').nullable()` through `this.schema.alterTable('users', ...)`. Run `node ace migration:run` after creating the complete migration in the [tutorial](docs/tutorial.md#add-the-column-to-an-existing-application). That guide also explains fresh fixture setup and generated-schema composition.
 
 ## Choose an operation
 
-| Your goal | Operation | What happens |
-| --- | --- | --- |
-| Delete one recoverable record with hooks | `await user.delete()` | Saves a deletion timestamp; ordinary model reads hide the row. |
-| Soft-delete a selected batch | `await User.query().whereIn('id', ids).softDelete()` | Changes matching active rows without instance hooks; returns a count. |
-| Inspect the recycle bin | `await User.onlyTrashed()` | Returns deleted model rows. |
-| Restore selected deleted rows | `await User.onlyTrashed().whereIn('id', ids).restore()` | Clears matching deletion timestamps; returns a count. |
-| Permanently purge selected deleted rows | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain. |
+| Your goal                                | Operation                                                   | What happens                                                          |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| Delete one recoverable record with hooks | `await user.delete()`                                       | Saves a deletion timestamp; ordinary model reads hide the row.        |
+| Soft-delete a selected batch             | `await User.query().whereIn('id', ids).softDelete()`        | Changes matching active rows without instance hooks; returns a count. |
+| Inspect the recycle bin                  | `await User.onlyTrashed()`                                  | Returns deleted model rows.                                           |
+| Restore selected deleted rows            | `await User.onlyTrashed().whereIn('id', ids).restore()`     | Clears matching deletion timestamps; returns a count.                 |
+| Permanently purge selected deleted rows  | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain.         |
 
 **Destructive-operation warning:** builder `delete()` and `del()` are physical deletes. Read modes such as `onlyTrashed()` do not make those writes a safe purge. Use the explicit lifecycle methods, preserve your application predicates, and consult the [API reference](docs/api.md) before choosing between instance and bulk behavior. Soft deletion does not automatically cascade, enforce authorization, or erase retained personal data.
 
@@ -72,123 +73,15 @@ This package continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/
 
 ## Scope contract
 
-The default model query scope selects rows whose configured `deletedAt` column is null.
-`withTrashed()` disables that filter, while `onlyTrashed()` selects only rows with a deletion
-timestamp. These modes are applied when Lucid executes a model fetch and are preserved when a
-query is cloned or paginated.
-
-| Operation                                                                                                          | 3.0.0 behavior                                                                                                    | Test coverage                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `find*`, `first`, `exec`, `paginate`, and `all`                                                                    | Excludes soft-deleted rows by default                                                                             | `tests/unit/scope.spec.ts`: `groups a user OR expression before applying the default scope`; `tests/unit/model.spec.ts`: `querying models without trashed models`                                                                                                                                                                                                                             |
-| `preload` and `load` for has-one, has-many, belongs-to, many-to-many, has-many-through, nested, and self relations | Scopes each fetched related model                                                                                 | `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`; `filters belongs-to relations when preloading and loading`; `filters many-to-many relations on preload and related queries`; `filters has-many-through and nested relations at each loaded level`; `filters self-referential relations and nested belongs-to relations` |
-| `user.related('posts').query()`                                                                                    | Applies the related model's default scope                                                                         | `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`                                                                                                                                                                                                                                                                          |
-| `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate`                    | Scope the related model inside the subquery; `withTrashed()` or `onlyTrashed()` in the callback switches the mode | `tests/unit/scope_bypass.spec.ts`: `relation aggregates and existence checks exclude trashed children`; `withTrashed and onlyTrashed inside an aggregate callback switch the sub-query mode`; `tests/unit/scope_aggregates.spec.ts` for has-one, many-to-many, has-many-through, self-referential, and plain related models                                                                   |
-| Relation aggregate `onQuery` callback                                                                              | Still applies; `onQuery: (query) => query.whereNull('deleted_at')` adds a second, redundant predicate             | `tests/unit/scope_bypass.spec.ts`: `a relation onQuery callback scopes withCount to active children`                                                                                                                                                                                                                                                                                          |
-| `pojo()` queries                                                                                                   | Bypass the model scope                                                                                            | `tests/unit/scope_bypass.spec.ts`: `pojo queries return active and trashed records from exec, first, and paginate`                                                                                                                                                                                                                                                                            |
-| Joins and embedded subqueries                                                                                      | Bypass the scope for joined models; only the query's model is scoped                                              | `tests/unit/scope_bypass.spec.ts`: `a join from a model without soft deletes does not filter the joined users`                                                                                                                                                                                                                                                                                |
-| Bulk `update`, `delete`, `del`, and `increment`; `related().query().delete()`                                      | Bypass the scope; bulk `delete` and `del` are physical deletes                                                    | `tests/unit/scope_bypass.spec.ts`: `bulk update and increment include trashed rows, while delete and del physically remove rows`; `related query delete and db.from operate without the model scope`                                                                                                                                                                                          |
-| `db.from(...)` and raw queries                                                                                     | Bypass the model scope                                                                                            | `tests/unit/scope_bypass.spec.ts`: `related query delete and db.from operate without the model scope`                                                                                                                                                                                                                                                                                         |
-| `refresh()` on a trashed instance                                                                                  | Loads the row by identity, including its `deletedAt` value                                                        | `tests/unit/scope.spec.ts`: `refreshes an existing trashed instance by identity`                                                                                                                                                                                                                                                                                                              |
-| OR predicates in default and only-trashed modes                                                                    | Groups user predicates before applying the scope; `withTrashed()` adds no scope predicate                         | `tests/unit/scope.spec.ts`: `groups a user OR expression before applying the default scope`; `groups a user OR expression in only-trashed mode`; `with-trashed mode adds no filter and survives a clone`                                                                                                                                                                                      |
-| Clones, pagination count queries, and preload callbacks                                                            | Preserve the selected mode                                                                                        | `tests/unit/scope.spec.ts`: `with-trashed mode adds no filter and survives a clone`; `only-trashed mode survives a clone`; `pagination count inherits with-trashed mode`; `tests/unit/scope_relations.spec.ts`: `filters has-one and has-many relations on preload, load, and related queries`                                                                                                |
-| Aliased base tables and self-joins                                                                                 | Qualifies the scope against the base alias or table                                                               | `tests/unit/scope.spec.ts`: `uses object and string aliases for the base table`; `qualifies the base table in a self join`                                                                                                                                                                                                                                                                    |
-| Group-limited has-many and many-to-many preloads                                                                   | Apply the filter before each parent's limit                                                                       | `tests/unit/group_limit.spec.ts`: `scopes has-many rows before applying per-parent limits in each mode`; `scopes many-to-many rows before applying per-parent limits in each mode`                                                                                                                                                                                                            |
-| Reusing a builder: awaiting the same query twice, `paginate()` then `first()`, or builder `restore()` twice        | Keeps the caller's predicates; the scope filter is replaced on each run, not stacked                              | `tests/unit/scope.spec.ts`: `keeps caller predicates when a builder executes more than once`; `tests/unit/builder_restore.spec.ts`: `keeps caller predicates when the same builder restores twice`                                                                                                                                                                                            |
-| Subclass query hooks that append OR predicates                                                                     | Regroups appended predicates before the existing soft-delete filter                                               | `tests/unit/subclass_hooks.spec.ts`                                                                                                                                                                                                                                                                                                                                                           |
-
-Subclass hooks that switch to `withTrashed()` after the mixin hook retain the filter already added. Hooks that call `clearWhere()` remove that filter along with caller predicates; append-only hook protection does not restore a removed scope.
-
-For a has-many-through relation, the related target is scoped, while the intermediate model is
-joined without its own scope. An active comment can therefore be returned through a soft-deleted
-post. Nested preloads fetch posts separately, so the deleted post and its nested comments are
-excluded. Add an explicit qualified condition such as `whereNull('posts.deleted_at')` when the
-intermediate row must be active. This behavior is covered by
-`tests/unit/scope_relations.spec.ts`: `filters has-many-through and nested relations at each loaded level`.
+Normal model fetches hide rows with a deletion timestamp. The [scope contract](docs/scope-contract.md) describes which Lucid query paths apply that filter, how relation modes work, and which paths need explicit predicates.
 
 ## Destructive operations
 
-| Operation                    | Eligible states                                                                                                | No-op / result                                                                     | Other dirty attributes                          | `updatedAt`                             | Hooks in order                                                                                       | Quiet behaviour            | Errors                                                                                                                    | Transaction / connection source                                   |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Instance `delete()`          | Persisted active or trashed; physically deleted instances reject                                               | Unchanged trashed timestamp: no write; otherwise `Promise<void>`                   | Saved on a write; retained in memory on a no-op | Auto-updated on a write when configured | `beforeDelete` → `beforeUpdate` → `beforeSave` → write → `afterUpdate` → `afterSave` → `afterDelete` | Use `deleteQuietly()`      | Persistence and hook errors propagate                                                                                     | Instance client, `useTransaction(trx)` or client used to fetch it |
-| Instance `deleteQuietly()`   | Same as instance `delete()`                                                                                    | Same no-op; `Promise<void>`                                                        | Same as instance `delete()`                     | Same as instance `delete()`             | None                                                                                                 | Uses `saveQuietly()`       | Persistence errors propagate                                                                                              | Instance client                                                   |
-| Instance `restore()`         | Persisted, not physically deleted; fetched instances must include `deletedAt` (including loaded `null`)        | Active: returns unchanged instance; trashed: clears timestamp and returns instance | Saved on a write; retained on active no-op      | Auto-updated on a write when configured | `beforeUpdate` → `beforeSave` → write → `afterUpdate` → `afterSave`                                  | No quiet restore API       | `E_MODEL_NOT_PERSISTED`, `E_MODEL_FORCE_DELETED`, `E_MODEL_UNKNOWN_DELETION_STATE`, persistence and hook errors propagate | Instance client                                                   |
-| Instance `forceDelete()`     | Persisted active or trashed; physically deleted instances reject                                               | Physical DELETE; `Promise<void>`; restores prior `$forceDelete` flag               | Not saved                                       | Unchanged                               | `beforeDelete` → write → `afterDelete`                                                               | No dedicated `forceDeleteQuietly()` method  | Persistence and hook errors propagate                                                                                     | Instance client                                                   |
-| Builder `restore()`          | Matching trashed rows, regardless of read mode                                                                 | Clears timestamp; `Promise<number>` affected count, including zero                 | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate                                                                                                    | Builder client / `useTransaction(trx)`                            |
-| Builder `softDelete()`       | Matching active rows in default or `withTrashed()` mode; `onlyTrashed()` touches zero                          | Sets timestamp; `Promise<number>` affected count                                   | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate; many-to-many relation builders reject                                                             | Builder client / `useTransaction(trx)`                            |
-| Builder `forceDelete()`      | Matching active and trashed rows in default or `withTrashed()` mode; only trashed rows in `onlyTrashed()` mode | Physical DELETE; `Promise<number>` affected count                                  | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate; many-to-many relation builders reject                                                             | Builder client / `useTransaction(trx)`                            |
-| Builder `delete()` / `del()` | Matching active and trashed rows; read modes do not select rows for these writes                               | Physical DELETE; Lucid write result                                                | No model instances saved                        | Unchanged                               | None                                                                                                 | Always without model hooks | Query errors propagate                                                                                                    | Builder client / `useTransaction(trx)`                            |
-
-Instance soft-delete and restore saves use Lucid's column `prepare` functions. Builder operations run directly against
-mapped database columns, without instance column preparation, model hooks, or automatic timestamps.
-Fetch the complete deletion state before restoring a projection; `await partial.refresh()` loads it
-using the instance's client. Locally created and saved active instances may restore as a no-op.
-Calls to instance `delete()`, `deleteQuietly()` or `restore()` on an unpersisted model reject with
-`E_MODEL_NOT_PERSISTED`. A soft-deleted parent retains child and pivot rows; physical deletion follows
-database foreign-key rules. See the [Scope contract](#scope-contract) for operations bypassing fetch hooks.
-
-The package never opens its own transaction. Attach the caller's transaction using
-`useTransaction(trx)` or fetch with `query({ client: trx })`; named connection clients are preserved.
-Compose policy checks, mutations and application bookkeeping inside that same caller transaction.
-After-hooks run before commit and are not proof of durable success. Dispatch external effects only
-after the transaction resolves successfully; hooks do not provide an event bus or durability boundary.
-
-An outer rollback restores database rows, but does not rewind model attributes or Lucid's tracking
-state. After a soft delete or restore, `deletedAt`, `$original` and `$dirty` still reflect the completed
-save: dirty attributes were saved and originals hydrated. Discard and refetch the instance, or refresh
-a non-deleted instance before reusing it. After `forceDelete()` followed by rollback, the row exists
-again but the instance remains `$isDeleted`; `refresh()` rejects, so discard and refetch it.
-`$forceDelete` is restored to its prior value even on failure. An after-hook error can follow a
-successful SQL write; without a caller transaction, that write may already be durable.
-
-**Warning:** `withTrashed()` and `onlyTrashed()` are read modes. They are not applied to
-builder `delete()`, `del()`, `update()` or `increment()`. For example, this physically
-deletes both active and trashed matching rows:
-
-```ts
-await User.onlyTrashed().whereIn('id', [activeId, deletedId]).delete()
-```
-
-Use the explicit purge API to preserve matching active rows:
-
-```ts
-await User.onlyTrashed().whereIn('id', ids).forceDelete()
-```
-
-Builder `softDelete()` affects matching active rows in default and `withTrashed()` modes;
-`onlyTrashed().softDelete()` returns zero. Builder `forceDelete()` affects matching trashed
-rows in `onlyTrashed()` mode and all matching rows in default and `withTrashed()` modes.
-Both return affected counts, preserve grouped caller predicates and use the query's client.
-Neither runs instance hooks or changes `updatedAt`. For hooks and instance timestamp behavior,
-fetch the selected models and call `await row.delete()` or `await row.forceDelete()` in a loop,
-using the same transaction for the read and writes when needed.
-
-Bulk `softDelete()` prepares its timestamp with Luxon's local time and the connection dialect's
-date-time format, as Lucid does. Builder updates bypass custom column `prepare` functions;
-this also applies when `deletedAt` has a UTC ISO serialiser (the serialiser still controls reads).
-Many-to-many relation builders are rejected before writing because Lucid redirects their
-writes to the pivot table. Query the related model directly with explicit IDs instead.
-
+The chooser above summarizes the common lifecycle paths and the physical builder-delete warning. The [API reference](docs/api.md#builder-lifecycle-methods) compares eligible rows, results, hooks, timestamps, errors, and transaction clients.
 
 ## Serialisation, factories, and seeders
 
-`deletedAt` serializes as a date-time value by default. The undecorated `trashed` getter does not serialize. `serializeAs: null` hides the timestamp from serialized output without changing persistence or `trashed`. A renamed database column still serializes under the model property name unless `serializeAs` also changes:
-
-```ts
-import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
-import type { DateTime } from 'luxon'
-
-class User extends compose(BaseModel, SoftDeletes) {
-  @column({ isPrimary: true })
-  declare id: number
-
-  @column.dateTime({ columnName: 'removed_at', serializeAs: null })
-  declare deletedAt: DateTime | null
-}
-```
-
-If a `select()` omits `deletedAt`, the loaded instance reports `trashed === false`: the getter reflects loaded attributes, not database state. Include `deletedAt` when checking it on a projection. A Lucid factory can set `deletedAt = DateTime.local()` in a `state('trashed')` callback; the created row then appears through `withTrashed()`. A seeder using `updateOrCreate()` against a trashed row may attempt an insert. If a unique constraint still covers the trashed value, the database rejects it. Fetch with `withTrashed()` and explicitly decide whether to restore or update it. A soft delete inside a Lucid transaction rolls back with the transaction.
+`deletedAt` serializes as a date-time under its model property name by default; `serializeAs` can hide or rename the serialized field without changing persistence. The [API reference](docs/api.md#model-state) covers column mapping, projections, and `trashed` serialization. A Lucid factory can create trashed fixtures by setting `deletedAt = DateTime.local()` in a `state('trashed')` callback. A seeder using `updateOrCreate()` may try to insert when a matching row is trashed; fetch with `withTrashed()` and explicitly decide whether to restore or update it. See the [cookbook](docs/cookbook.md) for task-oriented examples.
 
 ## Uniqueness
 
@@ -230,17 +123,7 @@ Match the generated column type and length to your email column. Application-sid
 
 ## Relationship aggregates
 
-Lucid 22 does not run related-model fetch hooks for relationship aggregate and existence subqueries. The package scopes those subqueries itself: `withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` count or match only active related rows when the related model uses the mixin. The parent model's own scope is unchanged. Switch the mode inside the callback:
-
-```ts
-const users = await User.query()
-  .withCount('posts') // active posts
-  .withCount('posts', (query) => query.withTrashed().as('all_posts'))
-  .withCount('posts', (query) => query.onlyTrashed().as('trashed_posts'))
-  .whereHas('posts', (query) => query.withTrashed().where('title', 'archived'))
-```
-
-Has-many-through scopes the target model, not the intermediate model, matching preload behaviour. A related model without the mixin is left alone. Self-referential relations qualify the filter with Lucid's self-join alias.
+Relationship counts and existence checks scope soft-deletable related rows to active records by default. Select a different related mode inside that relation's callback. The [API reference](docs/api.md#relationship-aggregates-and-existence-queries) shows the methods; the [scope contract](docs/scope-contract.md#relationship-aggregates-and-existence-queries) records their boundaries and regression coverage.
 
 ## Non-goals
 
