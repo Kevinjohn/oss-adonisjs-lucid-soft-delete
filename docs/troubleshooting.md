@@ -75,16 +75,17 @@ Source and tests: [mixin column and query mapping](../src/mixin.ts), [scope colu
 **Correction:** Use a normal model query when you want the model scope. For a raw/pojo query or joined table, add an explicit predicate using the mapped database column and the query's table alias:
 
 ```ts
-// Contextual fragment: `posts` maps deletedAt to `deleted_at`.
+// Contextual fragment: both tables have a nullable `deleted_at` column.
 const activeRows = await db
   .from('users as u')
-  .join('posts as p', (join) => {
+  .leftJoin('posts as p', (join) => {
     join.on('p.user_id', 'u.id').andOnNull('p.deleted_at')
   })
+  .whereNull('u.deleted_at')
   .select('u.id', 'p.id as post_id')
 ```
 
-If the query builder in your Lucid version does not expose `andOnNull`, put the null check in a grouped `whereNull('p.deleted_at')` that preserves the intended outer-join semantics. For a `LEFT JOIN`, putting the check in `WHERE` can remove parents with no active child; keep the predicate in the join condition when those parents should remain.
+The `LEFT JOIN` keeps active users that have no active post, including users whose posts are all deleted. Keep the child predicate in `ON` (as above), or join a subquery already filtered to active posts. Putting it in `WHERE` can remove those users; grouping the `WHERE` condition does not change that result. For an inner join, an explicit child `WHERE` predicate is another option.
 
 For a model query converted to plain objects, scope it before converting results, or explicitly constrain the query:
 
@@ -116,7 +117,11 @@ const counts = await User.query().withCount('posts', (posts) =>
 )
 ```
 
-Apply the same rule to `preload`, `load`, `withCount`, `withAggregate`, `has`, `whereHas`, and their load variants: put `withTrashed()` or `onlyTrashed()` in that relation's callback when required. A mode in an aggregate callback changes the aggregate subquery, not the root result set.
+Use the callback on `preload`, `load`, `withCount`, `withAggregate`, `whereHas`, or the corresponding load methods when changing a related query's mode. A mode in an aggregate callback changes the aggregate subquery, not the root result set. `has()` accepts the relation name and optional operator/count, not a callback. For a mode-aware existence check, use `whereHas()`:
+
+```ts
+const usersWithDeletedPosts = await User.query().whereHas('posts', (posts) => posts.onlyTrashed())
+```
 
 **Expected result:** Each root and relation query includes active rows by default, or uses the mode explicitly selected for that query.
 
@@ -240,7 +245,7 @@ if (tagIds.length > 0) {
 }
 ```
 
-This marks the selected active related rows as trashed and leaves pivot rows intact. The relation query is active-only by default. If physical removal of trashed related rows is required, select those IDs with `onlyTrashed()`, first handle the pivot rows according to the relation and database constraints, then call `forceDelete()` on a normal related-model query restricted to those IDs. Do not bypass or disable foreign-key constraints to make the delete succeed.
+This marks the selected active related rows as trashed and leaves pivot rows intact. A shared tag is changed for every parent that references it, so its visibility changes through other users too. If the goal is only to remove this user's association, detach the selected pivot links with `await user.related('tags').detach(tagIds)` instead of deleting the tag model. The relation query is active-only by default. If physical removal of trashed related rows is required, select those IDs with `onlyTrashed()`, first handle the pivot rows according to the relation and database constraints, then call `forceDelete()` on a normal related-model query restricted to those IDs. Do not bypass or disable foreign-key constraints to make the delete succeed.
 
 **Expected result:** The lifecycle macro operates on related model rows selected through the parent relation; the pivot table is not mistaken for the model table, and its foreign-key references are preserved.
 
