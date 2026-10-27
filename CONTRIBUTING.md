@@ -13,7 +13,7 @@ pnpm test
 
 `pnpm check:changed [base]` runs only the checks that the files changed since `base` (default
 `main`) can affect, including uncommitted and untracked files, and prints one line per step. It always runs
-`pnpm format:check` on the whole tree first. CI still runs the full set, starting with the
+`pnpm format:check` on every tracked file first; untracked files are never checked. CI still runs the full set, starting with the
 formatting check. Changes to shipped source, package entry points, dependencies, or TypeScript
 configuration also select the packed-consumer gate, which requires network access. Changes only
 to tests, `bin/` tooling, or prose do not select that gate. The fast local documentation check
