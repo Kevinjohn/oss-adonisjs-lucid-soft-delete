@@ -20,6 +20,12 @@ type Markdown = {
   errors: { line: number; message: string }[]
 }
 
+class OutsideCheckoutError extends Error {
+  constructor(target: string) {
+    super(`Link points outside the checkout: ${target}`)
+  }
+}
+
 function errorCode(error: unknown): string | undefined {
   if (typeof error === 'object' && error !== null && 'code' in error) {
     const code = (error as { code?: unknown }).code
@@ -53,7 +59,7 @@ async function physicalTarget(root: string, path: string, target: string): Promi
   while (true) {
     try {
       const physical = resolve(await realpath(candidate))
-      if (!inside(root, physical)) throw new Error(`Link points outside the checkout: ${target}`)
+      if (!inside(root, physical)) throw new OutsideCheckoutError(target)
       return resolve(physical, ...suffix.reverse())
     } catch (error) {
       if (!isMissing(error)) throw error
@@ -235,9 +241,11 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     let markdown: Markdown
     let contents: string
     try {
-      contents = await read(resolve(root, file))
+      const physicalPath = await physicalTarget(canonicalRoot, resolve(root, file), file)
+      contents = await read(physicalPath)
     } catch (error) {
-      if (isMissing(error)) report(1, `Cannot read Markdown file: ${file}`)
+      if (error instanceof OutsideCheckoutError) report(1, error.message)
+      else if (isMissing(error)) report(1, `Cannot read Markdown file: ${file}`)
       else report(1, filesystemFailure('read Markdown file', file, error).message)
       continue
     }

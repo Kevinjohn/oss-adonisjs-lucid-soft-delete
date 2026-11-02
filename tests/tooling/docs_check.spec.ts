@@ -202,6 +202,54 @@ test.group('Documentation checks', () => {
     assert.include(diagnostics[1].message, 'Missing reference definition: unknown')
   })
 
+  test('rejects selected Markdown paths outside the checkout before reading them', async ({
+    assert,
+    cleanup,
+  }) => {
+    const workspace = await mkdtemp(join(tmpdir(), 'documentation-selected-outside-'))
+    cleanup(() => rm(workspace, { recursive: true, force: true }))
+    const root = join(workspace, 'repo')
+    const external = join(workspace, 'outside.md')
+    const externalDirectory = join(workspace, 'external')
+    await mkdir(root)
+    await mkdir(externalDirectory)
+    await writeFile(external, '[leak](outside-only-missing.md)\n')
+    await writeFile(join(externalDirectory, 'outside.md'), '[leak](outside-only-missing.md)\n')
+    await symlink(external, join(root, 'external.md'))
+    await symlink(externalDirectory, join(root, 'external-directory'))
+
+    const originalReadFile = fsPromises.readFile
+    let readCount = 0
+    Object.defineProperty(fsPromises, 'readFile', {
+      value: (...args: Parameters<typeof originalReadFile>) => {
+        readCount++
+        return originalReadFile(...args)
+      },
+    })
+    syncBuiltinESMExports()
+    try {
+      const selected = [
+        '../outside.md',
+        external,
+        'external.md',
+        'external-directory/outside.md',
+        'external-directory/missing.md',
+      ]
+      assert.deepEqual(
+        await checkDocumentation(root, selected),
+        selected.map((file) => ({
+          file,
+          line: 1,
+          message: `Link points outside the checkout: ${file}`,
+        }))
+      )
+      assert.equal(readCount, 0)
+    } finally {
+      Object.defineProperty(fsPromises, 'readFile', { value: originalReadFile })
+      syncBuiltinESMExports()
+    }
+  })
+
   test('reports a selected Markdown read failure with its filesystem error code', async ({
     assert,
     cleanup,
@@ -238,6 +286,38 @@ test.group('Documentation checks', () => {
     await symlink('guide.md', join(root, 'guide-link.md'))
     await symlink('source.ts', join(root, 'source-link.ts'))
     assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
+  })
+
+  test('accepts relative and absolute internal symlinks as selected Markdown', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture({ 'guide.md': '# Inside\n' }, cleanup)
+    await symlink('guide.md', join(root, 'relative.md'))
+    await symlink(join(root, 'guide.md'), join(root, 'absolute.md'))
+    assert.deepEqual(await checkDocumentation(root, ['relative.md', join(root, 'absolute.md')]), [])
+  })
+
+  test('rejects Git-discovered selected Markdown symlinks outside the checkout', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
+    const outside = await mkdtemp(join(tmpdir(), 'documentation-git-outside-'))
+    cleanup(() => rm(outside, { recursive: true, force: true }))
+    const outsideFile = join(outside, 'outside.md')
+    await writeFile(outsideFile, '[leak](outside-only-missing.md)\n')
+    await symlink(outsideFile, join(root, 'external.md'))
+    execFileSync('git', ['-c', 'init.defaultBranch=main', 'init', '--quiet', root])
+    execFileSync('git', ['add', 'README.md', 'external.md'], { cwd: root })
+
+    assert.deepEqual(await checkDocumentation(root), [
+      {
+        file: 'external.md',
+        line: 1,
+        message: 'Link points outside the checkout: external.md',
+      },
+    ])
   })
 
   test('uses logical target extensions when reading internal symlinks', async ({
@@ -447,10 +527,10 @@ test.group('Documentation checks', () => {
     cleanup(() => rm(directory, { recursive: true, force: true }))
     const file = join(directory, 'README.md')
     await writeFile(file, '# Good\n')
-    const run = () =>
+    const run = (target = file) =>
       spawnSync(
         process.execPath,
-        ['--import=@poppinss/ts-exec', 'bin/docs_check.ts', relative(repository, file)],
+        ['--import=@poppinss/ts-exec', 'bin/docs_check.ts', relative(repository, target)],
         { cwd: repository, encoding: 'utf8' }
       )
     const good = run()
@@ -460,6 +540,16 @@ test.group('Documentation checks', () => {
     const bad = run()
     assert.equal(bad.status, 1)
     assert.include(bad.stderr, ':1: Missing file: missing.md')
+    const outside = await mkdtemp(join(tmpdir(), 'documentation-cli-outside-'))
+    cleanup(() => rm(outside, { recursive: true, force: true }))
+    const externalFile = join(outside, 'outside.md')
+    await writeFile(externalFile, '[leak](outside-only-missing.md)\n')
+    const externalLink = join(directory, 'external.md')
+    await symlink(externalFile, externalLink)
+    const escaped = run(externalLink)
+    assert.equal(escaped.status, 1)
+    assert.include(escaped.stderr, ':1: Link points outside the checkout:')
+    assert.notInclude(escaped.stderr, 'outside-only-missing.md')
   })
   test('checks shortcut and code-labelled references without interpreting inline code as links', async ({
     assert,

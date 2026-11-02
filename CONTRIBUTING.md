@@ -86,8 +86,8 @@ mark the maintained region with `// #region example_name` and `// #endregion exa
 code in the guide (a blank line is allowed). The path is relative to that Markdown file. The
 checker requires the fence to match the region; it does not run Markdown as code.
 
-Local links and source markers follow symlinks only when their resolved targets remain inside the
-checkout. Directory `README.md` anchors follow the same rule.
+Selected Markdown files, local links, source markers, and directory `README.md` anchors follow
+symlinks only when their resolved targets remain inside the checkout.
 
 The README recovery example, tutorial service and cookbook functions are imported by their fixture
 tests. `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum` install the public packed
