@@ -70,16 +70,36 @@ test.group('scope modules', (group) => {
     )
   })
 
-  test('qualified model tables retain schema and table identifier segments', async ({ assert }) => {
-    await createDatabase()
+  test('qualified model tables scope real reads across schema and table identifiers', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
 
     class SchemaQualifiedUser extends RelationUser {
-      static table = 'public.users'
+      static table = 'main.users'
     }
 
+    await db
+      .connection()
+      .table('users')
+      .insert([
+        { username: 'active', email: 'active@example.test', deleted_at: null },
+        {
+          username: 'deleted',
+          email: 'deleted@example.test',
+          deleted_at: '2026-11-02 00:00:00',
+        },
+      ])
+
     const query = SchemaQualifiedUser.query()
-    assert.equal(resolveTableReference(query), 'public.users')
-    assert.equal(qualifiedColumnReference(query, 'deleted_at'), 'public.users.deleted_at')
+    assert.equal(resolveTableReference(query), 'main.users')
+    assert.equal(qualifiedColumnReference(query, 'deleted_at'), 'main.users.deleted_at')
+    const rows = await query
+    assert.deepEqual(
+      rows.map((row) => row.username),
+      ['active']
+    )
   })
 
   test('qualified alias references follow Knex whitespace normalization', async ({ assert }) => {
@@ -89,6 +109,41 @@ test.group('scope modules', (group) => {
     const reference = qualifiedColumnReference(query, ' deleted_at ')
 
     assert.match(query.whereNull(reference).toQuery(), /`user\.rows`\.`deleted_at` is null/)
+  })
+
+  test('qualified alias references use the query context identifier wrapper', async ({
+    assert,
+  }) => {
+    await createDatabase()
+
+    const query = RelationUser.query().from({ ' user.rows ': 'users' })
+    const context = { identifierStyle: 'bracket' }
+    const knexQuery = query.knexQuery as unknown as {
+      queryContext(value: unknown): unknown
+      client: {
+        wrapIdentifier: (value: string, queryContext?: unknown) => string
+      }
+    }
+    knexQuery.queryContext(context)
+
+    const client = knexQuery.client
+    const wrapIdentifier = client.wrapIdentifier
+    const observedContexts: unknown[] = []
+    client.wrapIdentifier = function (value, queryContext) {
+      observedContexts.push(queryContext)
+      if (queryContext === context) return `[${value}]`
+      return wrapIdentifier.call(this, value, queryContext)
+    }
+
+    try {
+      const reference = qualifiedColumnReference(query, 'deleted_at')
+      const sql = query.whereNull(reference).toQuery()
+
+      assert.include(sql, '[user.rows].[deleted_at] is null')
+      assert.isTrue(observedContexts.includes(context))
+    } finally {
+      client.wrapIdentifier = wrapIdentifier
+    }
   })
 
   test('where stack: one filter after the grouped predicates, replaced on rerun, removable', async ({
