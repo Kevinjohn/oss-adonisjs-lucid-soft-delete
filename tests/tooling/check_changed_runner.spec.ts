@@ -88,6 +88,28 @@ function terminateFixtureChild(child: ChildProcess): string | undefined {
   if (!result.success || !result.tree) return result.detail
 }
 
+function fixtureChildren(terminate = terminateFixtureChild) {
+  const children = new Map<ChildProcess, Promise<unknown>>()
+  return {
+    track(child: ChildProcess, closed: Promise<unknown>) {
+      children.set(child, closed)
+      void closed.then(
+        () => children.delete(child),
+        () => {}
+      )
+    },
+    terminate() {
+      const pending = [...children]
+      const errors: string[] = []
+      for (const [child] of pending) {
+        const error = terminate(child)
+        if (error) errors.push(error)
+      }
+      return { errors, closures: pending.map(([, closed]) => closed) }
+    },
+  }
+}
+
 async function terminateFixtureGroup(groupFile: string): Promise<string | undefined> {
   try {
     const groupId = Number(await readFile(groupFile, 'utf8'))
@@ -112,36 +134,27 @@ async function runnerFixture(
   options: FixtureOptions = {}
 ) {
   const root = await mkdtemp(join(tmpdir(), 'check-changed-runner-'))
-  const children = new Set<ChildProcess>()
-  const childClosures = new WeakMap<ChildProcess, Promise<unknown>>()
-  const trackChild = (child: ChildProcess, closed: Promise<unknown>) => {
-    children.add(child)
-    childClosures.set(child, closed)
-  }
+  const children = fixtureChildren()
   cleanup(async () => {
-    const activeChildren = [...children]
-    const errors: string[] = []
-    for (const child of activeChildren) {
-      const error = terminateFixtureChild(child)
-      if (error) errors.push(error)
-    }
+    const { errors, closures } = children.terminate()
     const firstGroupError = await terminateFixtureGroup(join(root, 'process_group'))
     if (firstGroupError) errors.push(firstGroupError)
     await Promise.all(
-      activeChildren.map(async (child) => {
-        const closed = childClosures.get(child)
-        if (closed) {
-          try {
-            await waitForClose(closed, 1500)
-          } catch (error) {
-            errors.push(String(error))
-          }
+      closures.map(async (closed) => {
+        try {
+          await waitForClose(closed, 1500)
+        } catch (error) {
+          errors.push(String(error))
         }
       })
     )
     const finalGroupError = await terminateFixtureGroup(join(root, 'process_group'))
     if (finalGroupError) errors.push(finalGroupError)
-    await rm(root, { recursive: true, force: true })
+    try {
+      await rm(root, { recursive: true, force: true })
+    } catch (error) {
+      errors.push(String(error))
+    }
     if (errors.length) throw new AggregateError(errors.map((error) => new Error(error)))
   })
   const shimDirectory = join(root, 'bin')
@@ -290,7 +303,7 @@ async function runnerFixture(
       const closed = new Promise<{ status: number | null; signal: NodeJS.Signals | null }>(
         (resolve) => child.once('close', (status, signal) => resolve({ status, signal }))
       )
-      trackChild(child, closed)
+      children.track(child, closed)
       try {
         const result = await waitForClose(closed, runOptions.timeoutMs ?? 15_000)
         return { ...result, stdout, stderr, commands: await readFile(logPath, 'utf8') }
@@ -337,7 +350,7 @@ async function runnerFixture(
           child.once('close', (status, signal) => resolve({ status, signal }))
         }
       )
-      trackChild(child, closed)
+      children.track(child, closed)
       try {
         await Promise.race([
           waitForReady(join(root, 'ready')),
@@ -369,6 +382,50 @@ async function runnerFixture(
 }
 
 test.group('check:changed runner test outcome', () => {
+  test('Windows fixture teardown skips confirmed closure and reports pending tree failure', async ({
+    assert,
+  }) => {
+    let taskkillCalls = 0
+    const children = fixtureChildren((child) => {
+      const result = terminateStep(
+        child.pid!,
+        'win32',
+        () => {
+          taskkillCalls += 1
+          return { status: 1 }
+        },
+        () => {
+          throw Object.assign(new Error('already exited'), { code: 'ESRCH' })
+        }
+      )
+      if (!result.success || !result.tree) return result.detail
+    })
+    children.track({ pid: 42 } as ChildProcess, Promise.resolve())
+    await Promise.resolve()
+    assert.deepEqual(children.terminate(), { errors: [], closures: [] })
+    assert.equal(taskkillCalls, 0)
+
+    let close!: () => void
+    const pending = new Promise<void>((resolve) => {
+      close = resolve
+    })
+    children.track({ pid: 43 } as ChildProcess, pending)
+    const teardown = children.terminate()
+    assert.equal(taskkillCalls, 1)
+    assert.deepEqual(teardown.errors, [
+      'taskkill failed; the step process already exited, but descendants may remain',
+    ])
+    assert.deepEqual(teardown.closures, [pending])
+    await assert.rejects(
+      () => waitForClose(teardown.closures[0], 1),
+      /Timed out waiting for runner cleanup/
+    )
+    close()
+    await pending
+    assert.deepEqual(children.terminate(), { errors: [], closures: [] })
+    assert.equal(taskkillCalls, 1)
+  })
+
   test('fails a zero-test full-suite run and continues to documentation checks', async ({
     assert,
     cleanup,
