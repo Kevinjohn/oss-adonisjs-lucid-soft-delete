@@ -26,6 +26,28 @@ async function fixture(files: Record<string, string>, cleanup: (fn: () => Promis
   return root
 }
 
+async function withReadFileFailure<T>(
+  path: string,
+  code: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const originalReadFile = fsPromises.readFile
+  Object.defineProperty(fsPromises, 'readFile', {
+    value: (...args: Parameters<typeof originalReadFile>) => {
+      if (args[0] === path)
+        return Promise.reject(Object.assign(new Error('injected read failure'), { code }))
+      return originalReadFile(...args)
+    },
+  })
+  syncBuiltinESMExports()
+  try {
+    return await operation()
+  } finally {
+    Object.defineProperty(fsPromises, 'readFile', { value: originalReadFile })
+    syncBuiltinESMExports()
+  }
+}
+
 test.group('Documentation checks', () => {
   test('reports a missing local file at its original Markdown line', async ({
     assert,
@@ -255,9 +277,19 @@ test.group('Documentation checks', () => {
     cleanup,
   }) => {
     const root = await fixture({ 'docs/placeholder': '' }, cleanup)
-    assert.deepEqual(await checkDocumentation(root, ['docs']), [
-      { file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' },
-    ])
+    const path = join(root, 'docs')
+    assert.deepEqual(
+      await withReadFileFailure(path, 'EISDIR', () => checkDocumentation(root, ['docs'])),
+      [{ file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' }]
+    )
+
+    const realDirectoryDiagnostics = await checkDocumentation(root, ['docs'])
+    if (process.platform === 'freebsd')
+      assert.notInclude(realDirectoryDiagnostics[0]?.message ?? '', '(EISDIR)')
+    else
+      assert.deepEqual(realDirectoryDiagnostics, [
+        { file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' },
+      ])
   })
 
   test('preserves checkout-root resolution failures', async ({ assert, cleanup }) => {
@@ -427,9 +459,21 @@ test.group('Documentation checks', () => {
       },
       cleanup
     )
-    const diagnostics = await checkDocumentation(root, ['README.md'])
+    const sourcePath = join(root, 'directory')
+    const diagnostics = await withReadFileFailure(sourcePath, 'EISDIR', () =>
+      checkDocumentation(root, ['README.md'])
+    )
     assert.lengthOf(diagnostics, 1)
     assert.match(diagnostics[0].message, /^Cannot read source file: directory#demo \(EISDIR\)$/)
+
+    const realDirectoryDiagnostics = await checkDocumentation(root, ['README.md'])
+    if (process.platform === 'freebsd')
+      assert.notInclude(realDirectoryDiagnostics[0]?.message ?? '', '(EISDIR)')
+    else
+      assert.match(
+        realDirectoryDiagnostics[0].message,
+        /^Cannot read source file: directory#demo \(EISDIR\)$/
+      )
   })
 
   test('reports a non-missing stat failure as an inspection error', async ({ assert, cleanup }) => {
@@ -476,13 +520,31 @@ test.group('Documentation checks', () => {
       { 'README.md': '[Guide](guide/#start)\n', 'guide/README.md/placeholder': '' },
       cleanup
     )
-    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
-      {
-        file: 'README.md',
-        line: 1,
-        message: 'Cannot read file: guide/#start (EISDIR)',
-      },
-    ])
+    const directoryReadPath = join(root, 'guide', 'README.md')
+    assert.deepEqual(
+      await withReadFileFailure(directoryReadPath, 'EISDIR', () =>
+        checkDocumentation(root, ['README.md'])
+      ),
+      [
+        {
+          file: 'README.md',
+          line: 1,
+          message: 'Cannot read file: guide/#start (EISDIR)',
+        },
+      ]
+    )
+
+    const realDirectoryDiagnostics = await checkDocumentation(root, ['README.md'])
+    if (process.platform === 'freebsd')
+      assert.notInclude(realDirectoryDiagnostics[0]?.message ?? '', '(EISDIR)')
+    else
+      assert.deepEqual(realDirectoryDiagnostics, [
+        {
+          file: 'README.md',
+          line: 1,
+          message: 'Cannot read file: guide/#start (EISDIR)',
+        },
+      ])
   })
 
   test('reports unfinished example fences and markers rather than silently skipping them', async ({
