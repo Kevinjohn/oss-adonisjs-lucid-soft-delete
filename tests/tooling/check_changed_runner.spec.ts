@@ -137,6 +137,7 @@ async function runnerFixture(
 
   return {
     run: async (testOutput: string, cliArgs: string[] = ['main']) => {
+      await writeFile(logPath, '')
       const result = spawnSync(process.execPath, argsFor(cliArgs), {
         cwd: root,
         encoding: 'utf8',
@@ -145,6 +146,7 @@ async function runnerFixture(
       return { ...result, commands: await readFile(logPath, 'utf8') }
     },
     runBlocked: async (testOutput: string, timeout = false) => {
+      await writeFile(logPath, '')
       const preloadPath = join(root, 'short_timeout.mjs')
       await writeFile(
         preloadPath,
