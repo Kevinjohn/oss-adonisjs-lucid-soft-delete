@@ -20,6 +20,7 @@ import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
 import type { PostgreConfig, SqliteConfig } from '@adonisjs/lucid/types/database'
 import { dirname, join } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import {
   E_BULK_RECEIPT_DIVERGED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
@@ -30,6 +31,7 @@ import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.
 import { executeWithReceipt } from '../../src/receipts.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { CustomPost, RelationPost, RelationUser } from '../fixtures/models.js'
+import { waitForReceiptLock } from '../fixtures/receipt_lock_wait.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -658,12 +660,13 @@ test.group('Builder receipts', (group) => {
   })
 
   test('database failures propagate and leave no partial receipt', async ({ assert }) => {
-    const db = await createDatabase()
+    const queries: Array<{ sql: string; error?: unknown }> = []
+    const db = await createDatabase((event) => {
+      const queryEvent = event as typeof event & { error?: unknown }
+      queries.push({ sql: event.sql, error: queryEvent.error })
+    })
     await createTables(db)
-    await db
-      .connection()
-      .rawQuery('PRAGMA foreign_keys = ON')
-      .catch(() => {})
+    if (dbClient === 'sqlite') await db.rawQuery('PRAGMA foreign_keys = ON').exec()
     await db.table('books').insert({ id: 1, name: 'receipt-book' })
     await db.table('authors').insert({ id: 1, name: 'receipt-author' })
     await db.table('author_book').insert({ book_id: 1, author_id: 1 })
@@ -672,7 +675,32 @@ test.group('Builder receipts', (group) => {
       @column({ isPrimary: true }) declare id: number
     }
     const trx = await openTransaction(db)
-    await assert.rejects(() => Book.query({ client: trx }).forceDelete({ receipt: true }))
+    let receipt: unknown
+    let caught: unknown
+    try {
+      receipt = await Book.query({ client: trx }).forceDelete({ receipt: true })
+    } catch (error) {
+      caught = error
+    }
+    assert.isUndefined(receipt)
+    assert.instanceOf(caught, Error)
+    const expectedCode = {
+      pg: '23503',
+      mysql: 'ER_ROW_IS_REFERENCED_2',
+      sqlite: 'SQLITE_CONSTRAINT_FOREIGNKEY',
+    }[dbClient]
+    assert.equal((caught as Error & { code?: string }).code, expectedCode)
+    if (dbClient === 'mysql') {
+      const errno = (caught as Error & { errno?: number }).errno
+      if (errno !== undefined) assert.equal(errno, 1451)
+    }
+    const failedBookDelete = queries.find(
+      ({ sql, error }) =>
+        /^\s*delete\s+from\s+(?:"books"|`books`|\[books\]|books)(?=\s|$)/i.test(sql) &&
+        error !== undefined
+    )
+    if (!failedBookDelete) throw new Error('expected a failed DELETE against books')
+    assert.equal((failedBookDelete.error as Error & { code?: string }).code, expectedCode)
     await trx.rollback()
     assert.lengthOf(await db.from('books'), 1)
   })
@@ -729,6 +757,8 @@ test.group('Builder receipts', (group) => {
   }).skip(dbClient !== 'mysql')
 
   test('concurrent writer sees the committed receipt', async ({ assert }) => {
+    if (dbClient === 'sqlite')
+      throw new Error('receipt lock observation requires a server database')
     const db = await createDatabase()
     await createTables(db)
     const rows = await LifecycleUser.createMany([
@@ -741,28 +771,42 @@ test.group('Builder receipts', (group) => {
       .whereIn('id', ids)
       .softDelete({ receipt: true })
     assert.equal(receipt.count, 2)
-    const secondQuery = LifecycleUser.query().whereIn('id', ids)
-    let queryStarted = false
-    const started = new Promise<void>((resolve) => {
-      secondQuery.knexQuery.on('query', () => {
-        queryStarted = true
-        resolve()
-      })
-    })
-    let settled = false
-    const b = secondQuery.softDelete().finally(() => {
-      settled = true
-    })
+    const blockerSessionResult = await trxA
+      .rawQuery(
+        dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
+      )
+      .exec()
+    const blockerSession =
+      dbClient === 'pg'
+        ? (blockerSessionResult as { rows: Array<{ id: number | string }> }).rows
+        : (blockerSessionResult as [Array<{ id: number | string }>, unknown])[0]
+    assert.lengthOf(blockerSession, 1)
+    const blockerId = Number(blockerSession[0].id)
+    assert.isFinite(blockerId)
+    const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
+    const secondQuery = LifecycleUser.query().whereIn('id', ids).whereRaw(`1 = 1 /* ${marker} */`)
+    secondQuery.knexQuery.timeout(10_000, { cancel: true })
+    let outcome:
+      { status: 'resolved'; count: number } | { status: 'rejected'; error: unknown } | undefined
+    const b = secondQuery.softDelete().then(
+      (count) => {
+        outcome = { status: 'resolved', count }
+        return outcome
+      },
+      (error: unknown) => {
+        outcome = { status: 'rejected', error }
+        return outcome
+      }
+    )
     try {
-      await Promise.race([started, b])
-      assert.isTrue(queryStarted)
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      assert.isFalse(settled, 'the concurrent write must wait for the receipt transaction')
+      await waitForReceiptLock(db, dbClient, marker, blockerId, () => outcome !== undefined)
       await trxA.commit()
-      assert.equal(await b, 0)
+      const settled = await b
+      if (settled.status === 'rejected') throw settled.error
+      assert.equal(settled.count, 0)
     } finally {
       if (!trxA.isCompleted) await trxA.rollback()
-      await b.catch(() => {})
+      await b
     }
     const persisted = await db.from('users').whereIn('id', ids)
     assert.lengthOf(persisted, 2)
@@ -770,5 +814,7 @@ test.group('Builder receipts', (group) => {
     assert.isTrue(
       persisted.every((row) => String(row.deleted_at) === String(receipt.deletedAt!.toJSDate()))
     )
-  }).skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
+  })
+    .skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
+    .timeout(20_000)
 })

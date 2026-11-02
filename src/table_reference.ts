@@ -10,7 +10,11 @@
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
 export function aliasFromTable(table: unknown): string | undefined {
-  if (typeof table === 'string') return table.match(/\s+as\s+(\w+)$/i)?.[1]
+  if (typeof table === 'string') {
+    const separatorIndex = table.search(/ as /i)
+    if (separatorIndex === -1) return undefined
+    return table.slice(separatorIndex + 4).trim() || undefined
+  }
   if (table && typeof table === 'object' && !Array.isArray(table)) {
     const entries = Object.entries(table)
     if (entries.length === 1 && typeof entries[0][1] === 'string') return entries[0][0]

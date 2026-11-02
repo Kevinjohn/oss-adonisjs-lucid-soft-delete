@@ -213,14 +213,16 @@ test.group('Read scope', (group) => {
     assert.lengthOf(page.all(), 2)
   })
 
-  test('uses object and string aliases for the base table', async ({ assert }) => {
+  test('uses object and punctuation string aliases for the base table', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed', true)
+    const trashed = await createUser('trashed', true)
     const active = await createUser('active')
 
     const objectAlias = await User.query().from({ u: 'users' }).where('u.username', 'active')
-    const stringAlias = await User.query().from('users as u').where('u.username', 'active')
+    const stringAlias = await User.query()
+      .from('users as user-rows')
+      .where('user-rows.username', 'active')
 
     assert.deepEqual(
       objectAlias.map((row) => row.id),
@@ -231,18 +233,35 @@ test.group('Read scope', (group) => {
       [active.id]
     )
 
-    const aliased = User.query().from({ u: 'users' }).where('u.username', 'active')
-    const cloned = await aliased.clone()
-    const page = await aliased.paginate(1, 10)
+    const defaultAliased = await User.query()
+      .from('users as user-rows')
+      .where('user-rows.username', 'active')
+    const trashedOnly = await User.onlyTrashed()
+      .from('users as user-rows')
+      .whereIn('user-rows.username', ['trashed', 'active'])
+    const withTrashed = User.withTrashed()
+      .from('users as user-rows')
+      .whereIn('user-rows.username', ['trashed', 'active'])
+      .orderBy('user-rows.id')
+    const cloned = await withTrashed.clone()
+    const page = await withTrashed.paginate(1, 10)
 
     assert.deepEqual(
-      cloned.map((row) => row.id),
+      defaultAliased.map((row) => row.id),
       [active.id]
     )
-    assert.equal(page.total, 1)
+    assert.deepEqual(
+      trashedOnly.map((row) => row.id),
+      [trashed.id]
+    )
+    assert.sameMembers(
+      cloned.map((row) => row.id),
+      [active.id, trashed.id]
+    )
+    assert.equal(page.total, 2)
     assert.deepEqual(
       page.all().map((row) => row.id),
-      [active.id]
+      [trashed.id, active.id]
     )
   })
 

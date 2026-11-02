@@ -35,6 +35,9 @@ test.group('scope modules', (group) => {
   test('table reference: reads an alias from a string, an object, or neither', ({ assert }) => {
     assert.equal(aliasFromTable('posts as p'), 'p')
     assert.equal(aliasFromTable('posts AS P'), 'P')
+    assert.equal(aliasFromTable('posts as user-rows'), 'user-rows')
+    assert.equal(aliasFromTable('posts AS u$'), 'u$')
+    assert.equal(aliasFromTable('posts as   user-rows   '), 'user-rows')
     assert.equal(aliasFromTable({ p: 'posts' }), 'p')
     assert.isUndefined(aliasFromTable('posts'))
     assert.isUndefined(aliasFromTable({ p: 'posts', q: 'users' }))
@@ -54,6 +57,10 @@ test.group('scope modules', (group) => {
     const aliased = RelationUser.query()
     ;(aliased as unknown as { tableAlias?: string }).tableAlias = 'alias'
     assert.equal(resolveTableReference(aliased), 'alias')
+    assert.equal(
+      resolveTableReference(RelationUser.query().from('users as user-rows')),
+      'user-rows'
+    )
   })
 
   test('where stack: one filter after the grouped predicates, replaced on rerun, removable', async ({

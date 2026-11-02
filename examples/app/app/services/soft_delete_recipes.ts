@@ -49,6 +49,21 @@ class CustomDeletionParent extends compose(BaseModel, SoftDeletes) {
 function uniqueLabel(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random()}`
 }
+
+function isActiveLabelUniqueViolation(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false
+
+  const databaseError = error as { code?: unknown; constraint?: unknown; message?: unknown }
+  if (databaseError.code === '23505') {
+    return databaseError.constraint === 'lifecycle_parents_active_label_unique'
+  }
+
+  return (
+    databaseError.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
+    typeof databaseError.message === 'string' &&
+    databaseError.message.includes('UNIQUE constraint failed: lifecycle_parents.label')
+  )
+}
 // #endregion RECIPE_SETUP
 
 // #region ACCIDENTAL_RESTORE
@@ -288,22 +303,25 @@ export async function restoreAfterUniqueConflict() {
     await deleted.delete()
     const currentOwner = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
 
-    let conflict: unknown
+    let conflictObserved = false
     try {
       await deleted.restore()
     } catch (error) {
-      conflict = error
+      if (!isActiveLabelUniqueViolation(error)) throw error
+      conflictObserved = true
     }
 
     const stateAfterAttempt = await RecipeParent.withTrashed()
       .where('tenantId', 1)
       .where('id', deleted.id)
       .firstOrFail()
-    await currentOwner.forceDelete()
-    if (stateAfterAttempt.trashed) await deleted.restore()
+    if (conflictObserved && stateAfterAttempt.trashed) {
+      await currentOwner.forceDelete()
+      await deleted.restore()
+    }
     const restored = await RecipeParent.withTrashed().where('id', deleted.id).firstOrFail()
     return {
-      conflictObserved: conflict instanceof Error,
+      conflictObserved,
       remainsTrashedAfterConflict: stateAfterAttempt.trashed,
       restoredAfterConflictWasResolved: !restored.trashed,
     }

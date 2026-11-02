@@ -215,21 +215,25 @@ test.group('Application-owned group recovery', (group) => {
     await db.transaction(async (trx) => {
       groupId = await deleteGroup(trx, { tenantId: 9, ids: [row.id], label: 'old' })
     })
-    await assert.rejects(() =>
-      db.transaction((trx) => restoreGroup(trx, { tenantId: 10, groupId }))
+    await assert.rejects(
+      () => db.transaction((trx) => restoreGroup(trx, { tenantId: 10, groupId })),
+      'Recovery group is missing or already consumed'
     )
     await db.transaction((trx) => invalidateGroup(trx, { tenantId: 9, groupId }))
-    await assert.rejects(() =>
-      db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id + 100] }))
+    await assert.rejects(
+      () => db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id + 100] })),
+      'Selected rows are not currently owned by this group'
     )
     await db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id] }))
     assert.isNull(await TestRecord.withTrashed().where('id', row.id).first())
     assert.equal(await recoveryStatus(groupId), 'consumed')
-    await assert.rejects(() =>
-      db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id] }))
+    await assert.rejects(
+      () => db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id] })),
+      'Recovery group is missing or is not invalidated'
     )
-    await assert.rejects(() =>
-      db.transaction((trx) => invalidateGroup(trx, { tenantId: 9, groupId }))
+    await assert.rejects(
+      () => db.transaction((trx) => invalidateGroup(trx, { tenantId: 9, groupId })),
+      'Recovery group is missing or is no longer usable'
     )
   })
 
@@ -253,8 +257,12 @@ test.group('Application-owned group recovery', (group) => {
       currentGroup = await deleteGroup(trx, { tenantId: 12, ids: [row.id], label: 'current' })
     })
 
-    await assert.rejects(() =>
-      db.transaction((trx) => purgeGroup(trx, { tenantId: 12, groupId: staleGroup, ids: [row.id] }))
+    await assert.rejects(
+      () =>
+        db.transaction((trx) =>
+          purgeGroup(trx, { tenantId: 12, groupId: staleGroup, ids: [row.id] })
+        ),
+      'Selected rows are not currently owned by this group'
     )
     assert.equal(await currentGroupFor(row.id), currentGroup)
     assert.isTrue(await isTrashed(row.id))
@@ -361,5 +369,99 @@ test.group('Application-owned group recovery', (group) => {
       beforeRestoreAssociations
     )
     assert.deepEqual(await db.from('recovery_groups').where('id', groupId), beforeRestoreGroup)
+  })
+
+  test('rolls a partial purge and its association removal back together', async ({ assert }) => {
+    const first = await seed(18, 'partial purge first')
+    const second = await seed(18, 'partial purge second')
+    const groupId = await db.transaction(async (trx) => {
+      const id = await deleteGroup(trx, {
+        tenantId: 18,
+        ids: [first.id, second.id],
+        label: 'partial purge rollback',
+      })
+      await invalidateGroup(trx, { tenantId: 18, groupId: id })
+      return id
+    })
+    const ids = [first.id, second.id]
+    const beforeRows = await db.from('lifecycle_parents').whereIn('id', ids).orderBy('id')
+    const beforeAssociations = await db
+      .from('recovery_records')
+      .where('group_id', groupId)
+      .orderBy('record_id')
+    const beforeGroup = await db.from('recovery_groups').where('id', groupId)
+
+    await assert.rejects(
+      () =>
+        db.transaction(async (trx) => {
+          const purged = await purgeGroup(trx, {
+            tenantId: 18,
+            groupId,
+            ids: [first.id],
+          })
+          assert.equal(purged, 1)
+          assert.deepEqual(
+            await trx.from('lifecycle_parents').whereIn('id', ids).orderBy('id'),
+            beforeRows.filter((row) => row.id === second.id)
+          )
+          assert.deepEqual(
+            await trx.from('recovery_records').where('group_id', groupId).orderBy('record_id'),
+            beforeAssociations.filter((row) => row.record_id === second.id)
+          )
+          assert.deepEqual(await trx.from('recovery_groups').where('id', groupId), beforeGroup)
+          throw new Error('rollback partial purge')
+        }),
+      'rollback partial purge'
+    )
+
+    assert.deepEqual(
+      await db.from('lifecycle_parents').whereIn('id', ids).orderBy('id'),
+      beforeRows
+    )
+    assert.deepEqual(
+      await db.from('recovery_records').where('group_id', groupId).orderBy('record_id'),
+      beforeAssociations
+    )
+    assert.deepEqual(await db.from('recovery_groups').where('id', groupId), beforeGroup)
+  })
+
+  test('rolls a final purge and group consumption back together', async ({ assert }) => {
+    const row = await seed(19, 'final purge rollback')
+    const groupId = await db.transaction(async (trx) => {
+      const id = await deleteGroup(trx, {
+        tenantId: 19,
+        ids: [row.id],
+        label: 'final purge rollback',
+      })
+      await invalidateGroup(trx, { tenantId: 19, groupId: id })
+      return id
+    })
+    const beforeRows = await db.from('lifecycle_parents').where('id', row.id)
+    const beforeAssociations = await db
+      .from('recovery_records')
+      .where('group_id', groupId)
+      .orderBy('record_id')
+    const beforeGroup = await db.from('recovery_groups').where('id', groupId)
+
+    await assert.rejects(
+      () =>
+        db.transaction(async (trx) => {
+          const purged = await purgeGroup(trx, { tenantId: 19, groupId, ids: [row.id] })
+          assert.equal(purged, 1)
+          assert.isEmpty(await trx.from('lifecycle_parents').where('id', row.id))
+          assert.isEmpty(await trx.from('recovery_records').where('group_id', groupId))
+          const groupInTransaction = await trx.from('recovery_groups').where('id', groupId).first()
+          assert.equal(groupInTransaction.status, 'consumed')
+          throw new Error('rollback final purge')
+        }),
+      'rollback final purge'
+    )
+
+    assert.deepEqual(await db.from('lifecycle_parents').where('id', row.id), beforeRows)
+    assert.deepEqual(
+      await db.from('recovery_records').where('group_id', groupId).orderBy('record_id'),
+      beforeAssociations
+    )
+    assert.deepEqual(await db.from('recovery_groups').where('id', groupId), beforeGroup)
   })
 })

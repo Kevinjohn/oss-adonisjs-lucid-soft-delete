@@ -101,7 +101,7 @@ test.group('Builder lifecycle', (group) => {
       { username: 'unmatched', companyId: 1 },
     ])
     const query = LifecycleUser.query()
-      .from('users as selected')
+      .from('users as selected-rows')
       .where('company_id', 1)
       .whereIn(
         'id',
