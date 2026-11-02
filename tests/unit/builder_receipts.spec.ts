@@ -832,10 +832,10 @@ test.group('Builder receipts', (group) => {
       }
       await cleanupReceiptLock(transactionError, [
         async () => {
-          if (!trxB.isCompleted) await connections.wait(trxB.rollback())
+          if (!trxA.isCompleted) await connections.wait(trxA.rollback())
         },
         async () => {
-          if (!trxA.isCompleted) await connections.wait(trxA.rollback())
+          if (!trxB.isCompleted) await connections.wait(trxB.rollback())
         },
         async () => {
           if (b) await connections.wait(b)
