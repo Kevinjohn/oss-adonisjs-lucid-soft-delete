@@ -1,9 +1,10 @@
 # API reference
 
-This reference documents the public API of `0.1.1-alpha`. Check the README for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.1.1-alpha`. Check the [README](../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
+- [Choose an operation](#choose-an-operation)
 - [SoftDeletes composition](#softdeletes-composition)
 - [Model state](#model-state)
   - [`deletedAt`](#deletedat)
@@ -25,6 +26,21 @@ This reference documents the public API of `0.1.1-alpha`. Check the README for t
 - [Relationship aggregates and existence queries](#relationship-aggregates-and-existence-queries)
 - [Exports, guards, and TypeScript](#exports-guards-and-typescript)
 - [Errors](#errors)
+- [Non-goals](#non-goals)
+
+## Choose an operation
+
+| Your goal                                | Operation                                                   | What happens                                                                                                                            |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Delete one recoverable record with hooks | `await user.delete()`                                       | Saves a deletion timestamp; ordinary model reads hide the row.                                                                          |
+| Soft-delete a selected batch             | `await User.query().whereIn('id', ids).softDelete()`        | Changes matching active rows without instance hooks; returns a count; add `{ receipt: true }` inside a transaction for the changed ids. |
+| Inspect the recycle bin                  | `await User.onlyTrashed()`                                  | Returns deleted model rows.                                                                                                             |
+| Restore selected deleted rows            | `await User.onlyTrashed().whereIn('id', ids).restore()`     | Clears matching deletion timestamps; returns a count; add `{ receipt: true }` inside a transaction for the changed ids.                 |
+| Permanently purge selected deleted rows  | `await User.onlyTrashed().whereIn('id', ids).forceDelete()` | Physically deletes matching trashed rows; active rows remain; add `{ receipt: true }` inside a transaction for the changed ids.         |
+
+**Destructive-operation warning:** builder `delete()` and `del()` are physical deletes. Read modes such as `onlyTrashed()` do not make those writes a safe purge. Use the explicit lifecycle methods, preserve your application predicates, and read [instance lifecycle methods](#instance-lifecycle-methods) and [builder lifecycle methods](#builder-lifecycle-methods) before choosing between instance and bulk behavior. Soft deletion does not automatically cascade, enforce authorization, or erase retained personal data.
+
+Receipts describe an uncommitted mutation and are not an audit log.
 
 ## SoftDeletes composition
 
@@ -315,7 +331,7 @@ Lucid builder `delete()` and its alias `del()` are physical deletes. They are no
 await User.onlyTrashed().whereIn('id', ids).delete()
 ```
 
-The [operation chooser in the README](../README.md#choose-an-operation) puts the warning beside common choices. See [troubleshooting](troubleshooting.md#builder-delete-or-del-removed-rows-physically) for a diagnostic and recovery path.
+The [operation chooser](#choose-an-operation) puts the warning beside common choices. See [troubleshooting](troubleshooting.md#builder-delete-or-del-removed-rows-physically) for a diagnostic and recovery path.
 
 ## Scope boundaries and query behavior
 
@@ -384,3 +400,11 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 | Query/hook/database error             | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
 
 See [troubleshooting](troubleshooting.md) for recovery steps for projected models, uniqueness conflicts, transactions, and builder write surprises.
+
+## Non-goals
+
+- No general global-scope framework; this mixin concerns `deleted_at` only.
+- No cascade soft delete or restore. Child and pivot rows remain after a parent soft delete; `forceDelete()` follows the database's foreign-key and cascade rules.
+- No migration generator beyond `configure` registering the provider.
+- No AdonisJS 5 or 6 support. AdonisJS 6 users can stay on upstream 2.1.0.
+- No `adonis-lucid-filter` compatibility promise while its available release targets older AdonisJS and Lucid peers.

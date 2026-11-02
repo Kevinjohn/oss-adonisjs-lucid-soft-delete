@@ -25,7 +25,7 @@ Choose a mode independently for the root model and each relation query. Modes su
 | Subclass query hooks                                      | Appended OR predicates are regrouped before the installed filter. A hook that switches to `withTrashed()` after the mixin hook retains a filter already added; `clearWhere()` removes that filter along with caller predicates, and append-only protection does not restore it. | [`subclass_hooks.spec.ts`](../tests/unit/subclass_hooks.spec.ts): appended OR grouping, switching modes, and `clearWhere()` behavior.                                                                |
 | Group-limited has-many and many-to-many preloads          | Filters related rows before applying each parent's per-group limit, so excluded rows do not consume the limit.                                                                                                                                                                  | [`group_limit.spec.ts`](../tests/unit/group_limit.spec.ts): has-many and many-to-many group limits in each mode.                                                                                     |
 
-Builder lifecycle writes have their own rules and should not be inferred from read modes. See [builder lifecycle methods](api.md#builder-lifecycle-methods) and [destructive operations](../README.md#destructive-operations).
+Builder lifecycle writes have their own rules and should not be inferred from read modes. See [builder lifecycle methods](api.md#builder-lifecycle-methods) and [the operation chooser](api.md#choose-an-operation).
 
 ## Related model queries
 
