@@ -264,6 +264,7 @@ test.group('Published cookbook recipes', (group) => {
     if (client !== 'better-sqlite3') return
 
     cleanup(async () => {
+      await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_seed_label_other')
       await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_restore_label_other')
       await db.rawQuery('DROP INDEX IF EXISTS lifecycle_parents_active_label_other_unique')
       await db.rawQuery('ALTER TABLE lifecycle_parents DROP COLUMN label_other')
@@ -275,12 +276,35 @@ test.group('Published cookbook recipes', (group) => {
       ON lifecycle_parents (label_other)
       WHERE deleted_at IS NULL
     `)
+    await db.table('lifecycle_parents').insert({
+      tenant_id: 1,
+      label: 'unrelated-owner',
+      deleted_at: null,
+      label_other: 'third',
+    })
     await db.rawQuery(`
-      CREATE TRIGGER lifecycle_restore_label_other
+      CREATE TRIGGER lifecycle_seed_label_other
       AFTER INSERT ON lifecycle_parents
       WHEN NEW.label LIKE 'unique-%'
       BEGIN
-        UPDATE lifecycle_parents SET label_other = 'same' WHERE id = NEW.id;
+        UPDATE lifecycle_parents
+        SET label_other = CASE
+          WHEN EXISTS (
+            SELECT 1 FROM lifecycle_parents
+            WHERE label = NEW.label AND id <> NEW.id
+          ) THEN 'owner'
+          ELSE 'deleted'
+        END
+        WHERE id = NEW.id;
+      END
+    `)
+    await db.rawQuery(`
+      CREATE TRIGGER lifecycle_restore_label_other
+      BEFORE UPDATE OF deleted_at ON lifecycle_parents
+      WHEN OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL
+      BEGIN
+        UPDATE lifecycle_parents SET label_other = 'third'
+        WHERE label = NEW.label AND deleted_at IS NULL;
       END
     `)
 
@@ -303,11 +327,18 @@ test.group('Published cookbook recipes', (group) => {
     const rows = await db
       .from('lifecycle_parents')
       .where('label', 'like', 'unique-%')
-      .select('id', 'deleted_at')
+      .select('id', 'deleted_at', 'label_other')
       .orderBy('id', 'asc')
     assert.lengthOf(rows, 2)
     assert.isNotNull(rows[0].deleted_at, `Earlier row ${rows[0].id} should remain trashed`)
     assert.isNull(rows[1].deleted_at, `Active owner ${rows[1].id} should be preserved`)
+    assert.equal(rows[1].label_other, 'owner')
+    const thirdOwner = await db
+      .from('lifecycle_parents')
+      .where('label', 'unrelated-owner')
+      .firstOrFail()
+    assert.equal(thirdOwner.label_other, 'third')
+    assert.isNull(thirdOwner.deleted_at)
   })
 
   test('does not recover when restore succeeds without changing the row', async ({

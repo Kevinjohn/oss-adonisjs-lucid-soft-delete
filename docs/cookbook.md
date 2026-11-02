@@ -92,7 +92,7 @@ function isActiveLabelUniqueViolation(error: unknown): boolean {
   return (
     databaseError.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
     typeof databaseError.message === 'string' &&
-    /(?:^|: )UNIQUE constraint failed: lifecycle_parents\.label$/.test(databaseError.message)
+    /\bUNIQUE constraint failed: lifecycle_parents\.label$/.test(databaseError.message)
   )
 }
 ```
