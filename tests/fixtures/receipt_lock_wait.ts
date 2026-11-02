@@ -7,10 +7,11 @@ const OBSERVATION_TIMEOUT_MS = 5_000
 const QUERY_TIMEOUT_MS = 1_000
 const POLL_INTERVAL_MS = 25
 
-type KnexConnection = Awaited<ReturnType<Database['connection']>['knexClient']['acquireConnection']>
+type KnexClient = ReturnType<ReturnType<Database['connection']>['getWriteClient']>['client']
+type KnexConnection = Awaited<ReturnType<KnexClient['acquireConnection']>>
 
 async function acquireObserverConnection(db: Database) {
-  const client = db.connection().knexClient
+  const client = db.connection().getWriteClient().client
   const pool = client.pool as unknown as {
     acquireTimeoutMillis: number
     acquire(): { promise: Promise<KnexConnection> }
@@ -31,23 +32,23 @@ async function observeLockWait(
   client: Client,
   connection: KnexConnection,
   query: string,
-  bindings: unknown[]
+  bindings: Array<string | number>
 ) {
   const connectionDb = db.connection()
   if (client === 'pg') {
-    await connectionDb.knexRawQuery('BEGIN').knexQuery.connection(connection)
+    await connectionDb.knexRawQuery('BEGIN').connection(connection)
     let result: unknown
     let primaryError: unknown
     try {
       await connectionDb
         .knexRawQuery(`SET LOCAL statement_timeout = '${QUERY_TIMEOUT_MS}ms'`)
-        .knexQuery.connection(connection)
-      result = await connectionDb.knexRawQuery(query, bindings).knexQuery.connection(connection)
+        .connection(connection)
+      result = await connectionDb.knexRawQuery(query, bindings).connection(connection)
     } catch (error) {
       primaryError = error
     }
     await cleanupReceiptLock(primaryError, [
-      () => connectionDb.knexRawQuery('ROLLBACK').knexQuery.connection(connection),
+      () => connectionDb.knexRawQuery('ROLLBACK').connection(connection),
     ])
     return result
   }
@@ -57,7 +58,7 @@ async function observeLockWait(
       query.replace(/^\s*SELECT/i, `SELECT /*+ MAX_EXECUTION_TIME(${QUERY_TIMEOUT_MS}) */`),
       bindings
     )
-    .knexQuery.connection(connection)
+    .connection(connection)
 }
 
 /** Runs cleanup actions independently and keeps the original failure in an aggregate. */
@@ -126,7 +127,7 @@ export async function waitForReceiptLock(
     try {
       result = await observeLockWait(db, client, connection, query, [`%${marker}%`, blockerId])
     } finally {
-      await db.connection().knexClient.releaseConnection(connection)
+      await db.connection().getWriteClient().client.releaseConnection(connection)
     }
     const rows =
       client === 'pg' ? (result as { rows: unknown[] }).rows : (result as [unknown[], unknown])[0]
