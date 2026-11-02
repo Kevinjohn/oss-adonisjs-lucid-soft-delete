@@ -31,7 +31,13 @@ import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.
 import { executeWithReceipt } from '../../src/receipts.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { CustomPost, RelationPost, RelationUser } from '../fixtures/models.js'
-import { cleanupReceiptLock, waitForReceiptLock } from '../fixtures/receipt_lock_wait.js'
+import {
+  cleanupReceiptLock,
+  openReceiptConnection,
+  openReceiptTransaction,
+  ReceiptLockConnections,
+  waitForReceiptLock,
+} from '../fixtures/receipt_lock_wait.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -766,64 +772,160 @@ test.group('Builder receipts', (group) => {
       { username: 'concurrent-b' },
     ])
     const ids = rows.map((row) => row.id)
-    const trxA = await openTransaction(db)
-    const receipt = await LifecycleUser.query({ client: trxA })
-      .whereIn('id', ids)
-      .softDelete({ receipt: true })
-    assert.equal(receipt.count, 2)
-    const blockerSessionResult = await trxA
-      .rawQuery(
-        dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
-      )
-      .exec()
-    const blockerSession =
-      dbClient === 'pg'
-        ? (blockerSessionResult as { rows: Array<{ id: number | string }> }).rows
-        : (blockerSessionResult as [Array<{ id: number | string }>, unknown])[0]
-    assert.lengthOf(blockerSession, 1)
-    const blockerId = Number(blockerSession[0].id)
-    assert.isFinite(blockerId)
-    const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
-    const secondQuery = LifecycleUser.query().whereIn('id', ids).whereRaw(`1 = 1 /* ${marker} */`)
-    secondQuery.knexQuery.timeout(10_000, { cancel: true })
-    let outcome:
-      { status: 'resolved'; count: number } | { status: 'rejected'; error: unknown } | undefined
-    const b = secondQuery.softDelete().then(
-      (count) => {
-        outcome = { status: 'resolved', count }
-        return outcome
-      },
-      (error: unknown) => {
-        outcome = { status: 'rejected', error }
-        return outcome
-      }
-    )
+    const connections = new ReceiptLockConnections(dbClient)
+    let receipt: { deletedAt: DateTime | null } | undefined
     let primaryError: unknown
     try {
-      await waitForReceiptLock(db, dbClient, marker, blockerId, () => outcome !== undefined)
-      await trxA.commit()
-      const settled = await b
-      if (settled.status === 'rejected') throw settled.error
-      assert.equal(settled.count, 0)
+      const blocker = await openReceiptConnection(db, connections)
+      const competitor = await openReceiptConnection(db, connections)
+      const observer = await openReceiptConnection(db, connections)
+      const trxB = await connections.wait(openReceiptTransaction(db, competitor))
+      const trxA = await connections.wait(openReceiptTransaction(db, blocker))
+      let transactionError: unknown
+      let b: Promise<unknown> | undefined
+      try {
+        const deleted = await connections.wait(
+          LifecycleUser.query({ client: trxA }).whereIn('id', ids).softDelete({ receipt: true })
+        )
+        receipt = deleted
+        assert.equal(deleted.count, 2)
+        const blockerSessionResult = await connections.wait(
+          trxA
+            .rawQuery(
+              dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
+            )
+            .exec()
+        )
+        const blockerSession =
+          dbClient === 'pg'
+            ? (blockerSessionResult as { rows: Array<{ id: number | string }> }).rows
+            : (blockerSessionResult as [Array<{ id: number | string }>, unknown])[0]
+        assert.lengthOf(blockerSession, 1)
+        const blockerId = Number(blockerSession[0].id)
+        assert.isFinite(blockerId)
+        const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
+        const secondQuery = LifecycleUser.query({ client: trxB })
+          .whereIn('id', ids)
+          .whereRaw(`1 = 1 /* ${marker} */`)
+        let outcome:
+          { status: 'resolved'; count: number } | { status: 'rejected'; error: unknown } | undefined
+        const write = secondQuery.softDelete().then(
+          (count) => (outcome = { status: 'resolved', count }),
+          (error: unknown) => (outcome = { status: 'rejected', error })
+        )
+        b = write
+        await waitForReceiptLock(
+          db,
+          dbClient,
+          connections,
+          observer,
+          marker,
+          blockerId,
+          () => outcome !== undefined
+        )
+        await connections.wait(trxA.commit())
+        const settled = await connections.wait(write)
+        if (settled.status === 'rejected') throw settled.error
+        assert.equal(settled.count, 0)
+      } catch (error) {
+        transactionError = error
+      }
+      await cleanupReceiptLock(transactionError, [
+        async () => {
+          if (!trxB.isCompleted) await connections.wait(trxB.rollback())
+        },
+        async () => {
+          if (!trxA.isCompleted) await connections.wait(trxA.rollback())
+        },
+        async () => {
+          if (b) await connections.wait(b)
+        },
+      ])
     } catch (error) {
       primaryError = error
     }
-    await cleanupReceiptLock(primaryError, [
-      async () => {
-        if (!trxA.isCompleted) await trxA.rollback()
-      },
-      async () => {
-        await b
-      },
-    ])
+    await connections.close(primaryError)
     const persisted = await db.from('users').whereIn('id', ids)
     assert.lengthOf(persisted, 2)
     assert.isTrue(persisted.every((row) => row.deleted_at !== null))
     assert.isTrue(
-      persisted.every((row) => String(row.deleted_at) === String(receipt.deletedAt!.toJSDate()))
+      persisted.every((row) => String(row.deleted_at) === String(receipt!.deletedAt!.toJSDate()))
     )
   })
     .skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
+    .timeout(20_000)
+
+  test('closing receipt transports aborts a blocked writer and releases the blocker lock', async ({
+    assert,
+  }) => {
+    if (dbClient === 'sqlite') throw new Error('server database required')
+    const db = await createDatabase()
+    await createTables(db)
+    const row = await LifecycleUser.create({ username: 'transport-disposal' })
+    const owner = new ReceiptLockConnections(dbClient, 1_000)
+    let primaryError: unknown
+    let blocked: Promise<unknown> | undefined
+    let blockerId = 0
+    let competitorId = 0
+    const sessionId = async (connection: Awaited<ReturnType<typeof openReceiptConnection>>) => {
+      const result = await owner.wait(
+        db
+          .connection()
+          .knexRawQuery(
+            dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
+          )
+          .connection(connection)
+      )
+      return Number(dbClient === 'pg' ? result.rows[0].id : result[0][0].id)
+    }
+    try {
+      const blocker = await openReceiptConnection(db, owner)
+      const competitor = await openReceiptConnection(db, owner)
+      const observer = await openReceiptConnection(db, owner)
+      const trxB = await owner.wait(openReceiptTransaction(db, competitor))
+      blockerId = await sessionId(blocker)
+      competitorId = await sessionId(competitor)
+      const trx = await owner.wait(openReceiptTransaction(db, blocker))
+      await owner.wait(
+        LifecycleUser.query({ client: trx }).where('id', row.id).softDelete({ receipt: true })
+      )
+      const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
+      const query = LifecycleUser.query({ client: trxB })
+        .where('id', row.id)
+        .whereRaw(`1 = 1 /* ${marker} */`)
+      let settled = false
+      blocked = query.softDelete().then(
+        () => {
+          settled = true
+        },
+        (error: unknown) => {
+          settled = true
+          return error
+        }
+      )
+      await waitForReceiptLock(db, dbClient, owner, observer, marker, blockerId, () => settled)
+      // Expire while the actual driver still has a pending write and an open blocker transaction.
+      await assert.rejects(() => owner.wait(new Promise<never>(() => {})), owner.error.message)
+    } catch (error) {
+      primaryError = error
+    }
+    await owner.close(primaryError)
+    if (blocked) assert.instanceOf(await blocked, Error)
+    const persisted = await db.from('users').where('id', row.id).firstOrFail()
+    assert.isNull(persisted.deleted_at)
+    // Taking a write lock proves server rollback completed, rather than only local rejection.
+    await db.from('users').where('id', row.id).update({ username: 'lock-released' })
+    const sessions = await db
+      .rawQuery(
+        dbClient === 'pg'
+          ? 'SELECT pid AS id FROM pg_stat_activity WHERE pid IN (?, ?)'
+          : 'SELECT PROCESSLIST_ID AS id FROM performance_schema.threads WHERE PROCESSLIST_ID IN (?, ?)',
+        [blockerId, competitorId]
+      )
+      .exec()
+    assert.lengthOf(dbClient === 'pg' ? sessions.rows : sessions[0], 0)
+  })
+    .skip(dbClient === 'sqlite', 'requires server transports')
     .timeout(20_000)
 
   test('receipt lock cleanup preserves the primary error and runs every cleanup', async ({
