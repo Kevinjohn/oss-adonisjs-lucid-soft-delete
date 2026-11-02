@@ -8,8 +8,8 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { readFile, stat } from 'node:fs/promises'
-import { dirname, extname, relative, resolve, sep } from 'node:path'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export type Diagnostic = { file: string; line: number; message: string }
@@ -18,6 +18,51 @@ type Markdown = {
   visible: string[]
   examples: Example[]
   errors: { line: number; message: string }[]
+}
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { code?: unknown }).code
+    if (typeof code === 'string') return code
+  }
+  return undefined
+}
+
+function isMissing(error: unknown): boolean {
+  return errorCode(error) === 'ENOENT' || errorCode(error) === 'ENOTDIR'
+}
+
+function filesystemFailure(operation: string, target: string, error: unknown): Error {
+  const code = errorCode(error)
+  if (!code) throw error
+  return new Error(`Cannot ${operation}: ${target} (${code})`, { cause: error })
+}
+
+function inside(root: string, path: string): boolean {
+  const location = relative(root, path)
+  return (
+    location === '' ||
+    (location !== '..' && !location.startsWith(`..${sep}`) && !isAbsolute(location))
+  )
+}
+
+/** Resolve symlinks before inspecting a local target and preserve missing suffixes. */
+async function physicalTarget(root: string, path: string, target: string): Promise<string> {
+  let candidate = resolve(path)
+  const suffix: string[] = []
+  while (true) {
+    try {
+      const physical = resolve(await realpath(candidate))
+      if (!inside(root, physical)) throw new Error(`Link points outside the checkout: ${target}`)
+      return resolve(physical, ...suffix.reverse())
+    } catch (error) {
+      if (!isMissing(error)) throw error
+      const parent = dirname(candidate)
+      if (parent === candidate) throw error
+      suffix.push(candidate.slice(parent.length + (parent.endsWith(sep) ? 0 : 1)))
+      candidate = parent
+    }
+  }
 }
 
 /** Retain line numbers while excluding fenced code from Markdown interpretation. */
@@ -175,6 +220,12 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     ].sort()
   const diagnostics: Diagnostic[] = []
   const cache = new Map<string, Promise<string>>()
+  let canonicalRoot: string
+  try {
+    canonicalRoot = resolve(await realpath(root))
+  } catch (error) {
+    throw filesystemFailure('resolve checkout root', root, error)
+  }
   const read = (path: string) => {
     if (!cache.has(path)) cache.set(path, readFile(path, 'utf8'))
     return cache.get(path)!
@@ -182,12 +233,15 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
   for (const file of selected) {
     const report = (line: number, message: string) => diagnostics.push({ file, line, message })
     let markdown: Markdown
+    let contents: string
     try {
-      markdown = parseMarkdown(await read(resolve(root, file)))
-    } catch {
-      report(1, `Cannot read Markdown file: ${file}`)
+      contents = await read(resolve(root, file))
+    } catch (error) {
+      if (isMissing(error)) report(1, `Cannot read Markdown file: ${file}`)
+      else report(1, filesystemFailure('read Markdown file', file, error).message)
       continue
     }
+    markdown = parseMarkdown(contents)
     for (const error of markdown.errors) report(error.line, error.message)
     for (const link of links(markdown)) {
       if (link.target.startsWith('missing-reference:')) {
@@ -197,18 +251,31 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
       if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link.target)) continue
       try {
         const target = localTarget(root, file, link.target)
+        const physicalPath = await physicalTarget(canonicalRoot, target.path, link.target)
         let info
         try {
-          info = await stat(target.path)
-        } catch {
-          throw new Error(`Missing file: ${link.target}`)
+          info = await stat(physicalPath)
+        } catch (error) {
+          if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
+          throw filesystemFailure('inspect file', link.target, error)
         }
         if (!target.fragment) continue
-        const targetFile = info.isDirectory() ? resolve(target.path, 'README.md') : target.path
-        const content = await read(targetFile)
+        const logicalTargetFile = info.isDirectory()
+          ? resolve(target.path, 'README.md')
+          : target.path
+        const targetFile = info.isDirectory()
+          ? await physicalTarget(canonicalRoot, resolve(physicalPath, 'README.md'), link.target)
+          : physicalPath
+        let content: string
+        try {
+          content = await read(targetFile)
+        } catch (error) {
+          if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
+          throw filesystemFailure('read file', link.target, error)
+        }
         const lineAnchor = target.fragment.match(/^L(\d+)(?:-L(\d+))?$/)
         const valid =
-          extname(targetFile).toLowerCase() === '.md'
+          extname(logicalTargetFile).toLowerCase() === '.md'
             ? anchors(parseMarkdown(content)).has(target.fragment)
             : lineAnchor &&
               Number(lineAnchor[1]) > 0 &&
@@ -216,7 +283,10 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
               Number(lineAnchor[2] ?? lineAnchor[1]) <=
                 content.split(/\r?\n/).length - (content.endsWith('\n') ? 1 : 0)
         if (!valid)
-          report(link.line, `Missing anchor: #${target.fragment} in ${relative(root, targetFile)}`)
+          report(
+            link.line,
+            `Missing anchor: #${target.fragment} in ${relative(canonicalRoot, targetFile)}`
+          )
       } catch (error) {
         report(link.line, (error as Error).message)
       }
@@ -224,11 +294,13 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     for (const example of markdown.examples) {
       try {
         const target = localTarget(root, file, example.target)
+        const physicalPath = await physicalTarget(canonicalRoot, target.path, example.target)
         let source: string
         try {
-          source = await read(target.path)
-        } catch {
-          throw new Error(`Missing source file: ${example.target}`)
+          source = await read(physicalPath)
+        } catch (error) {
+          if (isMissing(error)) throw new Error(`Missing source file: ${example.target}`)
+          throw filesystemFailure('read source file', example.target, error)
         }
         const lines = source.split(/\r?\n/)
         const start = lines.findIndex((line) => line.trim() === `// #region ${target.fragment}`)

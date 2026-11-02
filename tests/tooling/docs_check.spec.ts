@@ -7,7 +7,8 @@
  * file that was distributed with this source code.
  */
 
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import fsPromises, { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -197,8 +198,211 @@ test.group('Documentation checks', () => {
     const root = await fixture({ 'README.md': '[Read][unknown]\n' }, cleanup)
     const diagnostics = await checkDocumentation(root, ['absent.md', 'README.md'])
     assert.lengthOf(diagnostics, 2)
-    assert.include(diagnostics[0].message, 'Cannot read Markdown file')
+    assert.equal(diagnostics[0].message, 'Cannot read Markdown file: absent.md')
     assert.include(diagnostics[1].message, 'Missing reference definition: unknown')
+  })
+
+  test('reports a selected Markdown read failure with its filesystem error code', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture({ 'docs/placeholder': '' }, cleanup)
+    assert.deepEqual(await checkDocumentation(root, ['docs']), [
+      { file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' },
+    ])
+  })
+
+  test('preserves checkout-root resolution failures', async ({ assert, cleanup }) => {
+    const root = await mkdtemp(join(tmpdir(), 'documentation-missing-root-parent-'))
+    cleanup(() => rm(root, { recursive: true, force: true }))
+    const missingRoot = join(root, 'missing')
+    await assert.rejects(
+      () => checkDocumentation(missingRoot, ['README.md']),
+      /Cannot resolve checkout root: .* \(ENOENT\)/
+    )
+  })
+
+  test('accepts internal symlinks for links and maintained source markers', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md':
+          '[guide](guide-link.md#inside)\n\n<!-- source: source-link.ts#demo -->\n```ts\nexport const value = 1\n```\n',
+        'guide.md': '# Inside\n',
+        'source.ts': '// #region demo\nexport const value = 1\n// #endregion demo\n',
+      },
+      cleanup
+    )
+    await symlink('guide.md', join(root, 'guide-link.md'))
+    await symlink('source.ts', join(root, 'source-link.ts'))
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
+  })
+
+  test('uses logical target extensions when reading internal symlinks', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md': '[Guide](guide.md#start)\n[Code](source.ts#L1)\n',
+        'guide-content.txt': '# Start\n',
+        'source-content.md': 'export const value = 1\n',
+      },
+      cleanup
+    )
+    await symlink('guide-content.txt', join(root, 'guide.md'))
+    await symlink('source-content.md', join(root, 'source.ts'))
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
+  })
+
+  test('rejects external symlink targets before reading link or source content', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md':
+          '[outside](outside.md#inside)\n\n<!-- source: outside.ts#demo -->\n```ts\nexport const value = 1\n```\n',
+      },
+      cleanup
+    )
+    const outside = await mkdtemp(join(tmpdir(), 'documentation-outside-'))
+    cleanup(() => rm(outside, { recursive: true, force: true }))
+    await writeFile(join(outside, 'guide.md'), '# Inside\n')
+    await writeFile(
+      join(outside, 'source.ts'),
+      '// #region demo\nexport const value = 1\n// #endregion demo\n'
+    )
+    await symlink(join(outside, 'guide.md'), join(root, 'outside.md'))
+    await symlink(join(outside, 'source.ts'), join(root, 'outside.ts'))
+    const diagnostics = await checkDocumentation(root, ['README.md'])
+    assert.lengthOf(diagnostics, 2)
+    assert.isTrue(
+      diagnostics.every(
+        (item) =>
+          item.message ===
+          'Link points outside the checkout: ' +
+            (item.line === 1 ? 'outside.md#inside' : 'outside.ts#demo')
+      )
+    )
+  })
+
+  test('rejects missing children below an external symlink parent', async ({ assert, cleanup }) => {
+    const root = await fixture({ 'README.md': '[outside](outside/missing.md)\n' }, cleanup)
+    const outside = await mkdtemp(join(tmpdir(), 'documentation-outside-parent-'))
+    cleanup(() => rm(outside, { recursive: true, force: true }))
+    await symlink(outside, join(root, 'outside'))
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
+      {
+        file: 'README.md',
+        line: 1,
+        message: 'Link points outside the checkout: outside/missing.md',
+      },
+    ])
+  })
+
+  test('validates a directory README symlink and accepts an internal README symlink', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md': '[inside](inside/#start)\n[outside](outside/#start)\n',
+        'inside/index.md': '# Start\n',
+        'outside/index.md': '# Start\n',
+      },
+      cleanup
+    )
+    const outside = await mkdtemp(join(tmpdir(), 'documentation-outside-readme-'))
+    cleanup(() => rm(outside, { recursive: true, force: true }))
+    await writeFile(join(outside, 'README.md'), '# Start\n')
+    await symlink('index.md', join(root, 'inside', 'README.md'))
+    await symlink(join(outside, 'README.md'), join(root, 'outside', 'README.md'))
+    const diagnostics = await checkDocumentation(root, ['README.md'])
+    assert.lengthOf(diagnostics, 1)
+    assert.equal(diagnostics[0].message, 'Link points outside the checkout: outside/#start')
+  })
+
+  test('supports a checkout root that is itself a symlink', async ({ assert, cleanup }) => {
+    const actualRoot = await fixture(
+      { 'README.md': '[guide](guide.md#start)\n', 'guide.md': '# Start\n' },
+      cleanup
+    )
+    const rootLink = join(tmpdir(), `documentation-root-link-${process.pid}-${Date.now()}`)
+    cleanup(() => rm(rootLink, { force: true }))
+    await symlink(actualRoot, rootLink)
+    assert.deepEqual(await checkDocumentation(rootLink, ['README.md']), [])
+  })
+
+  test('reports non-missing source read failures with their filesystem error code', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      {
+        'README.md': '<!-- source: directory#demo -->\n```ts\nvalue\n```\n',
+        'directory/placeholder': '',
+      },
+      cleanup
+    )
+    const diagnostics = await checkDocumentation(root, ['README.md'])
+    assert.lengthOf(diagnostics, 1)
+    assert.match(diagnostics[0].message, /^Cannot read source file: directory#demo \(EISDIR\)$/)
+  })
+
+  test('reports a non-missing stat failure as an inspection error', async ({ assert, cleanup }) => {
+    const root = await fixture(
+      { 'README.md': '[Guide](guide.md#start)\n', 'guide.md': '# Start\n' },
+      cleanup
+    )
+    const originalStat = fsPromises.stat
+    Object.defineProperty(fsPromises, 'stat', {
+      value: async () => {
+        throw Object.assign(new Error('permission denied'), { code: 'EACCES' })
+      },
+    })
+    syncBuiltinESMExports()
+    try {
+      assert.deepEqual(await checkDocumentation(root, ['README.md']), [
+        {
+          file: 'README.md',
+          line: 1,
+          message: 'Cannot inspect file: guide.md#start (EACCES)',
+        },
+      ])
+    } finally {
+      Object.defineProperty(fsPromises, 'stat', { value: originalStat })
+      syncBuiltinESMExports()
+    }
+  })
+
+  test('classifies missing directory anchors as missing files', async ({ assert, cleanup }) => {
+    const root = await fixture(
+      { 'README.md': '[Guide](guide/#start)\n', 'guide/keep': '' },
+      cleanup
+    )
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
+      { file: 'README.md', line: 1, message: 'Missing file: guide/#start' },
+    ])
+  })
+
+  test('reports non-missing directory anchor reads with their filesystem error code', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(
+      { 'README.md': '[Guide](guide/#start)\n', 'guide/README.md/placeholder': '' },
+      cleanup
+    )
+    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
+      {
+        file: 'README.md',
+        line: 1,
+        message: 'Cannot read file: guide/#start (EISDIR)',
+      },
+    ])
   })
 
   test('reports unfinished example fences and markers rather than silently skipping them', async ({

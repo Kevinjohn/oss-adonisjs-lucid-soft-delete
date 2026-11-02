@@ -133,7 +133,7 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   const explicit = plan.tests !== 'all'
   const files = explicit ? (plan.tests as string[]).flatMap((file) => ['--files', file]) : []
   const { code, output } = await run('pnpm', ['quick:test', ...files])
-  const outcome = readTestOutcome(output, code, explicit)
+  const outcome = readTestOutcome(output, code)
   report('tests', outcome.passed, `${outcome.executed} tests run`, output)
 } else if (!plan.skipped.includes('unit suite')) console.log('tests: skip (no tests affected)')
 if (plan.skipped.includes('unit suite')) console.log('unit suite: skip (--static)')

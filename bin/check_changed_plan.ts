@@ -80,13 +80,29 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 export type TestOutcome = { passed: boolean; executed: number }
 
 /**
- * Read Japa's summary. A run given explicit files that executes no test fails, because the
- * file filter is wrong.
+ * Read Japa's summary. A successful check must execute at least one test and report no failures.
  */
-export function readTestOutcome(output: string, exitCode: number, explicit: boolean): TestOutcome {
+export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   // eslint-disable-next-line no-control-regex
-  const summary = output.replace(/\x1b\[[0-9;]*m/g, '').match(/Tests\s+([^\n]*)\(\d+\)/)?.[1] ?? ''
-  const count = (label: string) => Number(summary.match(new RegExp(`(\\d+) ${label}`))?.[1] ?? 0)
-  const executed = count('passed') + count('failed')
-  return { passed: exitCode === 0 && !(explicit && executed === 0), executed }
+  const summary = output.replace(/\x1b\[[0-9;]*m/g, '').match(/Tests\s+([^\n]*)\((\d+)\)/)
+  const counts = new Map<string, number>()
+  let recognized = summary !== null
+  if (summary) {
+    for (const result of summary[1].split(', ').map((part) => part.trim())) {
+      const match = result.match(/^(\d+) (passed|failed|skipped)$/)
+      if (!match || counts.has(match[2])) {
+        recognized = false
+        break
+      }
+      counts.set(match[2], Number(match[1]))
+    }
+    recognized &&=
+      [...counts.values()].reduce((total, count) => total + count, 0) === Number(summary[2])
+  }
+  const passed = counts.get('passed') ?? 0
+  const failed = counts.get('failed') ?? 0
+  return {
+    passed: exitCode === 0 && recognized && passed > 0 && failed === 0,
+    executed: passed + failed,
+  }
 }
