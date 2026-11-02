@@ -915,15 +915,23 @@ test.group('Builder receipts', (group) => {
     assert.isNull(persisted.deleted_at)
     // Taking a write lock proves server rollback completed, rather than only local rejection.
     await db.from('users').where('id', row.id).update({ username: 'lock-released' })
-    const sessions = await db
-      .rawQuery(
-        dbClient === 'pg'
-          ? 'SELECT pid AS id FROM pg_stat_activity WHERE pid IN (?, ?)'
-          : 'SELECT PROCESSLIST_ID AS id FROM performance_schema.threads WHERE PROCESSLIST_ID IN (?, ?)',
-        [blockerId, competitorId]
-      )
-      .exec()
-    assert.lengthOf(dbClient === 'pg' ? sessions.rows : sessions[0], 0)
+    // A server session can release its locks before it leaves the session view, so poll briefly.
+    const deadline = Date.now() + 2000
+    let sessions: unknown[] = []
+    while (true) {
+      const result = await db
+        .rawQuery(
+          dbClient === 'pg'
+            ? 'SELECT pid AS id FROM pg_stat_activity WHERE pid IN (?, ?)'
+            : 'SELECT PROCESSLIST_ID AS id FROM performance_schema.threads WHERE PROCESSLIST_ID IN (?, ?)',
+          [blockerId, competitorId]
+        )
+        .exec()
+      sessions = dbClient === 'pg' ? result.rows : result[0]
+      if (sessions.length === 0 || Date.now() >= deadline) break
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    assert.lengthOf(sessions, 0)
   })
     .skip(dbClient === 'sqlite', 'requires server transports')
     .timeout(20_000)
