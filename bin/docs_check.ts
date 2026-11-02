@@ -7,9 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import { execFileSync } from 'node:child_process'
-import { readFile, realpath, stat } from 'node:fs/promises'
-import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { execFileSync, spawn } from 'node:child_process'
+import { createInterface } from 'node:readline'
+import { realpath } from 'node:fs/promises'
+import { dirname, extname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export type Diagnostic = { file: string; line: number; message: string }
@@ -29,7 +30,7 @@ function errorCode(error: unknown): string | undefined {
 }
 
 function isMissing(error: unknown): boolean {
-  return errorCode(error) === 'ENOENT' || errorCode(error) === 'ENOTDIR'
+  return errorCode(error) === 'ENOENT'
 }
 
 function filesystemFailure(operation: string, target: string, error: unknown): Error {
@@ -38,29 +39,147 @@ function filesystemFailure(operation: string, target: string, error: unknown): E
   return new Error(`Cannot ${operation}: ${target} (${code})`, { cause: error })
 }
 
-function inside(root: string, path: string): boolean {
-  const location = relative(root, path)
-  return (
-    location === '' ||
-    (location !== '..' && !location.startsWith(`..${sep}`) && !isAbsolute(location))
-  )
+type FilesystemFailure = Error & { code?: string; helperFailure?: boolean }
+
+function isHelperFailure(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'helperFailure' in error
 }
 
-/** Resolve symlinks before inspecting a local target and preserve missing suffixes. */
-async function physicalTarget(root: string, path: string, target: string): Promise<string> {
-  let candidate = resolve(path)
-  const suffix: string[] = []
-  while (true) {
+class AnchoredFilesystem {
+  private readonly child
+  private readonly ready: Promise<void>
+  private readonly pending = new Map<
+    number,
+    { resolve(value: unknown): void; reject(error: Error): void }
+  >()
+  private nextId = 1
+  private exited = false
+
+  constructor(root: string) {
+    const helper = fileURLToPath(new URL('./docs_fs.py', import.meta.url))
+    this.child = spawn(process.env.PYTHON ?? 'python3', [helper, root], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    const lines = createInterface({ input: this.child.stdout })
+    let resolveReady!: () => void
+    let rejectReady!: (error: Error) => void
+    this.ready = new Promise<void>((resolvePromise, rejectPromise) => {
+      resolveReady = resolvePromise
+      rejectReady = rejectPromise
+    })
+    let started = false
+    lines.on('line', (line) => {
+      let response: {
+        ready?: boolean
+        id?: number
+        ok?: boolean
+        result?: unknown
+        error?: { code?: string; message?: string }
+      }
+      try {
+        response = JSON.parse(line)
+      } catch {
+        const error = this.markHelperFailure(
+          new Error('Invalid response from documentation filesystem helper')
+        )
+        if (!started) rejectReady(error)
+        else this.rejectPending(error)
+        return
+      }
+      if (!started) {
+        started = true
+        if (response.ready) resolveReady()
+        else rejectReady(this.markHelperFailure(this.failure(response.error)))
+        return
+      }
+      if (response.id === undefined) return
+      const pending = this.pending.get(response.id)
+      if (!pending) return
+      this.pending.delete(response.id)
+      if (response.ok) pending.resolve(response.result)
+      else pending.reject(this.failure(response.error))
+    })
+    let stderr = ''
+    this.child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr = (stderr + chunk).slice(-4000)
+    })
+    this.child.once('error', (error) => {
+      const failure = this.markHelperFailure(
+        new Error(`Cannot start documentation filesystem helper: ${error.message}`, {
+          cause: error,
+        })
+      )
+      rejectReady(failure)
+      this.rejectPending(failure)
+    })
+    this.child.stdin.on('error', (error) => {
+      this.rejectPending(this.markHelperFailure(error))
+      if (!this.exited) this.child.kill()
+    })
+    this.child.once('exit', (code, signal) => {
+      this.exited = true
+      const detail = stderr.trim()
+      const failure = this.markHelperFailure(
+        new Error(
+          `Documentation filesystem helper exited (${signal ?? code})${detail ? `: ${detail}` : ''}`
+        )
+      )
+      if (!started) rejectReady(failure)
+      else this.rejectPending(failure)
+    })
+  }
+
+  private failure(details?: { code?: string; message?: string }): FilesystemFailure {
+    const error = new Error(
+      details?.message ?? 'Documentation filesystem operation failed'
+    ) as FilesystemFailure
+    if (details?.code) error.code = details.code
+    return error
+  }
+
+  private markHelperFailure(error: Error): FilesystemFailure {
+    const failure = error as FilesystemFailure
+    failure.helperFailure = true
+    if (!/documentation filesystem helper/i.test(error.message))
+      failure.message = `Documentation filesystem helper failure: ${error.message}`
+    return failure
+  }
+
+  private rejectPending(error: Error): void {
+    for (const pending of this.pending.values()) pending.reject(error)
+    this.pending.clear()
+  }
+
+  private async request<T>(operation: string, path?: string): Promise<T> {
+    await this.ready
+    const id = this.nextId++
+    let rejectResult!: (error: Error) => void
+    const result = new Promise<T>((resolvePromise, rejectPromise) => {
+      rejectResult = rejectPromise
+      this.pending.set(id, { resolve: resolvePromise, reject: rejectPromise })
+    })
+    this.child.stdin.write(`${JSON.stringify({ id, operation, path })}\n`, (error) => {
+      if (error && this.pending.delete(id)) rejectResult(this.markHelperFailure(error))
+    })
+    return (await result) as T
+  }
+
+  read(path: string): Promise<string> {
+    return this.request<string>('read', path)
+  }
+
+  stat(path: string): Promise<{ isDirectory: boolean }> {
+    return this.request<{ isDirectory: boolean }>('stat', path)
+  }
+
+  async close(): Promise<void> {
     try {
-      const physical = resolve(await realpath(candidate))
-      if (!inside(root, physical)) throw new Error(`Link points outside the checkout: ${target}`)
-      return resolve(physical, ...suffix.reverse())
+      await this.ready
+      if (this.exited) return
+      await this.request<void>('close')
     } catch (error) {
-      if (!isMissing(error)) throw error
-      const parent = dirname(candidate)
-      if (parent === candidate) throw error
-      suffix.push(candidate.slice(parent.length + (parent.endsWith(sep) ? 0 : 1)))
-      candidate = parent
+      if (!this.exited) this.child.kill()
+      throw error
     }
   }
 }
@@ -226,100 +345,115 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
   } catch (error) {
     throw filesystemFailure('resolve checkout root', root, error)
   }
+  const filesystem = new AnchoredFilesystem(canonicalRoot)
+  const rootedPath = (path: string) => relative(resolve(root), path).split(sep).join('/') || '.'
   const read = (path: string) => {
-    if (!cache.has(path)) cache.set(path, readFile(path, 'utf8'))
+    if (!cache.has(path)) cache.set(path, filesystem.read(rootedPath(path)))
     return cache.get(path)!
   }
-  for (const file of selected) {
-    const report = (line: number, message: string) => diagnostics.push({ file, line, message })
-    let markdown: Markdown
-    let contents: string
-    try {
-      contents = await read(resolve(root, file))
-    } catch (error) {
-      if (isMissing(error)) report(1, `Cannot read Markdown file: ${file}`)
-      else report(1, filesystemFailure('read Markdown file', file, error).message)
-      continue
-    }
-    markdown = parseMarkdown(contents)
-    for (const error of markdown.errors) report(error.line, error.message)
-    for (const link of links(markdown)) {
-      if (link.target.startsWith('missing-reference:')) {
-        report(link.line, `Missing reference definition: ${link.target.slice(18)}`)
+  try {
+    for (const file of selected) {
+      const report = (line: number, message: string) => diagnostics.push({ file, line, message })
+      let markdown: Markdown
+      let contents: string
+      try {
+        contents = await read(resolve(root, file))
+      } catch (error) {
+        if (isHelperFailure(error)) throw error
+        if (isMissing(error)) report(1, `Cannot read Markdown file: ${file}`)
+        else if (errorCode(error) === 'EOUTSIDE')
+          report(1, `Markdown file points outside the checkout: ${file}`)
+        else report(1, filesystemFailure('read Markdown file', file, error).message)
         continue
       }
-      if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link.target)) continue
-      try {
-        const target = localTarget(root, file, link.target)
-        const physicalPath = await physicalTarget(canonicalRoot, target.path, link.target)
-        let info
-        try {
-          info = await stat(physicalPath)
-        } catch (error) {
-          if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
-          throw filesystemFailure('inspect file', link.target, error)
+      markdown = parseMarkdown(contents)
+      for (const error of markdown.errors) report(error.line, error.message)
+      for (const link of links(markdown)) {
+        if (link.target.startsWith('missing-reference:')) {
+          report(link.line, `Missing reference definition: ${link.target.slice(18)}`)
+          continue
         }
-        if (!target.fragment) continue
-        const logicalTargetFile = info.isDirectory()
-          ? resolve(target.path, 'README.md')
-          : target.path
-        const targetFile = info.isDirectory()
-          ? await physicalTarget(canonicalRoot, resolve(physicalPath, 'README.md'), link.target)
-          : physicalPath
-        let content: string
+        if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link.target)) continue
         try {
-          content = await read(targetFile)
+          const target = localTarget(root, file, link.target)
+          let info
+          try {
+            info = await filesystem.stat(rootedPath(target.path))
+          } catch (error) {
+            if (isHelperFailure(error)) throw error
+            if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
+            if (errorCode(error) === 'EOUTSIDE')
+              throw new Error(`Link points outside the checkout: ${link.target}`)
+            throw filesystemFailure('inspect file', link.target, error)
+          }
+          if (!target.fragment) continue
+          const logicalTargetFile = info.isDirectory
+            ? resolve(target.path, 'README.md')
+            : target.path
+          let content: string
+          try {
+            content = await read(logicalTargetFile)
+          } catch (error) {
+            if (isHelperFailure(error)) throw error
+            if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
+            if (errorCode(error) === 'EOUTSIDE')
+              throw new Error(`Link points outside the checkout: ${link.target}`)
+            throw filesystemFailure('read file', link.target, error)
+          }
+          const lineAnchor = target.fragment.match(/^L(\d+)(?:-L(\d+))?$/)
+          const valid =
+            extname(logicalTargetFile).toLowerCase() === '.md'
+              ? anchors(parseMarkdown(content)).has(target.fragment)
+              : lineAnchor &&
+                Number(lineAnchor[1]) > 0 &&
+                Number(lineAnchor[2] ?? lineAnchor[1]) >= Number(lineAnchor[1]) &&
+                Number(lineAnchor[2] ?? lineAnchor[1]) <=
+                  content.split(/\r?\n/).length - (content.endsWith('\n') ? 1 : 0)
+          if (!valid)
+            report(
+              link.line,
+              `Missing anchor: #${target.fragment} in ${relative(resolve(root), logicalTargetFile)}`
+            )
         } catch (error) {
-          if (isMissing(error)) throw new Error(`Missing file: ${link.target}`)
-          throw filesystemFailure('read file', link.target, error)
+          if (isHelperFailure(error)) throw error
+          report(link.line, (error as Error).message)
         }
-        const lineAnchor = target.fragment.match(/^L(\d+)(?:-L(\d+))?$/)
-        const valid =
-          extname(logicalTargetFile).toLowerCase() === '.md'
-            ? anchors(parseMarkdown(content)).has(target.fragment)
-            : lineAnchor &&
-              Number(lineAnchor[1]) > 0 &&
-              Number(lineAnchor[2] ?? lineAnchor[1]) >= Number(lineAnchor[1]) &&
-              Number(lineAnchor[2] ?? lineAnchor[1]) <=
-                content.split(/\r?\n/).length - (content.endsWith('\n') ? 1 : 0)
-        if (!valid)
-          report(
-            link.line,
-            `Missing anchor: #${target.fragment} in ${relative(canonicalRoot, targetFile)}`
+      }
+      for (const example of markdown.examples) {
+        try {
+          const target = localTarget(root, file, example.target)
+          let source: string
+          try {
+            source = await read(target.path)
+          } catch (error) {
+            if (isHelperFailure(error)) throw error
+            if (isMissing(error)) throw new Error(`Missing source file: ${example.target}`)
+            if (errorCode(error) === 'EOUTSIDE')
+              throw new Error(`Link points outside the checkout: ${example.target}`)
+            throw filesystemFailure('read source file', example.target, error)
+          }
+          const lines = source.split(/\r?\n/)
+          const start = lines.findIndex((line) => line.trim() === `// #region ${target.fragment}`)
+          const end = lines.findIndex(
+            (line, index) => index > start && line.trim() === `// #endregion ${target.fragment}`
           )
-      } catch (error) {
-        report(link.line, (error as Error).message)
-      }
-    }
-    for (const example of markdown.examples) {
-      try {
-        const target = localTarget(root, file, example.target)
-        const physicalPath = await physicalTarget(canonicalRoot, target.path, example.target)
-        let source: string
-        try {
-          source = await read(physicalPath)
+          if (!target.fragment || start < 0 || end < 0)
+            throw new Error(`Missing source region: ${example.target}`)
+          if (
+            lines
+              .slice(start + 1, end)
+              .join('\n')
+              .trim() !== example.body.trim()
+          )
+            report(example.line, `Source example differs: ${example.target}`)
         } catch (error) {
-          if (isMissing(error)) throw new Error(`Missing source file: ${example.target}`)
-          throw filesystemFailure('read source file', example.target, error)
+          if (isHelperFailure(error)) throw error
+          report(example.line, (error as Error).message)
         }
-        const lines = source.split(/\r?\n/)
-        const start = lines.findIndex((line) => line.trim() === `// #region ${target.fragment}`)
-        const end = lines.findIndex(
-          (line, index) => index > start && line.trim() === `// #endregion ${target.fragment}`
-        )
-        if (!target.fragment || start < 0 || end < 0)
-          throw new Error(`Missing source region: ${example.target}`)
-        if (
-          lines
-            .slice(start + 1, end)
-            .join('\n')
-            .trim() !== example.body.trim()
-        )
-          report(example.line, `Source example differs: ${example.target}`)
-      } catch (error) {
-        report(example.line, (error as Error).message)
       }
     }
+  } finally {
+    await filesystem.close()
   }
   return diagnostics
 }

@@ -86,8 +86,14 @@ mark the maintained region with `// #region example_name` and `// #endregion exa
 code in the guide (a blank line is allowed). The path is relative to that Markdown file. The
 checker requires the fence to match the region; it does not run Markdown as code.
 
-Local links and source markers follow symlinks only when their resolved targets remain inside the
-checkout. Directory `README.md` anchors follow the same rule.
+The checker requires Python 3 and a kernel that supports confined opens: Linux 5.6 or newer on
+x86_64/aarch64 with `openat2`, or macOS with `O_RESOLVE_BENEATH` and `O_NOFOLLOW_ANY`. It probes
+these capabilities at startup and fails if they are unavailable. Selected Markdown files, local
+links, source markers, and directory `README.md` anchors may follow internal symlinks. Metadata
+checks are confined beneath the checkout without requiring file read permission. Each content read
+opens the complete resolved path beneath the checkout with symlink following disabled, then reads
+from that descriptor. Replacing a file or parent symlink cannot redirect the read outside the
+checkout. A file moved after it is opened remains the same opened file.
 
 The README recovery example, tutorial service and cookbook functions are imported by their fixture
 tests. `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum` install the public packed
