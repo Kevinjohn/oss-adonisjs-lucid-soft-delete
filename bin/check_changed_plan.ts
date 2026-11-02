@@ -87,6 +87,7 @@ export type TestOutcome = { passed: boolean; executed: number }
 
 /**
  * Read Japa's summary. A successful check must execute at least one test and report no failures.
+ * A `regression` is a `.fails()` test that failed as expected, so it counts as a passing test.
  */
 export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   // eslint-disable-next-line no-control-regex
@@ -115,7 +116,7 @@ export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   const failed = counts.get('failed') ?? 0
   const regressions = counts.get('regression') ?? 0
   return {
-    passed: exitCode === 0 && recognized && passed > 0 && failed === 0 && regressions === 0,
+    passed: exitCode === 0 && recognized && passed + regressions > 0 && failed === 0,
     executed: passed + failed + regressions,
   }
 }

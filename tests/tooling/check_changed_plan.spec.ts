@@ -221,14 +221,22 @@ test.group('check:changed test outcome', () => {
     })
   })
 
-  test('accepts todo summaries with passing tests and rejects regressions', ({ assert }) => {
+  test('accepts todo and expected-failure summaries with executed tests', ({ assert }) => {
     assert.deepEqual(readTestOutcome('Tests  1 passed, 1 todo (2)', 0), {
       passed: true,
       executed: 1,
     })
     assert.deepEqual(readTestOutcome('Tests  1 passed, 1 regression (2)', 0), {
-      passed: false,
+      passed: true,
       executed: 2,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 regression (1)', 0), {
+      passed: true,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 regression (1)', 1), {
+      passed: false,
+      executed: 1,
     })
     assert.deepEqual(readTestOutcome('Tests  2 todo (2)', 0), {
       passed: false,
