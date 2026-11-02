@@ -260,9 +260,6 @@ test.group('Published cookbook recipes', (group) => {
     assert,
     cleanup,
   }) => {
-    const client = env.get('DB_CLIENT')
-    if (client !== 'better-sqlite3') return
-
     cleanup(async () => {
       await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_seed_label_other')
       await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_restore_label_other')
@@ -339,7 +336,7 @@ test.group('Published cookbook recipes', (group) => {
       .firstOrFail()
     assert.equal(thirdOwner.label_other, 'third')
     assert.isNull(thirdOwner.deleted_at)
-  })
+  }).skip(env.get('DB_CLIENT') !== 'better-sqlite3', 'SQLite trigger-based unique violation test')
 
   test('does not recover when restore succeeds without changing the row', async ({
     assert,
