@@ -9,7 +9,7 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { createDatabase, createTables } from '../helpers.js'
+import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { RelationUser } from '../fixtures/models.js'
 import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../../src/mode.js'
 import { installModePropagation } from '../../src/propagation.js'
@@ -77,7 +77,13 @@ test.group('scope modules', (group) => {
     await createTables(db)
 
     class SchemaQualifiedUser extends RelationUser {
-      static table = 'main.users'
+      static table = `${
+        dbClient === 'sqlite'
+          ? 'main'
+          : dbClient === 'pg'
+            ? 'public'
+            : (process.env.DB_DATABASE ?? 'lucid_soft_deletes_test')
+      }.users`
     }
 
     await db
@@ -93,8 +99,11 @@ test.group('scope modules', (group) => {
       ])
 
     const query = SchemaQualifiedUser.query()
-    assert.equal(resolveTableReference(query), 'main.users')
-    assert.equal(qualifiedColumnReference(query, 'deleted_at'), 'main.users.deleted_at')
+    assert.equal(resolveTableReference(query), SchemaQualifiedUser.table)
+    assert.equal(
+      qualifiedColumnReference(query, 'deleted_at'),
+      `${SchemaQualifiedUser.table}.deleted_at`
+    )
     const rows = await query
     assert.deepEqual(
       rows.map((row) => row.username),
@@ -107,8 +116,16 @@ test.group('scope modules', (group) => {
 
     const query = RelationUser.query().from({ ' user.rows ': 'users' })
     const reference = qualifiedColumnReference(query, ' deleted_at ')
+    const knexQuery = query.knexQuery as unknown as {
+      queryContext(): unknown
+      client: {
+        wrapIdentifier: (value: string, queryContext?: unknown) => string
+      }
+    }
+    const context = knexQuery.queryContext()
+    const wrappedReference = `${knexQuery.client.wrapIdentifier('user.rows', context)}.${knexQuery.client.wrapIdentifier('deleted_at', context)} is null`
 
-    assert.match(query.whereNull(reference).toQuery(), /`user\.rows`\.`deleted_at` is null/)
+    assert.include(query.whereNull(reference).toQuery(), wrappedReference)
   })
 
   test('qualified alias references use the query context identifier wrapper', async ({
