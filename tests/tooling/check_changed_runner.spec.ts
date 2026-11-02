@@ -14,6 +14,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { test } from '@japa/runner'
+import { resolveStepCommand, runStep, terminateStep } from '../../bin/check_changed_process.js'
 
 const projectRoot = fileURLToPath(new URL('../../', import.meta.url))
 const checkChangedPath = join(projectRoot, 'bin/check_changed.ts')
@@ -168,7 +169,7 @@ async function runnerFixture(
   const shimPath = join(shimDirectory, 'pnpm')
   await writeFile(
     shimPath,
-    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
+    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
   )
   await chmod(shimPath, 0o755)
 
@@ -196,15 +197,18 @@ async function runnerFixture(
     inheritedSigningFailure: inheritedSigningFailure?.status,
     inheritedSigningError: inheritedSigningFailure?.stderr ?? '',
     waitForGroupExit: () => waitForProcessGroupExit(join(root, 'process_group')),
+    removePnpmShim: () => rm(shimPath),
     run: async (
       testOutput: string,
       cliArgs: string[] = ['main'],
-      runOptions: { hang?: boolean; timeoutMs?: number } = {}
+      runOptions: { hang?: boolean; timeoutMs?: number; restrictPath?: boolean } = {}
     ) => {
       await writeFile(logPath, '')
+      const childEnv = envFor(testOutput, runOptions.hang)
+      if (runOptions.restrictPath) childEnv.PATH = '/usr/bin:/bin'
       const child = spawn(process.execPath, argsFor(cliArgs), {
         cwd: root,
-        env: envFor(testOutput, runOptions.hang),
+        env: childEnv,
         detached: process.platform !== 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
@@ -256,15 +260,10 @@ async function runnerFixture(
         preloadPath,
         'const original = globalThis.setTimeout; globalThis.setTimeout = (callback, delay, ...args) => original(callback, delay === 600000 ? 500 : delay, ...args)\n'
       )
+      const runnerImports = [`--import=${loaderUrl}`, `--import=${pathToFileURL(preloadPath).href}`]
       const child = spawn(
         process.execPath,
-        [
-          `--import=${loaderUrl}`,
-          `--import=${pathToFileURL(preloadPath).href}`,
-          '--enable-source-maps',
-          checkChangedPath,
-          'main',
-        ],
+        [...runnerImports, '--enable-source-maps', checkChangedPath, 'main'],
         {
           cwd: root,
           env: envFor(testOutput, true),
@@ -380,6 +379,77 @@ test.group('check:changed runner test outcome', () => {
       assert.include(result.stderr, 'is not a known git ref')
       assert.equal(result.commands, '')
     }
+  })
+
+  test('selects the package script pnpm entry point on Windows', ({ assert }) => {
+    assert.deepEqual(
+      resolveStepCommand('pnpm', 'win32', 'node.exe', 'C:/pnpm/pnpm.mjs', ['typecheck']),
+      { executable: 'node.exe', args: ['C:/pnpm/pnpm.mjs', 'typecheck'] }
+    )
+    assert.deepEqual(resolveStepCommand('pnpm', 'win32', 'node.exe', undefined, ['build']), {
+      error: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
+    })
+    assert.deepEqual(resolveStepCommand('git', 'win32', 'node.exe', 'pnpm.mjs', ['status']), {
+      executable: 'git',
+      args: ['status'],
+    })
+  })
+
+  test('returns a clear failure if Windows has no pnpm script entry point', async ({ assert }) => {
+    assert.deepEqual(await runStep('pnpm', ['build'], 'win32', 'node.exe', undefined, () => {}), {
+      code: 1,
+      output: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
+    })
+  })
+
+  test('uses taskkill and direct process termination fallbacks', ({ assert }) => {
+    const calls: Array<{ pid: number; signal: NodeJS.Signals }> = []
+    let taskkillArgs: string[] = []
+    terminateStep(
+      42,
+      'win32',
+      (args) => {
+        taskkillArgs = args
+        return 0
+      },
+      (pid, signal) => calls.push({ pid, signal })
+    )
+    assert.deepEqual(taskkillArgs, ['/pid', '42', '/t', '/f'])
+    assert.deepEqual(calls, [])
+
+    terminateStep(
+      43,
+      'win32',
+      () => 1,
+      (pid, signal) => calls.push({ pid, signal })
+    )
+    terminateStep(
+      44,
+      'win32',
+      () => null,
+      () => {
+        throw new Error('process already exited')
+      }
+    )
+    terminateStep(
+      45,
+      'darwin',
+      () => 0,
+      (pid, signal) => calls.push({ pid, signal })
+    )
+    terminateStep(2_147_483_647, 'win32')
+    assert.deepEqual(calls, [
+      { pid: 43, signal: 'SIGKILL' },
+      { pid: -45, signal: 'SIGKILL' },
+    ])
+  })
+
+  test('reports a child command start error without throwing', async ({ assert, cleanup }) => {
+    const run = await runnerFixture(cleanup)
+    await run.removePnpmShim()
+    const result = await run.run('', ['main'], { restrictPath: true })
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    assert.include(result.stdout, 'Failed to start pnpm:')
   })
 
   if (process.platform !== 'win32')

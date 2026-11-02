@@ -7,11 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { type Change, planChecks, readTestOutcome } from './check_changed_plan.js'
-
-const STEP_TIMEOUT_MS = 10 * 60 * 1000
+import { runStep, terminateStep } from './check_changed_process.js'
 
 function git(args: string[]): string {
   const result = spawnSync('git', args, { encoding: 'utf8' })
@@ -35,20 +34,7 @@ function changedFiles(base: string): Change[] {
 let activeChild: number | undefined
 
 function killStep(pid: number): void {
-  if (process.platform === 'win32') {
-    const result = spawnSync('taskkill.exe', ['/pid', String(pid), '/t', '/f'], {
-      stdio: 'ignore',
-      windowsHide: true,
-    })
-    if (result.status === 0) return
-    try {
-      process.kill(pid, 'SIGKILL')
-    } catch {}
-    return
-  }
-  try {
-    process.kill(-pid, 'SIGKILL')
-  } catch {}
+  terminateStep(pid, process.platform)
 }
 
 /** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
@@ -64,40 +50,16 @@ for (const [signal, code] of [
 
 /** Run a command in its own process group, so a hung step can be stopped with its children. */
 function run(command: string, args: string[]): Promise<{ code: number; output: string }> {
-  return new Promise((resolve) => {
-    const windowsPnpm = process.platform === 'win32' && command === 'pnpm'
-    const executable = windowsPnpm ? process.execPath : command
-    const pnpmExecPath = process.env.npm_execpath
-    if (windowsPnpm && !pnpmExecPath) {
-      resolve({
-        code: 1,
-        output: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
-      })
-      return
+  return runStep(
+    command,
+    args,
+    process.platform,
+    process.execPath,
+    process.env.npm_execpath,
+    (pid) => {
+      activeChild = pid
     }
-    const commandArgs = windowsPnpm ? [pnpmExecPath!, ...args] : args
-    const child = spawn(executable, commandArgs, {
-      detached: process.platform !== 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    })
-    activeChild = child.pid
-    let output = ''
-    child.on('error', (error) => {
-      output += `\nFailed to start ${command}: ${error.message}`
-    })
-    child.stdout.on('data', (chunk) => (output += chunk))
-    child.stderr.on('data', (chunk) => (output += chunk))
-    const timer = setTimeout(() => {
-      output += `\nStopped after ${STEP_TIMEOUT_MS / 1000}s`
-      if (child.pid) killStep(child.pid)
-    }, STEP_TIMEOUT_MS)
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      activeChild = undefined
-      resolve({ code: code ?? 1, output })
-    })
-  })
+  )
 }
 
 let failed = false

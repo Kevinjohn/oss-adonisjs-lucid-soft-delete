@@ -64,7 +64,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
-    else if (path === 'bin/check_changed.ts') {
+    else if (path === 'bin/check_changed.ts' || path === 'bin/check_changed_process.ts') {
       tests.add(PLAN_SPEC)
       tests.add(RUNNER_SPEC)
     } else if (path === 'bin/check_changed_plan.ts') tests.add(PLAN_SPEC)

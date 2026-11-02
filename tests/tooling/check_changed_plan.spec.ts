@@ -129,6 +129,13 @@ test.group('check:changed plan', () => {
     ])
   })
 
+  test('the runner process helper selects planner and runner specs', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/check_changed_process.ts')).tests, [
+      'tests/tooling/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_runner.spec.ts',
+    ])
+  })
+
   test('the documentation checker runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/docs_check.ts')).tests, [
       'tests/tooling/docs_check.spec.ts',
