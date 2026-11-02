@@ -138,7 +138,7 @@ dist
 # Private planning files, never committed
 __*.md
 
-# Upstream editor and package artifacts
+# Editor and package artifacts
 .DS_Store
 .DS_STORE
 .idea

@@ -2,9 +2,9 @@
 
 This log records implementation decisions made while delivering version 0.1.0-alpha. The PRD defines the product contract; an entry here records how that contract was carried out or why evidence required a change.
 
-## 2026-10-25: Preserve upstream history with a merge commit
+## 2026-10-25: Preserve project history with a merge commit
 
-- **Decision:** Import `lookinlab/adonis-lucid-soft-deletes` master at `83c08d6` with an unrelated-history merge commit, retaining its full ancestry and licence text.
+- **Decision:** Import the prior project's master at `83c08d6` with an unrelated-history merge commit, retaining its full ancestry and licence text.
 - **Reason:** The PRD requires provenance in Git history and both copyright notices in the distributed licence.
 - **Evidence:** WP0 ancestry, commit-count, licence, and ignore checks.
 
@@ -104,7 +104,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Reason:** A nested workspace keeps the fixture dependency graph independent of the package under test. Installing the tarball into a fresh copy proves that the app resolves the distributed package rather than source files in this checkout.
 - **Evidence:** The fixture's strict TypeScript check, build, configure twice, schema generation, migration and Japa consumer test pass locally. The packed latest and minimum peer runs pass on both SQLite and PostgreSQL 16.
 
-## 2026-10-25: Keep strict fixture typechecking across upstream declaration gaps
+## 2026-10-25: Keep strict fixture typechecking across declaration gaps
 
 - **Decision:** Pin the fixture to TypeScript 5.9.3 and Node types 25.9.9, include the optional peer declarations imported by Adonis, and load Ace command modules through dynamic module IDs. Retain `skipLibCheck: false`.
 - **Reason:** Node 26 types change tracing declarations, while generated core and Lucid command indexes import a `Command` type absent from the installed Ace declarations. Ace's configuration contract already accepts dynamic command loaders, which preserve runtime command registration without depending on those generated command-index types.
@@ -134,11 +134,11 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Reason:** Soft-delete query filtering does not alter uniqueness or foreign-key enforcement. A rejected restore must leave the newer active row unchanged, and deleting a parent must follow the database's configured cascade rule.
 - **Evidence:** WP7 adds serialization, factory/seeder, PostgreSQL partial-index and cascade tests. A restore-conflict regression also verifies retry on the same instance after the collision is resolved. The integrated suite passes 100 tests with two PostgreSQL-only cases skipped on SQLite, and 102 tests on PostgreSQL 16. Focused mutation checks failed at the intended assertions before restoration.
 
-## 2026-10-25: Keep publication and upstream communication as owner steps
+## 2026-10-25: Keep publication as an owner step
 
-- **Decision:** Document manual alpha publication and prepare an upstream issue-32 comment as a draft. Leave the changelog release date for the owner and retain the README comment placeholder until the upstream comment is posted.
-- **Reason:** The PRD reserves package publication, tagging and the upstream communication to the owner after the release checks and merges.
-- **Evidence:** `docs/RELEASING.md` lists the manual checks and commands; `docs/upstream-comment.md` is an unposted draft. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
+- **Decision:** Document manual alpha publication and leave the changelog release date for the owner.
+- **Reason:** The PRD reserves package publication and tagging to the owner after the release checks and merges.
+- **Evidence:** `docs/RELEASING.md` lists the manual checks and commands. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
 
 ## 2026-10-25: Follow the specified CI legs and run the full peer/database combination locally
 
@@ -187,7 +187,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 ## 2026-10-27: Number the first release 0.1.0-alpha and distribute it through GitHub
 
 - **Decision:** Release the first prerelease of this continuation as `0.1.0-alpha`, tagged `v0.1.0-alpha`, with the `pnpm pack` tarball attached to a GitHub prerelease. Do not publish it to npm. This replaces the planned `3.0.0-alpha.1` npm alpha.
-- **Reason:** Owner decision (#84). The package has a new name, so its version line does not need to continue upstream's 2.x numbering.
+- **Reason:** Owner decision (#84). The package has a new name, so its version line does not need to continue the prior 2.x numbering.
 - **Evidence:** `package.json`, `CHANGELOG.md`, `docs/RELEASING.md`, `SECURITY.md` and the README install instructions name `0.1.0-alpha` and the release tarball.
 
 ## 2026-10-27: Opt-in bulk lifecycle receipts

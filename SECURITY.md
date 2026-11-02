@@ -5,10 +5,9 @@
 This package supports the current AdonisJS major. When the next major ships, the previous line
 receives fixes for six months. Only the latest release on each supported line receives fixes.
 
-| Package line                               | AdonisJS | Status              |
-| ------------------------------------------ | -------- | ------------------- |
-| 0.x                                        | 7        | Supported           |
-| 2.x (upstream `adonis-lucid-soft-deletes`) | 6        | Not maintained here |
+| Package line | AdonisJS | Status    |
+| ------------ | -------- | --------- |
+| 0.x          | 7        | Supported |
 
 ## Reporting a vulnerability
 

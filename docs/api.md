@@ -406,5 +406,5 @@ See [troubleshooting](troubleshooting.md) for recovery steps for projected model
 - No general global-scope framework; this mixin concerns `deleted_at` only.
 - No cascade soft delete or restore. Child and pivot rows remain after a parent soft delete; `forceDelete()` follows the database's foreign-key and cascade rules.
 - No migration generator beyond `configure` registering the provider.
-- No AdonisJS 5 or 6 support. AdonisJS 6 users can stay on upstream 2.1.0.
+- No AdonisJS 5 or 6 support.
 - No `adonis-lucid-filter` compatibility promise while its available release targets older AdonisJS and Lucid peers.
