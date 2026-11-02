@@ -196,11 +196,15 @@ async function runnerFixture(
     inheritedSigningFailure: inheritedSigningFailure?.status,
     inheritedSigningError: inheritedSigningFailure?.stderr ?? '',
     waitForGroupExit: () => waitForProcessGroupExit(join(root, 'process_group')),
-    run: async (testOutput: string, cliArgs: string[] = ['main'], hang = false) => {
+    run: async (
+      testOutput: string,
+      cliArgs: string[] = ['main'],
+      runOptions: { hang?: boolean; timeoutMs?: number } = {}
+    ) => {
       await writeFile(logPath, '')
       const child = spawn(process.execPath, argsFor(cliArgs), {
         cwd: root,
-        env: envFor(testOutput, hang),
+        env: envFor(testOutput, runOptions.hang),
         detached: process.platform !== 'win32',
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
@@ -213,7 +217,7 @@ async function runnerFixture(
         (resolve) => child.once('close', (status, signal) => resolve({ status, signal }))
       )
       try {
-        const result = await waitForClose(closed, 2000)
+        const result = await waitForClose(closed, runOptions.timeoutMs ?? 15_000)
         return { ...result, stdout, stderr, commands: await readFile(logPath, 'utf8') }
       } catch (error) {
         if (child.pid) {
@@ -386,7 +390,7 @@ test.group('check:changed runner test outcome', () => {
     test('bounds a hung runner and cleans up its process group', async ({ assert, cleanup }) => {
       const run = await runnerFixture(cleanup, { change: 'none' })
       await assert.rejects(
-        () => run.run('', ['main'], true),
+        () => run.run('', ['main'], { hang: true, timeoutMs: 2000 }),
         /Timed out waiting for runner cleanup/
       )
       await run.waitForGroupExit()

@@ -83,6 +83,9 @@ function run(command: string, args: string[]): Promise<{ code: number; output: s
     })
     activeChild = child.pid
     let output = ''
+    child.on('error', (error) => {
+      output += `\nFailed to start ${command}: ${error.message}`
+    })
     child.stdout.on('data', (chunk) => (output += chunk))
     child.stderr.on('data', (chunk) => (output += chunk))
     const timer = setTimeout(() => {
