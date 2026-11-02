@@ -31,7 +31,7 @@ import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.
 import { executeWithReceipt } from '../../src/receipts.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { CustomPost, RelationPost, RelationUser } from '../fixtures/models.js'
-import { waitForReceiptLock } from '../fixtures/receipt_lock_wait.js'
+import { cleanupReceiptLock, waitForReceiptLock } from '../fixtures/receipt_lock_wait.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -798,16 +798,24 @@ test.group('Builder receipts', (group) => {
         return outcome
       }
     )
+    let primaryError: unknown
     try {
       await waitForReceiptLock(db, dbClient, marker, blockerId, () => outcome !== undefined)
       await trxA.commit()
       const settled = await b
       if (settled.status === 'rejected') throw settled.error
       assert.equal(settled.count, 0)
-    } finally {
-      if (!trxA.isCompleted) await trxA.rollback()
-      await b
+    } catch (error) {
+      primaryError = error
     }
+    await cleanupReceiptLock(primaryError, [
+      async () => {
+        if (!trxA.isCompleted) await trxA.rollback()
+      },
+      async () => {
+        await b
+      },
+    ])
     const persisted = await db.from('users').whereIn('id', ids)
     assert.lengthOf(persisted, 2)
     assert.isTrue(persisted.every((row) => row.deleted_at !== null))
@@ -817,4 +825,31 @@ test.group('Builder receipts', (group) => {
   })
     .skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
     .timeout(20_000)
+
+  test('receipt lock cleanup preserves the primary error and runs every cleanup', async ({
+    assert,
+  }) => {
+    const primaryError = new Error('lock observation failed')
+    const rollbackError = new Error('rollback failed')
+    const completed: string[] = []
+
+    let caught: unknown
+    try {
+      await cleanupReceiptLock(primaryError, [
+        async () => {
+          completed.push('rollback')
+          throw rollbackError
+        },
+        async () => {
+          completed.push('competitor')
+        },
+      ])
+    } catch (error) {
+      caught = error
+    }
+    assert.instanceOf(caught, AggregateError)
+    assert.deepEqual((caught as AggregateError).errors, [primaryError, rollbackError])
+    assert.equal((caught as AggregateError).cause, primaryError)
+    assert.deepEqual(completed, ['rollback', 'competitor'])
+  })
 })

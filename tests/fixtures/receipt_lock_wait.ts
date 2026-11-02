@@ -7,6 +7,81 @@ const OBSERVATION_TIMEOUT_MS = 5_000
 const QUERY_TIMEOUT_MS = 1_000
 const POLL_INTERVAL_MS = 25
 
+type KnexConnection = Awaited<ReturnType<Database['connection']>['knexClient']['acquireConnection']>
+
+async function acquireObserverConnection(db: Database) {
+  const client = db.connection().knexClient
+  const pool = client.pool as unknown as {
+    acquireTimeoutMillis: number
+    acquire(): { promise: Promise<KnexConnection> }
+  }
+  const acquireTimeoutMs = pool.acquireTimeoutMillis
+  pool.acquireTimeoutMillis = QUERY_TIMEOUT_MS
+  let acquisition: ReturnType<typeof pool.acquire>
+  try {
+    acquisition = pool.acquire()
+  } finally {
+    pool.acquireTimeoutMillis = acquireTimeoutMs
+  }
+  return acquisition.promise as Promise<KnexConnection>
+}
+
+async function observeLockWait(
+  db: Database,
+  client: Client,
+  connection: KnexConnection,
+  query: string,
+  bindings: unknown[]
+) {
+  const connectionDb = db.connection()
+  if (client === 'pg') {
+    await connectionDb.knexRawQuery('BEGIN').knexQuery.connection(connection)
+    let result: unknown
+    let primaryError: unknown
+    try {
+      await connectionDb
+        .knexRawQuery(`SET LOCAL statement_timeout = '${QUERY_TIMEOUT_MS}ms'`)
+        .knexQuery.connection(connection)
+      result = await connectionDb.knexRawQuery(query, bindings).knexQuery.connection(connection)
+    } catch (error) {
+      primaryError = error
+    }
+    await cleanupReceiptLock(primaryError, [
+      () => connectionDb.knexRawQuery('ROLLBACK').knexQuery.connection(connection),
+    ])
+    return result
+  }
+
+  return connectionDb
+    .knexRawQuery(
+      query.replace(/^\s*SELECT/i, `SELECT /*+ MAX_EXECUTION_TIME(${QUERY_TIMEOUT_MS}) */`),
+      bindings
+    )
+    .knexQuery.connection(connection)
+}
+
+/** Runs cleanup actions independently and keeps the original failure in an aggregate. */
+export async function cleanupReceiptLock(
+  primaryError: unknown,
+  cleanups: Array<() => Promise<unknown>>
+) {
+  const errors: unknown[] = primaryError === undefined ? [] : [primaryError]
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup()
+    } catch (error) {
+      errors.push(error)
+    }
+  }
+
+  if (errors.length > 1) {
+    throw new AggregateError(errors, 'Receipt lock test failed during cleanup', {
+      cause: primaryError,
+    })
+  }
+  if (errors.length === 1) throw errors[0]
+}
+
 /** Waits until the marked write is observed waiting on the supplied transaction. */
 export async function waitForReceiptLock(
   db: Database,
@@ -46,10 +121,13 @@ export async function waitForReceiptLock(
       throw new Error('The competing receipt write settled before its lock wait was observed')
     }
 
-    const result = await db
-      .connection()
-      .knexRawQuery(query, [`%${marker}%`, blockerId])
-      .timeout(QUERY_TIMEOUT_MS, { cancel: true })
+    const connection = await acquireObserverConnection(db)
+    let result: unknown
+    try {
+      result = await observeLockWait(db, client, connection, query, [`%${marker}%`, blockerId])
+    } finally {
+      await db.connection().knexClient.releaseConnection(connection)
+    }
     const rows =
       client === 'pg' ? (result as { rows: unknown[] }).rows : (result as [unknown[], unknown])[0]
     if (rows.length > 0) return
