@@ -23,7 +23,9 @@ export function aliasFromTable(table: unknown): string | undefined {
   }
   if (table && typeof table === 'object' && !Array.isArray(table)) {
     const entries = Object.entries(table)
-    if (entries.length === 1 && typeof entries[0][1] === 'string') return entries[0][0]
+    if (entries.length === 1 && typeof entries[0][1] === 'string') {
+      return entries[0][0].trim() || undefined
+    }
   }
   return undefined
 }
@@ -64,6 +66,6 @@ export function qualifiedColumnReference(
   const knexClient = knexQuery.client
   const context = queryContext ?? knexQuery.queryContext()
   return query.client.raw(
-    `${knexClient.wrapIdentifier(tableReference, context)}.${knexClient.wrapIdentifier(column, context)}`
+    `${knexClient.wrapIdentifier(tableReference.trim(), context)}.${knexClient.wrapIdentifier(column.trim(), context)}`
   )
 }

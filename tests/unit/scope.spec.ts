@@ -300,11 +300,11 @@ test.group('Read scope', (group) => {
     await trashed.delete()
 
     const scopedSubquery = RelationPost.query()
-      .from('posts as post.rows')
+      .from({ ' post.rows ': 'posts' })
       .where('userId', 42)
       .select('id')
     applySubQueryScope(scopedSubquery)
-    const selected = await RelationPost.query().whereIn('id', scopedSubquery)
+    const selected = await RelationPost.withTrashed().whereIn('id', scopedSubquery)
 
     assert.deepEqual(
       selected.map((row) => row.id),

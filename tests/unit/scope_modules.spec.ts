@@ -45,6 +45,7 @@ test.group('scope modules', (group) => {
     assert.equal(aliasFromTable('posts as   user-rows   '), 'user-rows')
     assert.equal(aliasFromTable({ p: 'posts' }), 'p')
     assert.equal(aliasFromTable({ 'user.rows': 'users' }), 'user.rows')
+    assert.equal(aliasFromTable({ ' user.rows ': 'users' }), 'user.rows')
     assert.isUndefined(aliasFromTable('posts'))
     assert.isUndefined(aliasFromTable({ p: 'posts', q: 'users' }))
     assert.isUndefined(aliasFromTable({ p: 1 }))
@@ -79,6 +80,15 @@ test.group('scope modules', (group) => {
     const query = SchemaQualifiedUser.query()
     assert.equal(resolveTableReference(query), 'public.users')
     assert.equal(qualifiedColumnReference(query, 'deleted_at'), 'public.users.deleted_at')
+  })
+
+  test('qualified alias references follow Knex whitespace normalization', async ({ assert }) => {
+    await createDatabase()
+
+    const query = RelationUser.query().from({ ' user.rows ': 'users' })
+    const reference = qualifiedColumnReference(query, ' deleted_at ')
+
+    assert.match(query.whereNull(reference).toQuery(), /`user\.rows`\.`deleted_at` is null/)
   })
 
   test('where stack: one filter after the grouped predicates, replaced on rerun, removable', async ({
