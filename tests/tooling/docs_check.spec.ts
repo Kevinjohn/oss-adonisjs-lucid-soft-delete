@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import fsPromises, { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
+import fsPromises, { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
@@ -30,18 +30,22 @@ async function withReadFileFailure<T>(
   path: string,
   code: string,
   operation: () => Promise<T>
-): Promise<T> {
+): Promise<{ result: T; failures: number }> {
+  const canonicalPath = await realpath(path)
   const originalReadFile = fsPromises.readFile
+  let failures = 0
   Object.defineProperty(fsPromises, 'readFile', {
     value: (...args: Parameters<typeof originalReadFile>) => {
-      if (args[0] === path)
+      if (args[0] === canonicalPath) {
+        failures++
         return Promise.reject(Object.assign(new Error('injected read failure'), { code }))
+      }
       return originalReadFile(...args)
     },
   })
   syncBuiltinESMExports()
   try {
-    return await operation()
+    return { result: await operation(), failures }
   } finally {
     Object.defineProperty(fsPromises, 'readFile', { value: originalReadFile })
     syncBuiltinESMExports()
@@ -278,10 +282,13 @@ test.group('Documentation checks', () => {
   }) => {
     const root = await fixture({ 'docs/placeholder': '' }, cleanup)
     const path = join(root, 'docs')
-    assert.deepEqual(
-      await withReadFileFailure(path, 'EISDIR', () => checkDocumentation(root, ['docs'])),
-      [{ file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' }]
+    const injected = await withReadFileFailure(path, 'EISDIR', () =>
+      checkDocumentation(root, ['docs'])
     )
+    assert.equal(injected.failures, 1)
+    assert.deepEqual(injected.result, [
+      { file: 'docs', line: 1, message: 'Cannot read Markdown file: docs (EISDIR)' },
+    ])
 
     const realDirectoryDiagnostics = await checkDocumentation(root, ['docs'])
     if (process.platform === 'freebsd')
@@ -460,9 +467,11 @@ test.group('Documentation checks', () => {
       cleanup
     )
     const sourcePath = join(root, 'directory')
-    const diagnostics = await withReadFileFailure(sourcePath, 'EISDIR', () =>
+    const injected = await withReadFileFailure(sourcePath, 'EISDIR', () =>
       checkDocumentation(root, ['README.md'])
     )
+    assert.equal(injected.failures, 1)
+    const diagnostics = injected.result
     assert.lengthOf(diagnostics, 1)
     assert.match(diagnostics[0].message, /^Cannot read source file: directory#demo \(EISDIR\)$/)
 
@@ -521,18 +530,17 @@ test.group('Documentation checks', () => {
       cleanup
     )
     const directoryReadPath = join(root, 'guide', 'README.md')
-    assert.deepEqual(
-      await withReadFileFailure(directoryReadPath, 'EISDIR', () =>
-        checkDocumentation(root, ['README.md'])
-      ),
-      [
-        {
-          file: 'README.md',
-          line: 1,
-          message: 'Cannot read file: guide/#start (EISDIR)',
-        },
-      ]
+    const injected = await withReadFileFailure(directoryReadPath, 'EISDIR', () =>
+      checkDocumentation(root, ['README.md'])
     )
+    assert.equal(injected.failures, 1)
+    assert.deepEqual(injected.result, [
+      {
+        file: 'README.md',
+        line: 1,
+        message: 'Cannot read file: guide/#start (EISDIR)',
+      },
+    ])
 
     const realDirectoryDiagnostics = await checkDocumentation(root, ['README.md'])
     if (process.platform === 'freebsd')
