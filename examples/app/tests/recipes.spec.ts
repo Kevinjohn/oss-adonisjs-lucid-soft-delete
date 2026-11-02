@@ -158,6 +158,59 @@ test.group('Published cookbook recipes', (group) => {
     assert.equal(rows.filter((row) => row.deleted_at !== null).length, 1)
   })
 
+  test('propagates a SQLite unique violation on a similarly named column', async ({
+    assert,
+    cleanup,
+  }) => {
+    const client = env.get('DB_CLIENT')
+    if (client === 'pg') return
+
+    cleanup(async () => {
+      await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_restore_label_other')
+      await db.rawQuery('DROP INDEX IF EXISTS lifecycle_parents_active_label_other_unique')
+      await db.rawQuery('ALTER TABLE lifecycle_parents DROP COLUMN label_other')
+    })
+
+    await db.rawQuery('ALTER TABLE lifecycle_parents ADD COLUMN label_other TEXT')
+    await db.rawQuery(`
+      CREATE UNIQUE INDEX lifecycle_parents_active_label_other_unique
+      ON lifecycle_parents (label_other)
+      WHERE deleted_at IS NULL
+    `)
+    await db.rawQuery(`
+      CREATE TRIGGER lifecycle_restore_label_other
+      AFTER INSERT ON lifecycle_parents
+      WHEN NEW.label LIKE 'unique-%'
+      BEGIN
+        UPDATE lifecycle_parents SET label_other = 'same' WHERE id = NEW.id;
+      END
+    `)
+
+    let restoreError: unknown
+    try {
+      await restoreAfterUniqueConflict()
+    } catch (error) {
+      restoreError = error
+    }
+
+    assert.isNotNull(restoreError)
+    const databaseError = restoreError as { code?: unknown; message?: unknown }
+    assert.equal(databaseError.code, 'SQLITE_CONSTRAINT_UNIQUE')
+    assert.equal(
+      typeof databaseError.message === 'string' &&
+        databaseError.message.includes('UNIQUE constraint failed: lifecycle_parents.label_other'),
+      true
+    )
+
+    const rows = await db
+      .from('lifecycle_parents')
+      .where('label', 'like', 'unique-%')
+      .select('deleted_at')
+    assert.lengthOf(rows, 2)
+    assert.equal(rows.filter((row) => row.deleted_at === null).length, 1)
+    assert.equal(rows.filter((row) => row.deleted_at !== null).length, 1)
+  })
+
   test('does not recover when restore succeeds without changing the row', async ({
     assert,
     cleanup,

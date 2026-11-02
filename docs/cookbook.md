@@ -92,7 +92,7 @@ function isActiveLabelUniqueViolation(error: unknown): boolean {
   return (
     databaseError.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
     typeof databaseError.message === 'string' &&
-    databaseError.message.includes('UNIQUE constraint failed: lifecycle_parents.label')
+    /(?:^|: )UNIQUE constraint failed: lifecycle_parents\.label$/.test(databaseError.message)
   )
 }
 ```
@@ -453,8 +453,9 @@ export async function restoreAfterUniqueConflict() {
 ```
 
 The recipe recognizes only SQLSTATE `23505` for the named PostgreSQL constraint or SQLite's
-`SQLITE_CONSTRAINT_UNIQUE` for `lifecycle_parents.label`. Other restore errors propagate before the
-active owner is deleted. The recipe also requires that it observed that classified conflict before
+`SQLITE_CONSTRAINT_UNIQUE` with the complete payload
+`UNIQUE constraint failed: lifecycle_parents.label`. Other restore errors, including unique
+violations on other columns, propagate before the active owner is deleted. The recipe also requires that it observed that classified conflict before
 recovering; a successful or no-op restore never deletes the active owner.
 
 Expected result: the first restore conflicts and the retry succeeds only after the active owner is
