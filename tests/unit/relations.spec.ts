@@ -1,13 +1,3 @@
-/*
- * @kevinjohn/lucid-soft-deletes
- *
- * (c) 2024 Lookin Anton <alsd@lookinlab.ru>
- * (c) 2026 Kevinjohn Gallagher
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
-
 import type { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { column, BaseModel, manyToMany } from '@adonisjs/lucid/orm'
@@ -66,19 +56,19 @@ test.group('Relations', () => {
     await Industry.query()
 
     const user = new User()
-    user.fill({ username: 'Lookin', email: 'lookin@test.ru', isAdmin: 1, companyId: 1 })
+    user.fill({ username: 'Taylor', email: 'taylor@example.test', isAdmin: 1, companyId: 1 })
     await user.save()
 
     const industry1 = new Industry()
-    industry1.fill({ title: 'Industry 1', text: 'Industry by Lookin' })
+    industry1.fill({ title: 'Industry 1', text: 'Industry description' })
     await industry1.save()
 
     const industry2 = new Industry()
-    industry2.fill({ title: 'Industry 2', text: 'Industry by Lookin' })
+    industry2.fill({ title: 'Industry 2', text: 'Industry description' })
     await industry2.save()
 
     const industry3 = new Industry()
-    industry3.fill({ title: 'Industry 3', text: 'Industry by Lookin' })
+    industry3.fill({ title: 'Industry 3', text: 'Industry description' })
     await industry3.save()
 
     await user.related('industries').attach([industry1.id, industry2.id, industry3.id])

@@ -16,13 +16,11 @@ import { ListLoader } from '@adonisjs/core/ace'
 import Configure from '@adonisjs/core/commands/configure'
 import { IgnitorFactory } from '@adonisjs/core/factories'
 
-const legacyProvider = 'adonis-lucid-soft-deletes/provider'
 const cases = [
   { name: 'fresh app', providerEntry: '' },
-  { name: 'legacy arrow import', providerEntry: `() => import('${legacyProvider}')` },
   {
-    name: 'legacy provider object',
-    providerEntry: `{ file: () => import('${legacyProvider}'), environment: ['web'] }`,
+    name: 'app with an existing provider',
+    providerEntry: `() => import('@adonisjs/core/providers/app_provider')`,
   },
 ]
 
@@ -62,7 +60,7 @@ for (const { name, providerEntry } of cases) {
       await ignitor.ace().handle(['configure', '@kevinjohn/lucid-soft-deletes'])
       const afterFirstRun = await readFile(join(root, 'adonisrc.ts'), 'utf8')
       assert.equal(afterFirstRun.match(/@kevinjohn\/lucid-soft-deletes\/provider/g)?.length, 1)
-      assert.notInclude(afterFirstRun, legacyProvider)
+      if (providerEntry) assert.include(afterFirstRun, providerEntry)
 
       await ignitor.ace().handle(['configure', '@kevinjohn/lucid-soft-deletes'])
       assert.equal(await readFile(join(root, 'adonisrc.ts'), 'utf8'), afterFirstRun)

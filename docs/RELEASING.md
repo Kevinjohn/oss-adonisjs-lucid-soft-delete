@@ -17,8 +17,6 @@ gh release create v0.1.1-alpha kevinjohn-lucid-soft-deletes-0.1.1-alpha.tgz --pr
 
 The tarball's file name must stay `kevinjohn-lucid-soft-deletes-0.1.1-alpha.tgz`: the README install command downloads it from that release URL. After publishing, run the [tutorial](tutorial.md) setup block from an empty directory; it checks out the new tag.
 
-Then post the reviewed draft in [upstream-comment.md](upstream-comment.md) to [upstream issue 32](https://github.com/lookinlab/adonis-lucid-soft-deletes/issues/32), and replace the `TODO(owner)` in the README with a link to the posted comment. The upstream comment is not posted by this checklist automatically. After posting, move `upstream-comment.md` to `docs/history/` and add it to that folder's index.
-
 For a later prerelease, set the next version and add a dated changelog entry. Commit the version and changelog together on a branch and merge it to `main` through a pull request. Then update the version in the README install URL, the tutorial tag and this checklist, and repeat the checks, pack, tag and release steps:
 
 ```bash

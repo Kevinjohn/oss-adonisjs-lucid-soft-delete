@@ -16,9 +16,7 @@ Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, 
 > Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/api.md#choose-an-operation).
 
 > [!NOTE]
-> `0.1.1-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0; upgrading from upstream? Read the [migration guide](docs/migration.md). Use the README accompanying the exact version you install.
-
-<!-- TODO(owner): After posting docs/upstream-comment.md to upstream issue 32, add a sentence here linking to the posted comment. -->
+> `0.1.1-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
 
 ## Install
 
@@ -84,7 +82,7 @@ The function returns `{ id, hidden: true, inRecycleBin: true, visibleAgain: true
 - [API reference](docs/api.md): every method, its result, hooks, errors and TypeScript types.
 - [Scope contract](docs/scope-contract.md): which queries hide trashed rows and which do not.
 - [Troubleshooting](docs/troubleshooting.md): symptoms, causes and fixes.
-- [Migrating from 2.1.0](docs/migration.md): changes from the upstream package.
+- Apps moving from the original package: remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/lucid-soft-deletes`.
 
 ## Contributing
 

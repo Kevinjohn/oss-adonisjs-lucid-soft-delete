@@ -88,7 +88,6 @@
     "adonisjs-soft-deletes",
     "adonis",
     "adonis-lucid",
-    "adonis-lucid-soft-deletes",
     "adonis-soft-deletes"
   ],
   "prettier": "@adonisjs/prettier-config",
