@@ -96,7 +96,7 @@ async function runnerFixture(
   await writeFile(join(root, 'src/marker.ts'), 'export const marker = 0\n')
   await writeFile(join(root, 'package.json'), '{}\n')
 
-  const cleanGitEnv = {
+  const cleanGitEnv: NodeJS.ProcessEnv = {
     ...process.env,
     GIT_CONFIG_GLOBAL: globalConfigPath,
     GIT_CONFIG_NOSYSTEM: '1',
@@ -309,10 +309,6 @@ async function runnerFixture(
       }
     },
   }
-}
-
-function hangingPnpmShim(): string {
-  return 'if [ "$CHECK_CHANGED_HANG" = "1" ] && [ "$1" = "format:check" ]; then printf \'%s\\n\' "$$" > "$CHECK_CHANGED_GROUP"; touch "$CHECK_CHANGED_READY"; while :; do sleep 1; done; fi'
 }
 
 test.group('check:changed runner test outcome', () => {
