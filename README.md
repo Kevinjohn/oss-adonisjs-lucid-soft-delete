@@ -16,14 +16,14 @@ Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, 
 > Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/api.md#choose-an-operation).
 
 > [!NOTE]
-> `0.1.1-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
+> `0.1.2-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.2-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
 
 ## Install
 
 Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9+.
 
 ```bash
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.1-alpha/kevinjohn-lucid-soft-deletes-0.1.1-alpha.tgz luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2-alpha/kevinjohn-lucid-soft-deletes-0.1.2-alpha.tgz luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 

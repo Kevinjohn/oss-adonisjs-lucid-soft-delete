@@ -2,7 +2,14 @@
 
 All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.1.2-alpha - 2026-11-02
+
+### Fixed
+
+- Soft-delete filters, group limits, subqueries, lifecycle writes and receipt selectors quote a table alias containing a literal dot, such as `users as user.rows`, as one identifier. Schema-qualified table names still keep separate identifier segments.
+- The cookbook's restore-after-unique-conflict recipe treats only the intended unique constraint as a conflict, rethrows other errors, and reports both the operation failure and the index-cleanup failure. The cookbook states that its delete-then-retry policy is not atomic.
+- `pnpm docs:check` resolves selected Markdown files and link targets before reading them and reports any that point outside the checkout, including through symlinks.
+- `pnpm check:changed` bounds subprocess cleanup and reports a process tree it could not fully stop, runs both of its own specs when runner or planner code changes, and accepts Japa summaries with todo and expected-failure tests.
 
 ### Changed
 
