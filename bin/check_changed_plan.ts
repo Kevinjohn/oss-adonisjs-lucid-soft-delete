@@ -36,6 +36,7 @@ const FULL_SUITE = [
   /^tsconfig\.json$/,
 ]
 const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
+const RUNNER_SPEC = 'tests/tooling/check_changed_runner.spec.ts'
 const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
@@ -63,7 +64,10 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
-    else if (/^bin\/check_changed/.test(path)) tests.add(PLAN_SPEC)
+    else if (path === 'bin/check_changed.ts') {
+      tests.add(PLAN_SPEC)
+      tests.add(RUNNER_SPEC)
+    } else if (path === 'bin/check_changed_plan.ts') tests.add(PLAN_SPEC)
     else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
   }
 
@@ -89,7 +93,7 @@ export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   let recognized = summary !== null
   if (summary) {
     for (const result of summary[1].split(', ').map((part) => part.trim())) {
-      const match = result.match(/^(\d+) (passed|failed|skipped)$/)
+      const match = result.match(/^(\d+) (passed|failed|todo|skipped|regression)$/)
       if (!match || counts.has(match[2])) {
         recognized = false
         break
@@ -101,8 +105,9 @@ export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   }
   const passed = counts.get('passed') ?? 0
   const failed = counts.get('failed') ?? 0
+  const regressions = counts.get('regression') ?? 0
   return {
-    passed: exitCode === 0 && recognized && passed > 0 && failed === 0,
-    executed: passed + failed,
+    passed: exitCode === 0 && recognized && passed > 0 && failed === 0 && regressions === 0,
+    executed: passed + failed + regressions,
   }
 }

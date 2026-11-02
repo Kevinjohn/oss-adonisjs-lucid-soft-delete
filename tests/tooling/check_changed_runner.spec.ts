@@ -76,18 +76,66 @@ async function runnerFixture(
   cleanup(() => rm(root, { recursive: true, force: true }))
   const shimDirectory = join(root, 'bin')
   const logPath = join(root, 'pnpm.log')
+  const globalConfigPath = join(root, 'isolated.gitconfig')
+  const inheritedConfigPath = join(root, 'inherited.gitconfig')
+  const hooksDirectory = join(root, 'empty-hooks')
   await mkdir(shimDirectory)
+  await mkdir(hooksDirectory)
   await writeFile(logPath, '')
+  await writeFile(globalConfigPath, '')
+  await writeFile(
+    inheritedConfigPath,
+    '[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = missing-test-signer\n'
+  )
   await mkdir(join(root, 'src'))
   await writeFile(join(root, '.nvmrc'), `${options.runtimeVersion ?? '24'}\n`)
   await writeFile(join(root, 'src/marker.ts'), 'export const marker = 0\n')
   await writeFile(join(root, 'package.json'), '{}\n')
 
-  execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: root })
-  execFileSync('git', ['add', '.'], { cwd: root })
+  const cleanGitEnv = {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: globalConfigPath,
+    GIT_CONFIG_NOSYSTEM: '1',
+  }
+  for (const key of Object.keys(cleanGitEnv)) {
+    if (
+      key.startsWith('GIT_CONFIG_') &&
+      key !== 'GIT_CONFIG_GLOBAL' &&
+      key !== 'GIT_CONFIG_NOSYSTEM'
+    ) {
+      delete cleanGitEnv[key]
+    }
+  }
+  execFileSync('git', ['init', '--quiet', '--initial-branch=main'], {
+    cwd: root,
+    env: cleanGitEnv,
+  })
+  execFileSync('git', ['add', '.'], { cwd: root, env: cleanGitEnv })
+  const inheritedSigningFailure = spawnSync(
+    'git',
+    [
+      '-c',
+      `user.name=Test User`,
+      '-c',
+      'user.email=test@example.invalid',
+      'commit',
+      '--quiet',
+      '-m',
+      'probe',
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...cleanGitEnv, GIT_CONFIG_GLOBAL: inheritedConfigPath },
+    }
+  )
   execFileSync(
     'git',
     [
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      `core.hooksPath=${hooksDirectory}`,
       '-c',
       'user.name=Test User',
       '-c',
@@ -97,7 +145,7 @@ async function runnerFixture(
       '-m',
       'fixture',
     ],
-    { cwd: root }
+    { cwd: root, env: cleanGitEnv }
   )
   switch (options.change ?? 'source') {
     case 'source':
@@ -114,7 +162,7 @@ async function runnerFixture(
   const shimPath = join(shimDirectory, 'pnpm')
   await writeFile(
     shimPath,
-    `#!/bin/sh\nprintf '%s\\n' "$*" >> "$CHECK_CHANGED_LOG"\n${hangingPnpmShim()}\nif [ "$1" = "quick:test" ]; then printf '%s\\n' "$CHECK_CHANGED_TEST_OUTPUT"; fi\nif [ "$1" = "build" ] && [ "$CHECK_CHANGED_FAIL_BUILD" = "1" ]; then exit 1; fi\nexit 0\n`
+    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
   )
   await chmod(shimPath, 0o755)
 
@@ -133,9 +181,13 @@ async function runnerFixture(
     CHECK_CHANGED_GROUP: join(root, 'process_group'),
     CHECK_CHANGED_HANG: hang ? '1' : '0',
     CHECK_CHANGED_FAIL_BUILD: options.failBuild ? '1' : '0',
+    GIT_CONFIG_GLOBAL: inheritedConfigPath,
+    GIT_CONFIG_NOSYSTEM: '1',
   })
 
   return {
+    inheritedSigningFailure: inheritedSigningFailure.status,
+    inheritedSigningError: inheritedSigningFailure.stderr,
     run: async (testOutput: string, cliArgs: string[] = ['main']) => {
       await writeFile(logPath, '')
       const result = spawnSync(process.execPath, argsFor(cliArgs), {
@@ -238,6 +290,25 @@ test.group('check:changed runner test outcome', () => {
     assert.include(result.commands, 'docs:check')
   })
 
+  test('accepts a passing summary that includes todo tests', async ({ assert, cleanup }) => {
+    const run = await runnerFixture(cleanup)
+    const result = await run.run('Tests  1 passed, 1 todo (2)')
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.include(result.stdout, 'tests: pass (1 tests run)')
+    assert.include(result.commands, 'docs:check')
+  })
+
+  test('isolates fixture commits from inherited signing configuration', async ({
+    assert,
+    cleanup,
+  }) => {
+    const run = await runnerFixture(cleanup)
+    assert.equal(run.inheritedSigningFailure, 128)
+    assert.include(run.inheritedSigningError, 'missing-test-signer')
+    const result = await run.run('Tests  1 passed (1)')
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+  })
+
   test('runs documentation checks for an untracked documentation-only change', async ({
     assert,
     cleanup,
@@ -302,23 +373,25 @@ test.group('check:changed runner test outcome', () => {
     assert.include(result.commands, 'docs:check')
   })
 
-  test('stops a blocked check on SIGTERM and kills its command group', async ({
-    assert,
-    cleanup,
-  }) => {
-    const run = await runnerFixture(cleanup, { change: 'none' })
-    const result = await run.runBlocked('')
-    assert.equal(result.status, 143, result.output)
-    assert.include(result.commands, 'format:check')
-    assert.notInclude(result.commands, 'docs:check')
-  }).timeout(10_000)
+  if (process.platform !== 'win32')
+    test('stops a blocked check on SIGTERM and kills its command group', async ({
+      assert,
+      cleanup,
+    }) => {
+      const run = await runnerFixture(cleanup, { change: 'none' })
+      const result = await run.runBlocked('')
+      assert.equal(result.status, 143, result.output)
+      assert.include(result.commands, 'format:check')
+      assert.notInclude(result.commands, 'docs:check')
+    }).timeout(10_000)
 
-  test('kills a timed-out check and continues to later checks', async ({ assert, cleanup }) => {
-    const run = await runnerFixture(cleanup, { change: 'none' })
-    const result = await run.runBlocked('', true)
-    assert.equal(result.status, 1, result.output)
-    assert.include(result.output, 'Stopped after 600s')
-    assert.include(result.commands, 'format:check')
-    assert.include(result.commands, 'docs:check')
-  }).timeout(10_000)
+  if (process.platform !== 'win32')
+    test('kills a timed-out check and continues to later checks', async ({ assert, cleanup }) => {
+      const run = await runnerFixture(cleanup, { change: 'none' })
+      const result = await run.runBlocked('', true)
+      assert.equal(result.status, 1, result.output)
+      assert.include(result.output, 'Stopped after 600s')
+      assert.include(result.commands, 'format:check')
+      assert.include(result.commands, 'docs:check')
+    }).timeout(10_000)
 })

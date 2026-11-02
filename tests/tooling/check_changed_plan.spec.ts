@@ -125,6 +125,7 @@ test.group('check:changed plan', () => {
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
       'tests/tooling/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_runner.spec.ts',
     ])
   })
 
@@ -201,6 +202,21 @@ test.group('check:changed test outcome', () => {
     assert.deepEqual(readTestOutcome('Tests  1 passed (1)', 1), {
       passed: false,
       executed: 1,
+    })
+  })
+
+  test('accepts todo summaries with passing tests and rejects regressions', ({ assert }) => {
+    assert.deepEqual(readTestOutcome('Tests  1 passed, 1 todo (2)', 0), {
+      passed: true,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 passed, 1 regression (2)', 0), {
+      passed: false,
+      executed: 2,
+    })
+    assert.deepEqual(readTestOutcome('Tests  2 todo (2)', 0), {
+      passed: false,
+      executed: 0,
     })
   })
 })
