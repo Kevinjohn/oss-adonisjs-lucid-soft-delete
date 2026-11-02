@@ -45,10 +45,13 @@ test.group('Cookbook group recovery invocation', (group) => {
       ]
     )
     assert.equal(
-      result.groups.find((group) => group.id === result.originalGroup).status,
+      result.groups.find((recoveryGroup) => recoveryGroup.id === result.originalGroup).status,
       'consumed'
     )
-    assert.equal(result.groups.find((group) => group.id === result.nextGroup).status, 'invalidated')
+    assert.equal(
+      result.groups.find((recoveryGroup) => recoveryGroup.id === result.nextGroup).status,
+      'invalidated'
+    )
     assert.deepEqual(
       result.associations.map((row) => row.record_id),
       [result.ids[1]]

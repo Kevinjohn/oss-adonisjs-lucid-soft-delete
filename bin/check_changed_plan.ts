@@ -36,6 +36,7 @@ const FULL_SUITE = [
   /^tsconfig\.json$/,
 ]
 const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
+const RUNNER_SPEC = 'tests/tooling/check_changed_runner.spec.ts'
 const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
@@ -63,8 +64,10 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
-    else if (/^bin\/check_changed/.test(path)) tests.add(PLAN_SPEC)
-    else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
+    else if (/^bin\/check_changed(_plan|_process)?\.ts$/.test(path)) {
+      tests.add(PLAN_SPEC)
+      tests.add(RUNNER_SPEC)
+    } else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
@@ -80,13 +83,37 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 export type TestOutcome = { passed: boolean; executed: number }
 
 /**
- * Read Japa's summary. A run given explicit files that executes no test fails, because the
- * file filter is wrong.
+ * Read Japa's summary. A successful check must execute at least one test and report no failures.
+ * A `regression` is a `.fails()` test that failed as expected, so it counts as a passing test.
  */
-export function readTestOutcome(output: string, exitCode: number, explicit: boolean): TestOutcome {
+export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   // eslint-disable-next-line no-control-regex
-  const summary = output.replace(/\x1b\[[0-9;]*m/g, '').match(/Tests\s+([^\n]*)\(\d+\)/)?.[1] ?? ''
-  const count = (label: string) => Number(summary.match(new RegExp(`(\\d+) ${label}`))?.[1] ?? 0)
-  const executed = count('passed') + count('failed')
-  return { passed: exitCode === 0 && !(explicit && executed === 0), executed }
+  const plainOutput = output.replace(/\x1b\[[0-9;]*m/g, '')
+  const summaryLines = plainOutput.split(/\r?\n/).filter((line) => /^\s*Tests\b/.test(line))
+  const summaryLine = summaryLines[0]
+  const summary =
+    summaryLines.length === 1 && summaryLine
+      ? summaryLine.match(/^\s*Tests\s+([^\n]*)\((\d+)\)\s*$/)
+      : null
+  const counts = new Map<string, number>()
+  let recognized = summary !== null
+  if (summary) {
+    for (const result of summary[1].split(', ').map((part) => part.trim())) {
+      const match = result.match(/^(\d+) (passed|failed|todo|skipped|regression)$/)
+      if (!match || counts.has(match[2])) {
+        recognized = false
+        break
+      }
+      counts.set(match[2], Number(match[1]))
+    }
+    recognized &&=
+      [...counts.values()].reduce((total, count) => total + count, 0) === Number(summary[2])
+  }
+  const passed = counts.get('passed') ?? 0
+  const failed = counts.get('failed') ?? 0
+  const regressions = counts.get('regression') ?? 0
+  return {
+    passed: exitCode === 0 && recognized && passed + regressions > 0 && failed === 0,
+    executed: passed + failed + regressions,
+  }
 }

@@ -49,6 +49,21 @@ class CustomDeletionParent extends compose(BaseModel, SoftDeletes) {
 function uniqueLabel(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random()}`
 }
+
+function isActiveLabelUniqueViolation(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false
+
+  const databaseError = error as { code?: unknown; constraint?: unknown; message?: unknown }
+  if (databaseError.code === '23505') {
+    return databaseError.constraint === 'lifecycle_parents_active_label_unique'
+  }
+
+  return (
+    databaseError.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
+    typeof databaseError.message === 'string' &&
+    /\bUNIQUE constraint failed: lifecycle_parents\.label$/.test(databaseError.message)
+  )
+}
 // #endregion RECIPE_SETUP
 
 // #region ACCIDENTAL_RESTORE
@@ -282,34 +297,52 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
+  let result: {
+    conflictObserved: boolean
+    remainsTrashedAfterConflict: boolean
+    restoredAfterConflictWasResolved: boolean
+  }
   try {
     const label = uniqueLabel('unique')
     const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
     await deleted.delete()
     const currentOwner = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
 
-    let conflict: unknown
+    let conflictObserved = false
     try {
       await deleted.restore()
     } catch (error) {
-      conflict = error
+      if (!isActiveLabelUniqueViolation(error)) throw error
+      conflictObserved = true
     }
 
     const stateAfterAttempt = await RecipeParent.withTrashed()
       .where('tenantId', 1)
       .where('id', deleted.id)
       .firstOrFail()
-    await currentOwner.forceDelete()
-    if (stateAfterAttempt.trashed) await deleted.restore()
+    if (conflictObserved && stateAfterAttempt.trashed) {
+      await currentOwner.forceDelete()
+      await deleted.restore()
+    }
     const restored = await RecipeParent.withTrashed().where('id', deleted.id).firstOrFail()
-    return {
-      conflictObserved: conflict instanceof Error,
+    result = {
+      conflictObserved,
       remainsTrashedAfterConflict: stateAfterAttempt.trashed,
       restoredAfterConflictWasResolved: !restored.trashed,
     }
-  } finally {
-    await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  } catch (error) {
+    try {
+      await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Restore recipe failed and its temporary index could not be cleaned up'
+      )
+    }
+    throw error
   }
+  await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  return result
 }
 // #endregion RESTORE_UNIQUENESS_CONFLICT
 

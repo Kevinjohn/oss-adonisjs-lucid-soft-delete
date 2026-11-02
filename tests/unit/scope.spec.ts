@@ -12,6 +12,7 @@ import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import { SoftDeletes } from '../../index.js'
 import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+import { applySubQueryScope } from '../../src/scope.js'
 import { createDatabase, createTables } from '../helpers.js'
 import { RelationPost, RelationUser } from '../fixtures/models.js'
 
@@ -213,14 +214,23 @@ test.group('Read scope', (group) => {
     assert.lengthOf(page.all(), 2)
   })
 
-  test('uses object and string aliases for the base table', async ({ assert }) => {
+  test('scopes literal-dot aliases for object and string base-table references', async ({
+    assert,
+  }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed', true)
+    const trashed = await createUser('trashed', true)
     const active = await createUser('active')
 
-    const objectAlias = await User.query().from({ u: 'users' }).where('u.username', 'active')
-    const stringAlias = await User.query().from('users as u').where('u.username', 'active')
+    const objectAlias = await User.query()
+      .from({ 'user.rows': 'users' })
+      .where('username', 'active')
+    const stringAlias = await User.query().from('users as user.rows').where('username', 'active')
+    const escapedAliasName = 'user.rows"archive`v1'
+    const escapedAliasQuery = User.query()
+      .from(`users as ${escapedAliasName}`)
+      .where('username', 'active')
+    const escapedAlias = await escapedAliasQuery
 
     assert.deepEqual(
       objectAlias.map((row) => row.id),
@@ -230,18 +240,74 @@ test.group('Read scope', (group) => {
       stringAlias.map((row) => row.id),
       [active.id]
     )
-
-    const aliased = User.query().from({ u: 'users' }).where('u.username', 'active')
-    const cloned = await aliased.clone()
-    const page = await aliased.paginate(1, 10)
-
     assert.deepEqual(
-      cloned.map((row) => row.id),
+      escapedAlias.map((row) => row.id),
       [active.id]
     )
-    assert.equal(page.total, 1)
+    const knexClient = (
+      escapedAliasQuery.knexQuery as unknown as {
+        client: { wrapIdentifier(value: string): string }
+      }
+    ).client
+    assert.include(
+      escapedAliasQuery.toQuery(),
+      `${knexClient.wrapIdentifier(escapedAliasName)}.${knexClient.wrapIdentifier('deleted_at')}`
+    )
+
+    const defaultAliased = await User.query().from('users as user.rows').where('username', 'active')
+    const onlyTrashedQuery = User.onlyTrashed()
+      .from('users as user.rows')
+      .whereIn('username', ['trashed', 'active'])
+    const trashedOnly = await onlyTrashedQuery.clone()
+    const onlyTrashedPage = await onlyTrashedQuery.paginate(1, 10)
+    const withTrashed = User.withTrashed()
+      .from('users as user.rows')
+      .whereIn('username', ['trashed', 'active'])
+      .orderBy('id')
+    const cloned = await withTrashed.clone()
+    const page = await withTrashed.paginate(1, 10)
+
+    assert.deepEqual(
+      defaultAliased.map((row) => row.id),
+      [active.id]
+    )
+    assert.deepEqual(
+      trashedOnly.map((row) => row.id),
+      [trashed.id]
+    )
+    assert.equal(onlyTrashedPage.total, 1)
+    assert.deepEqual(
+      onlyTrashedPage.all().map((row) => row.id),
+      [trashed.id]
+    )
+    assert.sameMembers(
+      cloned.map((row) => row.id),
+      [active.id, trashed.id]
+    )
+    assert.equal(page.total, 2)
     assert.deepEqual(
       page.all().map((row) => row.id),
+      [trashed.id, active.id]
+    )
+  })
+
+  test('applies subquery scope through a literal-dot alias', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    const active = await RelationPost.create({ userId: 42, title: 'active-child' })
+    const trashed = await RelationPost.create({ userId: 42, title: 'trashed-child' })
+    await trashed.delete()
+
+    const scopedSubquery = RelationPost.query()
+      .from({ ' post.rows ': 'posts' })
+      .where('userId', 42)
+      .select('id')
+    applySubQueryScope(scopedSubquery)
+    const selected = await RelationPost.withTrashed().whereIn('id', scopedSubquery)
+
+    assert.deepEqual(
+      selected.map((row) => row.id),
       [active.id]
     )
   })

@@ -39,7 +39,11 @@ Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local Pos
 ## MySQL
 
 For MySQL 8.4 on macOS, start the Homebrew service, create the test database, and run with
-`DB_CLIENT=mysql`. The transactions test also creates and drops `lucid_soft_deletes_second`:
+`DB_CLIENT=mysql`. The lock-wait receipt tests query `performance_schema.data_lock_waits` and
+`performance_schema.threads`. They require Performance Schema to be enabled and the test account
+to have `SELECT` access to those tables. Confirm those test-only prerequisites with the database
+administrator when using a restricted account. The transactions test also creates and drops
+`lucid_soft_deletes_second`:
 
 ```bash
 brew services start mysql@8.4
@@ -85,6 +89,9 @@ mark the maintained region with `// #region example_name` and `// #endregion exa
 `<!-- source: relative/path/to/file.ts#example_name -->` immediately before the matching fenced
 code in the guide (a blank line is allowed). The path is relative to that Markdown file. The
 checker requires the fence to match the region; it does not run Markdown as code.
+
+Selected Markdown files, local links, source markers, and directory `README.md` anchors follow
+symlinks only when their resolved targets remain inside the checkout.
 
 The README recovery example, tutorial service and cookbook functions are imported by their fixture
 tests. `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum` install the public packed

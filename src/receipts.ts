@@ -14,7 +14,7 @@ import {
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
 } from './errors.js'
-import { resolveTableReference, aliasFromTable } from './table_reference.js'
+import { aliasFromTable, qualifiedColumnReference } from './table_reference.js'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
 export type PrimaryKeyValue = number | string
@@ -143,7 +143,7 @@ export async function executeWithReceipt(
     return { count: rows.length, ids: rows.map((row) => normaliseId(row[pkColumn])) }
   }
 
-  const reference = `${resolveTableReference(query)}.${pkColumn}`
+  const reference = qualifiedColumnReference(query, pkColumn)
   const selector = query.clone()
   ;(selector.knexQuery as unknown as KnexLike)._method = 'select' // a builder reused after count mode is still an update/del
   selector.pojo().clearSelect().select(reference).orderBy(reference, 'asc')

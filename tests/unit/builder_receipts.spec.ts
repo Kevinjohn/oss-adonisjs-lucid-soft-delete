@@ -20,6 +20,7 @@ import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
 import type { PostgreConfig, SqliteConfig } from '@adonisjs/lucid/types/database'
 import { dirname, join } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import {
   E_BULK_RECEIPT_DIVERGED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
@@ -30,6 +31,13 @@ import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.
 import { executeWithReceipt } from '../../src/receipts.js'
 import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { CustomPost, RelationPost, RelationUser } from '../fixtures/models.js'
+import {
+  cleanupReceiptLock,
+  openReceiptConnection,
+  openReceiptTransaction,
+  ReceiptLockConnections,
+  waitForReceiptLock,
+} from '../fixtures/receipt_lock_wait.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -658,12 +666,13 @@ test.group('Builder receipts', (group) => {
   })
 
   test('database failures propagate and leave no partial receipt', async ({ assert }) => {
-    const db = await createDatabase()
+    const queries: Array<{ sql: string; error?: unknown }> = []
+    const db = await createDatabase((event) => {
+      const queryEvent = event as typeof event & { error?: unknown }
+      queries.push({ sql: event.sql, error: queryEvent.error })
+    })
     await createTables(db)
-    await db
-      .connection()
-      .rawQuery('PRAGMA foreign_keys = ON')
-      .catch(() => {})
+    if (dbClient === 'sqlite') await db.rawQuery('PRAGMA foreign_keys = ON').exec()
     await db.table('books').insert({ id: 1, name: 'receipt-book' })
     await db.table('authors').insert({ id: 1, name: 'receipt-author' })
     await db.table('author_book').insert({ book_id: 1, author_id: 1 })
@@ -672,7 +681,32 @@ test.group('Builder receipts', (group) => {
       @column({ isPrimary: true }) declare id: number
     }
     const trx = await openTransaction(db)
-    await assert.rejects(() => Book.query({ client: trx }).forceDelete({ receipt: true }))
+    let receipt: unknown
+    let caught: unknown
+    try {
+      receipt = await Book.query({ client: trx }).forceDelete({ receipt: true })
+    } catch (error) {
+      caught = error
+    }
+    assert.isUndefined(receipt)
+    assert.instanceOf(caught, Error)
+    const expectedCode = {
+      pg: '23503',
+      mysql: 'ER_ROW_IS_REFERENCED_2',
+      sqlite: 'SQLITE_CONSTRAINT_FOREIGNKEY',
+    }[dbClient]
+    assert.equal((caught as Error & { code?: string }).code, expectedCode)
+    if (dbClient === 'mysql') {
+      const errno = (caught as Error & { errno?: number }).errno
+      if (errno !== undefined) assert.equal(errno, 1451)
+    }
+    const failedBookDelete = queries.find(
+      ({ sql, error }) =>
+        /^\s*delete\s+from\s+(?:"books"|`books`|\[books\]|books)(?=\s|$)/i.test(sql) &&
+        error !== undefined
+    )
+    if (!failedBookDelete) throw new Error('expected a failed DELETE against books')
+    assert.equal((failedBookDelete.error as Error & { code?: string }).code, expectedCode)
     await trx.rollback()
     assert.lengthOf(await db.from('books'), 1)
   })
@@ -729,6 +763,8 @@ test.group('Builder receipts', (group) => {
   }).skip(dbClient !== 'mysql')
 
   test('concurrent writer sees the committed receipt', async ({ assert }) => {
+    if (dbClient === 'sqlite')
+      throw new Error('receipt lock observation requires a server database')
     const db = await createDatabase()
     await createTables(db)
     const rows = await LifecycleUser.createMany([
@@ -736,39 +772,194 @@ test.group('Builder receipts', (group) => {
       { username: 'concurrent-b' },
     ])
     const ids = rows.map((row) => row.id)
-    const trxA = await openTransaction(db)
-    const receipt = await LifecycleUser.query({ client: trxA })
-      .whereIn('id', ids)
-      .softDelete({ receipt: true })
-    assert.equal(receipt.count, 2)
-    const secondQuery = LifecycleUser.query().whereIn('id', ids)
-    let queryStarted = false
-    const started = new Promise<void>((resolve) => {
-      secondQuery.knexQuery.on('query', () => {
-        queryStarted = true
-        resolve()
-      })
-    })
-    let settled = false
-    const b = secondQuery.softDelete().finally(() => {
-      settled = true
-    })
+    const connections = new ReceiptLockConnections(dbClient)
+    let receipt: { deletedAt: DateTime | null } | undefined
+    let primaryError: unknown
     try {
-      await Promise.race([started, b])
-      assert.isTrue(queryStarted)
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      assert.isFalse(settled, 'the concurrent write must wait for the receipt transaction')
-      await trxA.commit()
-      assert.equal(await b, 0)
-    } finally {
-      if (!trxA.isCompleted) await trxA.rollback()
-      await b.catch(() => {})
+      const blocker = await openReceiptConnection(db, connections)
+      const competitor = await openReceiptConnection(db, connections)
+      const observer = await openReceiptConnection(db, connections)
+      const trxB = await connections.wait(openReceiptTransaction(db, competitor))
+      const trxA = await connections.wait(openReceiptTransaction(db, blocker))
+      let transactionError: unknown
+      let b: Promise<unknown> | undefined
+      try {
+        const deleted = await connections.wait(
+          LifecycleUser.query({ client: trxA }).whereIn('id', ids).softDelete({ receipt: true })
+        )
+        receipt = deleted
+        assert.equal(deleted.count, 2)
+        const blockerSessionResult = await connections.wait(
+          trxA
+            .rawQuery(
+              dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
+            )
+            .exec()
+        )
+        const blockerSession =
+          dbClient === 'pg'
+            ? (blockerSessionResult as { rows: Array<{ id: number | string }> }).rows
+            : (blockerSessionResult as [Array<{ id: number | string }>, unknown])[0]
+        assert.lengthOf(blockerSession, 1)
+        const blockerId = Number(blockerSession[0].id)
+        assert.isFinite(blockerId)
+        const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
+        const secondQuery = LifecycleUser.query({ client: trxB })
+          .whereIn('id', ids)
+          .whereRaw(`1 = 1 /* ${marker} */`)
+        let outcome:
+          { status: 'resolved'; count: number } | { status: 'rejected'; error: unknown } | undefined
+        const write = secondQuery.softDelete().then(
+          (count) => (outcome = { status: 'resolved', count }),
+          (error: unknown) => (outcome = { status: 'rejected', error })
+        )
+        b = write
+        await waitForReceiptLock(
+          db,
+          dbClient,
+          connections,
+          observer,
+          marker,
+          blockerId,
+          () => outcome !== undefined
+        )
+        await connections.wait(trxA.commit())
+        const settled = await connections.wait(write)
+        if (settled.status === 'rejected') throw settled.error
+        assert.equal(settled.count, 0)
+      } catch (error) {
+        transactionError = error
+      }
+      await cleanupReceiptLock(transactionError, [
+        async () => {
+          if (!trxA.isCompleted) await connections.wait(trxA.rollback())
+        },
+        async () => {
+          if (!trxB.isCompleted) await connections.wait(trxB.rollback())
+        },
+        async () => {
+          if (b) await connections.wait(b)
+        },
+      ])
+    } catch (error) {
+      primaryError = error
     }
+    await connections.close(primaryError)
     const persisted = await db.from('users').whereIn('id', ids)
     assert.lengthOf(persisted, 2)
     assert.isTrue(persisted.every((row) => row.deleted_at !== null))
     assert.isTrue(
-      persisted.every((row) => String(row.deleted_at) === String(receipt.deletedAt!.toJSDate()))
+      persisted.every((row) => String(row.deleted_at) === String(receipt!.deletedAt!.toJSDate()))
     )
-  }).skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
+  })
+    .skip(dbClient === 'sqlite', 'knex opens one SQLite connection')
+    .timeout(20_000)
+
+  test('closing receipt transports aborts a blocked writer and releases the blocker lock', async ({
+    assert,
+  }) => {
+    if (dbClient === 'sqlite') throw new Error('server database required')
+    const db = await createDatabase()
+    await createTables(db)
+    const row = await LifecycleUser.create({ username: 'transport-disposal' })
+    const owner = new ReceiptLockConnections(dbClient, 1_000)
+    let primaryError: unknown
+    let blocked: Promise<unknown> | undefined
+    let blockerId = 0
+    let competitorId = 0
+    const sessionId = async (connection: Awaited<ReturnType<typeof openReceiptConnection>>) => {
+      const result = await owner.wait(
+        db
+          .connection()
+          .knexRawQuery(
+            dbClient === 'pg' ? 'SELECT pg_backend_pid() AS id' : 'SELECT CONNECTION_ID() AS id'
+          )
+          .connection(connection)
+      )
+      return Number(dbClient === 'pg' ? result.rows[0].id : result[0][0].id)
+    }
+    try {
+      const blocker = await openReceiptConnection(db, owner)
+      const competitor = await openReceiptConnection(db, owner)
+      const observer = await openReceiptConnection(db, owner)
+      const trxB = await owner.wait(openReceiptTransaction(db, competitor))
+      blockerId = await sessionId(blocker)
+      competitorId = await sessionId(competitor)
+      const trx = await owner.wait(openReceiptTransaction(db, blocker))
+      await owner.wait(
+        LifecycleUser.query({ client: trx }).where('id', row.id).softDelete({ receipt: true })
+      )
+      const marker = `receipt_lock_wait_${randomUUID().replaceAll('-', '')}`
+      const query = LifecycleUser.query({ client: trxB })
+        .where('id', row.id)
+        .whereRaw(`1 = 1 /* ${marker} */`)
+      let settled = false
+      blocked = query.softDelete().then(
+        () => {
+          settled = true
+        },
+        (error: unknown) => {
+          settled = true
+          return error
+        }
+      )
+      await waitForReceiptLock(db, dbClient, owner, observer, marker, blockerId, () => settled)
+      // Expire while the actual driver still has a pending write and an open blocker transaction.
+      await assert.rejects(() => owner.wait(new Promise<never>(() => {})), owner.error.message)
+    } catch (error) {
+      primaryError = error
+    }
+    await owner.close(primaryError)
+    if (blocked) assert.instanceOf(await blocked, Error)
+    const persisted = await db.from('users').where('id', row.id).firstOrFail()
+    assert.isNull(persisted.deleted_at)
+    // Taking a write lock proves server rollback completed, rather than only local rejection.
+    await db.from('users').where('id', row.id).update({ username: 'lock-released' })
+    // A server session can release its locks before it leaves the session view, so poll briefly.
+    const deadline = Date.now() + 2000
+    let sessions: unknown[] = []
+    while (true) {
+      const result = await db
+        .rawQuery(
+          dbClient === 'pg'
+            ? 'SELECT pid AS id FROM pg_stat_activity WHERE pid IN (?, ?)'
+            : 'SELECT PROCESSLIST_ID AS id FROM performance_schema.threads WHERE PROCESSLIST_ID IN (?, ?)',
+          [blockerId, competitorId]
+        )
+        .exec()
+      sessions = dbClient === 'pg' ? result.rows : result[0]
+      if (sessions.length === 0 || Date.now() >= deadline) break
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    assert.lengthOf(sessions, 0)
+  })
+    .skip(dbClient === 'sqlite', 'requires server transports')
+    .timeout(20_000)
+
+  test('receipt lock cleanup preserves the primary error and runs every cleanup', async ({
+    assert,
+  }) => {
+    const primaryError = new Error('lock observation failed')
+    const rollbackError = new Error('rollback failed')
+    const completed: string[] = []
+
+    let caught: unknown
+    try {
+      await cleanupReceiptLock(primaryError, [
+        async () => {
+          completed.push('rollback')
+          throw rollbackError
+        },
+        async () => {
+          completed.push('competitor')
+        },
+      ])
+    } catch (error) {
+      caught = error
+    }
+    assert.instanceOf(caught, AggregateError)
+    assert.deepEqual((caught as AggregateError).errors, [primaryError, rollbackError])
+    assert.equal((caught as AggregateError).cause, primaryError)
+    assert.deepEqual(completed, ['rollback', 'competitor'])
+  })
 })

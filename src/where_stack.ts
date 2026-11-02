@@ -8,6 +8,7 @@
  */
 
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
+import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
 
 const SCOPE_NODE = Symbol.for('@kevinjohn/lucid-soft-deletes/scope-node')
 
@@ -76,7 +77,7 @@ function rebuildStack(grouped: GroupedQuery, groups: WhereNode[][]): void {
 export function addScopeFilter(
   query: ModelQueryBuilderContract<LucidModel>,
   filter: 'whereNull' | 'whereNotNull',
-  reference: string
+  reference: string | RawBuilderContract
 ): void {
   const grouped = query as unknown as GroupedQuery
   rebuildStack(grouped, collectGroups(grouped))
@@ -104,7 +105,11 @@ export function reapplyScopeFilter(query: ModelQueryBuilderContract<LucidModel>)
   const grouped = query as unknown as GroupedQuery
   const filter = grouped.whereStack.flat().find((node) => node[SCOPE_NODE] === true)
   if (filter) {
-    addScopeFilter(query, filter.method as 'whereNull' | 'whereNotNull', filter.args[0] as string)
+    addScopeFilter(
+      query,
+      filter.method as 'whereNull' | 'whereNotNull',
+      filter.args[0] as string | RawBuilderContract
+    )
   } else if (grouped.whereStack.flat().some((node) => Array.isArray(node[SCOPE_NODE]))) {
     rebuildStack(grouped, collectGroups(grouped))
   }

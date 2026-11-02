@@ -9,11 +9,15 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { createDatabase, createTables } from '../helpers.js'
+import { createDatabase, createTables, dbClient } from '../helpers.js'
 import { RelationUser } from '../fixtures/models.js'
 import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../../src/mode.js'
 import { installModePropagation } from '../../src/propagation.js'
-import { aliasFromTable, resolveTableReference } from '../../src/table_reference.js'
+import {
+  aliasFromTable,
+  qualifiedColumnReference,
+  resolveTableReference,
+} from '../../src/table_reference.js'
 import { addScopeFilter, removeScopeFilter } from '../../src/where_stack.js'
 
 test.group('scope modules', (group) => {
@@ -35,7 +39,13 @@ test.group('scope modules', (group) => {
   test('table reference: reads an alias from a string, an object, or neither', ({ assert }) => {
     assert.equal(aliasFromTable('posts as p'), 'p')
     assert.equal(aliasFromTable('posts AS P'), 'P')
+    assert.equal(aliasFromTable('posts as user-rows'), 'user-rows')
+    assert.equal(aliasFromTable('users as user.rows'), 'user.rows')
+    assert.equal(aliasFromTable('posts AS u$'), 'u$')
+    assert.equal(aliasFromTable('posts as   user-rows   '), 'user-rows')
     assert.equal(aliasFromTable({ p: 'posts' }), 'p')
+    assert.equal(aliasFromTable({ 'user.rows': 'users' }), 'user.rows')
+    assert.equal(aliasFromTable({ ' user.rows ': 'users' }), 'user.rows')
     assert.isUndefined(aliasFromTable('posts'))
     assert.isUndefined(aliasFromTable({ p: 'posts', q: 'users' }))
     assert.isUndefined(aliasFromTable({ p: 1 }))
@@ -54,6 +64,103 @@ test.group('scope modules', (group) => {
     const aliased = RelationUser.query()
     ;(aliased as unknown as { tableAlias?: string }).tableAlias = 'alias'
     assert.equal(resolveTableReference(aliased), 'alias')
+    assert.equal(
+      resolveTableReference(RelationUser.query().from('users as user-rows')),
+      'user-rows'
+    )
+  })
+
+  test('qualified model tables scope real reads across schema and table identifiers', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    class SchemaQualifiedUser extends RelationUser {
+      static table = `${
+        dbClient === 'sqlite'
+          ? 'main'
+          : dbClient === 'pg'
+            ? 'public'
+            : (process.env.DB_DATABASE ?? 'lucid_soft_deletes_test')
+      }.users`
+    }
+
+    await db
+      .connection()
+      .table('users')
+      .insert([
+        { username: 'active', email: 'active@example.test', deleted_at: null },
+        {
+          username: 'deleted',
+          email: 'deleted@example.test',
+          deleted_at: '2026-11-02 00:00:00',
+        },
+      ])
+
+    const query = SchemaQualifiedUser.query()
+    assert.equal(resolveTableReference(query), SchemaQualifiedUser.table)
+    assert.equal(
+      qualifiedColumnReference(query, 'deleted_at'),
+      `${SchemaQualifiedUser.table}.deleted_at`
+    )
+    const rows = await query
+    assert.deepEqual(
+      rows.map((row) => row.username),
+      ['active']
+    )
+  })
+
+  test('qualified alias references follow Knex whitespace normalization', async ({ assert }) => {
+    await createDatabase()
+
+    const query = RelationUser.query().from({ ' user.rows ': 'users' })
+    const reference = qualifiedColumnReference(query, ' deleted_at ')
+    const knexQuery = query.knexQuery as unknown as {
+      queryContext(): unknown
+      client: {
+        wrapIdentifier: (value: string, queryContext?: unknown) => string
+      }
+    }
+    const context = knexQuery.queryContext()
+    const wrappedReference = `${knexQuery.client.wrapIdentifier('user.rows', context)}.${knexQuery.client.wrapIdentifier('deleted_at', context)} is null`
+
+    assert.include(query.whereNull(reference).toQuery(), wrappedReference)
+  })
+
+  test('qualified alias references use the query context identifier wrapper', async ({
+    assert,
+  }) => {
+    await createDatabase()
+
+    const query = RelationUser.query().from({ ' user.rows ': 'users' })
+    const context = { identifierStyle: 'bracket' }
+    const knexQuery = query.knexQuery as unknown as {
+      queryContext(value: unknown): unknown
+      client: {
+        wrapIdentifier: (value: string, queryContext?: unknown) => string
+      }
+    }
+    knexQuery.queryContext(context)
+
+    const client = knexQuery.client
+    const wrapIdentifier = client.wrapIdentifier
+    const observedContexts: unknown[] = []
+    client.wrapIdentifier = function (value, queryContext) {
+      observedContexts.push(queryContext)
+      if (queryContext === context) return `[${value}]`
+      return wrapIdentifier.call(this, value, queryContext)
+    }
+
+    try {
+      const reference = qualifiedColumnReference(query, 'deleted_at')
+      const sql = query.whereNull(reference).toQuery()
+
+      assert.include(sql, '[user.rows].[deleted_at] is null')
+      assert.isTrue(observedContexts.includes(context))
+    } finally {
+      client.wrapIdentifier = wrapIdentifier
+    }
   })
 
   test('where stack: one filter after the grouped predicates, replaced on rerun, removable', async ({

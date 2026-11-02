@@ -170,7 +170,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     )
   })
 
-  test('qualifies group-limit scopes through object and string relation aliases', async ({
+  test('qualifies group-limit scopes through literal-dot object and string aliases', async ({
     assert,
   }) => {
     const db = await createDatabase()
@@ -180,57 +180,58 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     user.fill({ username: 'aliased-limit', email: 'aliased-limit@example.test', managerId: null })
     await user.save()
 
-    const activePost = new RelationPost()
-    activePost.fill({ userId: user.id, title: 'active' })
-    await activePost.save()
-
-    const deletedPost = new RelationPost()
-    deletedPost.fill({ userId: user.id, title: 'deleted' })
-    await deletedPost.save()
-    await deletedPost.delete()
+    const deletedPosts = await RelationPost.createMany([
+      { userId: user.id, title: 'deleted-one' },
+      { userId: user.id, title: 'deleted-two' },
+    ])
+    await Promise.all(deletedPosts.map((post) => post.delete()))
+    const activePosts = await RelationPost.createMany([
+      { userId: user.id, title: 'active-one' },
+      { userId: user.id, title: 'active-two' },
+    ])
 
     const objectDefault = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from({ p: 'posts' }).groupLimit(2).groupOrderBy('p.id', 'asc')
+        posts.from({ 'post.rows': 'posts' }).groupLimit(2).groupOrderBy('id', 'asc')
       )
       .firstOrFail()
     assert.deepEqual(
       objectDefault.posts.map((post) => post.id),
-      [activePost.id]
+      activePosts.map((post) => post.id)
     )
 
     const objectOnly = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from({ p: 'posts' }).groupLimit(2).groupOrderBy('p.id', 'asc').onlyTrashed()
+        posts.from({ 'post.rows': 'posts' }).groupLimit(2).groupOrderBy('id', 'asc').onlyTrashed()
       )
       .firstOrFail()
     assert.deepEqual(
       objectOnly.posts.map((post) => post.id),
-      [deletedPost.id]
+      deletedPosts.map((post) => post.id)
     )
 
     const stringDefault = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from('posts as p').groupLimit(2).groupOrderBy('p.id', 'asc')
+        posts.from('posts as post.rows').groupLimit(2).groupOrderBy('id', 'asc')
       )
       .firstOrFail()
     assert.deepEqual(
       stringDefault.posts.map((post) => post.id),
-      [activePost.id]
+      activePosts.map((post) => post.id)
     )
 
     const stringOnly = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from('posts as p').groupLimit(2).groupOrderBy('p.id', 'asc').onlyTrashed()
+        posts.from('posts as post.rows').groupLimit(2).groupOrderBy('id', 'asc').onlyTrashed()
       )
       .firstOrFail()
     assert.deepEqual(
       stringOnly.posts.map((post) => post.id),
-      [deletedPost.id]
+      deletedPosts.map((post) => post.id)
     )
   })
 

@@ -125,6 +125,21 @@ test.group('check:changed plan', () => {
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
       'tests/tooling/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_runner.spec.ts',
+    ])
+  })
+
+  test('the runner process helper selects planner and runner specs', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/check_changed_process.ts')).tests, [
+      'tests/tooling/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_runner.spec.ts',
+    ])
+  })
+
+  test('the changed-check planner runs both affected specs', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/check_changed_plan.ts')).tests, [
+      'tests/tooling/check_changed_plan.spec.ts',
+      'tests/tooling/check_changed_runner.spec.ts',
     ])
   })
 
@@ -169,19 +184,61 @@ test.group('check:changed --static plan', () => {
 test.group('check:changed test outcome', () => {
   test('counts passed and failed tests, not skipped ones', ({ assert }) => {
     const output = '\u001b[32m PASSED \u001b[39m\nTests  104 passed, 2 skipped (106)\n'
-    assert.deepEqual(readTestOutcome(output, 0, false), { passed: true, executed: 104 })
-    assert.deepEqual(readTestOutcome('Tests  3 passed, 1 failed (4)', 1, true), {
+    assert.deepEqual(readTestOutcome(output, 0), { passed: true, executed: 104 })
+    assert.deepEqual(readTestOutcome('Tests  3 passed, 1 failed (4)', 1), {
       passed: false,
       executed: 4,
     })
   })
 
-  test('explicit files that run no test fail', ({ assert }) => {
-    assert.deepEqual(readTestOutcome(' NO TESTS EXECUTED ', 0, true), {
+  test('rejects empty and unrecognized summaries', ({ assert }) => {
+    for (const output of [
+      '',
+      ' NO TESTS EXECUTED ',
+      'not a Japa summary',
+      'Tests  not a count, 1 passed (1)',
+      'Tests  1 passed (3)',
+      'Tests  1 passed (1) trailing text',
+      'Tests  1 passed (1)\nTests  0 failed (0)',
+    ]) {
+      assert.isFalse(readTestOutcome(output, 0).passed)
+    }
+    assert.deepEqual(readTestOutcome('', 0), { passed: false, executed: 0 })
+  })
+
+  test('rejects all-skipped, failed, and nonzero-exit summaries', ({ assert }) => {
+    assert.deepEqual(readTestOutcome('Tests  0 passed, 1 skipped (1)', 0), {
       passed: false,
       executed: 0,
     })
-    assert.deepEqual(readTestOutcome('Tests  0 passed, 1 skipped (1)', 0, true), {
+    assert.deepEqual(readTestOutcome('Tests  0 passed, 1 failed (1)', 0), {
+      passed: false,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 passed (1)', 1), {
+      passed: false,
+      executed: 1,
+    })
+  })
+
+  test('accepts todo and expected-failure summaries with executed tests', ({ assert }) => {
+    assert.deepEqual(readTestOutcome('Tests  1 passed, 1 todo (2)', 0), {
+      passed: true,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 passed, 1 regression (2)', 0), {
+      passed: true,
+      executed: 2,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 regression (1)', 0), {
+      passed: true,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  1 regression (1)', 1), {
+      passed: false,
+      executed: 1,
+    })
+    assert.deepEqual(readTestOutcome('Tests  2 todo (2)', 0), {
       passed: false,
       executed: 0,
     })

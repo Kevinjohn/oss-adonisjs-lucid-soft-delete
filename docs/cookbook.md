@@ -80,6 +80,21 @@ class CustomDeletionParent extends compose(BaseModel, SoftDeletes) {
 function uniqueLabel(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random()}`
 }
+
+function isActiveLabelUniqueViolation(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false
+
+  const databaseError = error as { code?: unknown; constraint?: unknown; message?: unknown }
+  if (databaseError.code === '23505') {
+    return databaseError.constraint === 'lifecycle_parents_active_label_unique'
+  }
+
+  return (
+    databaseError.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
+    typeof databaseError.message === 'string' &&
+    /\bUNIQUE constraint failed: lifecycle_parents\.label$/.test(databaseError.message)
+  )
+}
 ```
 
 The examples below show service-level operations; add request validation, authorization, and
@@ -403,36 +418,64 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
+  let result: {
+    conflictObserved: boolean
+    remainsTrashedAfterConflict: boolean
+    restoredAfterConflictWasResolved: boolean
+  }
   try {
     const label = uniqueLabel('unique')
     const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
     await deleted.delete()
     const currentOwner = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
 
-    let conflict: unknown
+    let conflictObserved = false
     try {
       await deleted.restore()
     } catch (error) {
-      conflict = error
+      if (!isActiveLabelUniqueViolation(error)) throw error
+      conflictObserved = true
     }
 
     const stateAfterAttempt = await RecipeParent.withTrashed()
       .where('tenantId', 1)
       .where('id', deleted.id)
       .firstOrFail()
-    await currentOwner.forceDelete()
-    if (stateAfterAttempt.trashed) await deleted.restore()
+    if (conflictObserved && stateAfterAttempt.trashed) {
+      await currentOwner.forceDelete()
+      await deleted.restore()
+    }
     const restored = await RecipeParent.withTrashed().where('id', deleted.id).firstOrFail()
-    return {
-      conflictObserved: conflict instanceof Error,
+    result = {
+      conflictObserved,
       remainsTrashedAfterConflict: stateAfterAttempt.trashed,
       restoredAfterConflictWasResolved: !restored.trashed,
     }
-  } finally {
-    await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  } catch (error) {
+    try {
+      await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Restore recipe failed and its temporary index could not be cleaned up'
+      )
+    }
+    throw error
   }
+  await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  return result
 }
 ```
+
+The recipe recognizes only SQLSTATE `23505` for the named PostgreSQL constraint or SQLite's
+`SQLITE_CONSTRAINT_UNIQUE` with the complete payload
+`UNIQUE constraint failed: lifecycle_parents.label`. Other restore errors, including unique
+violations on other columns, propagate before the active owner is deleted. The recipe also requires that it observed that classified conflict before
+recovering; a successful or no-op restore never deletes the active owner.
+
+If both the recipe operation and temporary-index cleanup fail, the recipe throws an `AggregateError`
+containing the operation error first and cleanup error second. A cleanup failure after a successful
+operation is thrown directly.
 
 Expected result: the first restore conflicts and the retry succeeds only after the active owner is
 removed. In production, map the relevant database constraint error to a domain-level conflict and
@@ -442,6 +485,10 @@ trashed. A partial unique index such as `email` where `deleted_at IS NULL` is su
 databases (including PostgreSQL and SQLite); index syntax and support differ by database. MySQL
 does not provide the same partial-index syntax, so a generated nullable key or another schema
 design may be needed. Validate index semantics and migration support for your engine.
+
+This fixture's delete-then-retry recovery policy is not atomic: if the retry fails, the active owner
+has already been deleted. If production requires all-or-nothing behavior, use a transaction strategy
+that can recover from the constraint failure on your database, or choose a different conflict policy.
 
 If the uniqueness error occurs inside a transaction, do not assume that transaction can continue.
 PostgreSQL marks a transaction failed after a statement error; roll back the transaction or use a

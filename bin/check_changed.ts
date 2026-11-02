@@ -7,11 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { type Change, planChecks, readTestOutcome } from './check_changed_plan.js'
-
-const STEP_TIMEOUT_MS = 10 * 60 * 1000
+import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.js'
 
 function git(args: string[]): string {
   const result = spawnSync('git', args, { encoding: 'utf8' })
@@ -32,41 +31,35 @@ function changedFiles(base: string): Change[] {
   return [...changes.values()]
 }
 
-let activeGroup: number | undefined
+let activeChild: number | undefined
 
-/** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
+function killStep(pid: number): void {
+  terminateStepForSignal(pid, process.platform)
+}
+
+/** Stop the active step and its descendants when the runner receives a terminal signal. */
 for (const [signal, code] of [
   ['SIGINT', 130],
   ['SIGTERM', 143],
 ] as const) {
   process.on(signal, () => {
-    if (activeGroup) {
-      try {
-        process.kill(-activeGroup, 'SIGKILL')
-      } catch {}
-    }
+    if (activeChild) killStep(activeChild)
     process.exit(code)
   })
 }
 
-/** Run a command in its own process group, so a hung step can be stopped with its children. */
+/** Run a command with a bounded timeout and platform-specific child cleanup. */
 function run(command: string, args: string[]): Promise<{ code: number; output: string }> {
-  return new Promise((resolve) => {
-    const child = spawn(command, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    activeGroup = child.pid
-    let output = ''
-    child.stdout.on('data', (chunk) => (output += chunk))
-    child.stderr.on('data', (chunk) => (output += chunk))
-    const timer = setTimeout(() => {
-      output += `\nStopped after ${STEP_TIMEOUT_MS / 1000}s`
-      process.kill(-child.pid!, 'SIGKILL')
-    }, STEP_TIMEOUT_MS)
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      activeGroup = undefined
-      resolve({ code: code ?? 1, output })
-    })
-  })
+  return runStep(
+    command,
+    args,
+    process.platform,
+    process.execPath,
+    process.env.npm_execpath,
+    (pid, ownerPid) => {
+      activeChild = updateActiveChild(activeChild, pid, ownerPid)
+    }
+  )
 }
 
 let failed = false
@@ -133,7 +126,7 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   const explicit = plan.tests !== 'all'
   const files = explicit ? (plan.tests as string[]).flatMap((file) => ['--files', file]) : []
   const { code, output } = await run('pnpm', ['quick:test', ...files])
-  const outcome = readTestOutcome(output, code, explicit)
+  const outcome = readTestOutcome(output, code)
   report('tests', outcome.passed, `${outcome.executed} tests run`, output)
 } else if (!plan.skipped.includes('unit suite')) console.log('tests: skip (no tests affected)')
 if (plan.skipped.includes('unit suite')) console.log('unit suite: skip (--static)')
