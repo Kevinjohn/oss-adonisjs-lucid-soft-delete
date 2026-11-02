@@ -10,7 +10,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { type Change, planChecks, readTestOutcome } from './check_changed_plan.js'
-import { runStep, terminateStep } from './check_changed_process.js'
+import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.js'
 
 function git(args: string[]): string {
   const result = spawnSync('git', args, { encoding: 'utf8' })
@@ -34,7 +34,7 @@ function changedFiles(base: string): Change[] {
 let activeChild: number | undefined
 
 function killStep(pid: number): void {
-  terminateStep(pid, process.platform)
+  terminateStepForSignal(pid, process.platform)
 }
 
 /** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
@@ -56,8 +56,8 @@ function run(command: string, args: string[]): Promise<{ code: number; output: s
     process.platform,
     process.execPath,
     process.env.npm_execpath,
-    (pid) => {
-      activeChild = pid
+    (pid, ownerPid) => {
+      activeChild = updateActiveChild(activeChild, pid, ownerPid)
     }
   )
 }

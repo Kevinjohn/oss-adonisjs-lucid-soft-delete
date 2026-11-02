@@ -15,6 +15,15 @@ const TERMINATION_GRACE_MS = 2_000
 
 export type StepCommand = { executable: string; args: string[] } | { error: string }
 
+export function updateActiveChild(
+  currentPid: number | undefined,
+  nextPid: number | undefined,
+  ownerPid: number | undefined
+): number | undefined {
+  if (nextPid !== undefined) return nextPid
+  return currentPid === ownerPid ? undefined : currentPid
+}
+
 export function resolveStepCommand(
   command: string,
   platform: NodeJS.Platform,
@@ -38,6 +47,7 @@ type RunStepOptions = {
   terminate?: Terminate
   killChild?: (child: ChildProcess) => boolean
 }
+type SetActiveChild = (pid: number | undefined, ownerPid: number | undefined) => void
 export type TerminationResult =
   | { success: true; tree: true }
   | { success: true; tree: false; detail: string }
@@ -97,13 +107,25 @@ export function terminateStep(
   }
 }
 
+export function terminateStepForSignal(
+  pid: number,
+  platform: NodeJS.Platform,
+  terminate: typeof terminateStep = terminateStep,
+  report: (message: string) => void = (message) => console.error(message)
+): void {
+  const result = terminate(pid, platform)
+  if (!result.success || !result.tree) {
+    report(`Could not fully terminate check step process tree: ${result.detail}`)
+  }
+}
+
 export function runStep(
   command: string,
   args: string[],
   platform: NodeJS.Platform,
   nodeExecutable: string,
   pnpmEntry: string | undefined,
-  setActiveChild: (pid: number | undefined) => void,
+  setActiveChild: SetActiveChild,
   options: RunStepOptions = {}
 ): Promise<{ code: number; output: string }> {
   const invocation = resolveStepCommand(command, platform, nodeExecutable, pnpmEntry, args)
@@ -120,9 +142,20 @@ export function runStep(
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     })
-    setActiveChild(child.pid)
+    const childPid = child.pid
+    setActiveChild(childPid, childPid)
+    const clearActiveChild = () => {
+      if (childPid !== undefined) setActiveChild(undefined, childPid)
+    }
     let output = ''
     let timedOut = false
+    let settled = false
+    const finish = (code: number) => {
+      if (settled) return
+      settled = true
+      clearActiveChild()
+      resolve({ code, output })
+    }
     let terminationTimer: NodeJS.Timeout | undefined
     child.on('error', (error) => {
       output += `\nFailed to start ${command}: ${error.message}`
@@ -144,15 +177,13 @@ export function runStep(
         } catch (error) {
           output += `\nDirect process termination failed: ${error instanceof Error ? error.message : String(error)}`
         }
-        setActiveChild(undefined)
-        resolve({ code: 1, output })
+        finish(1)
       }, terminationGraceMs)
     }, timeoutMs)
     child.on('close', (code) => {
       clearTimeout(timer)
       if (terminationTimer) clearTimeout(terminationTimer)
-      setActiveChild(undefined)
-      resolve({ code: timedOut ? 1 : (code ?? 1), output })
+      finish(timedOut ? 1 : (code ?? 1))
     })
   })
 }

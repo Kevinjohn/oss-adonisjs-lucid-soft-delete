@@ -14,7 +14,13 @@ import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_pr
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { test } from '@japa/runner'
-import { resolveStepCommand, runStep, terminateStep } from '../../bin/check_changed_process.js'
+import {
+  resolveStepCommand,
+  runStep,
+  terminateStep,
+  terminateStepForSignal,
+  updateActiveChild,
+} from '../../bin/check_changed_process.js'
 
 const projectRoot = fileURLToPath(new URL('../../', import.meta.url))
 const checkChangedPath = join(projectRoot, 'bin/check_changed.ts')
@@ -35,18 +41,28 @@ async function waitForReady(path: string): Promise<void> {
 }
 
 async function waitForProcessGroupExit(groupFile: string): Promise<void> {
-  const groupId = Number(await readFile(groupFile, 'utf8'))
+  await waitForGroupExit(Number(await readFile(groupFile, 'utf8')))
+}
+
+async function waitForGroupExit(groupId: number): Promise<void> {
   const deadline = Date.now() + 2000
   while (Date.now() < deadline) {
     try {
       process.kill(-groupId, 0)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
-      throw error
+      // Retry denied probes until the deadline; only ESRCH proves exit.
+      if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error
     }
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
   throw new Error(`Test command process group ${groupId} did not exit`)
+}
+
+async function stopFixtureGroup(groupId: number): Promise<void> {
+  const result = terminateStep(groupId, process.platform)
+  if (!result.success || !result.tree) throw new Error(result.detail)
+  await waitForGroupExit(groupId)
 }
 
 async function waitForClose<T>(closed: Promise<T>, timeoutMs = 2000): Promise<T> {
@@ -68,72 +84,18 @@ async function waitForClose<T>(closed: Promise<T>, timeoutMs = 2000): Promise<T>
 
 function terminateFixtureChild(child: ChildProcess): string | undefined {
   if (!child.pid) return
-  if (process.platform === 'win32') {
-    try {
-      const result = spawnSync('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], {
-        stdio: 'ignore',
-        timeout: 1000,
-        killSignal: 'SIGKILL',
-        windowsHide: true,
-      })
-      if (result.status === 0) return
-    } catch (error) {
-      try {
-        if (child.kill('SIGKILL')) return
-      } catch (killError) {
-        return `taskkill and direct process termination failed: ${String(killError)}`
-      }
-      return `taskkill launch failed and direct process termination was rejected: ${String(error)}`
-    }
-    try {
-      if (child.kill('SIGKILL')) return
-    } catch (error) {
-      return `taskkill and direct process termination failed: ${String(error)}`
-    }
-    return 'taskkill failed and direct process termination was rejected'
-  }
-  try {
-    process.kill(-child.pid, 'SIGKILL')
-    return
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
-    try {
-      if (child.kill('SIGKILL')) return
-    } catch (killError) {
-      return `process group and direct process termination failed: ${String(killError)}`
-    }
-    return `process group cleanup and direct process termination failed: ${String(error)}`
-  }
+  const result = terminateStep(child.pid, process.platform)
+  if (!result.success || !result.tree) return result.detail
 }
 
 async function terminateFixtureGroup(groupFile: string): Promise<string | undefined> {
   try {
     const groupId = Number(await readFile(groupFile, 'utf8'))
     if (!Number.isInteger(groupId) || groupId <= 0) return
-    if (process.platform === 'win32') {
-      const result = spawnSync('taskkill.exe', ['/pid', String(groupId), '/t', '/f'], {
-        stdio: 'ignore',
-        timeout: 1000,
-        killSignal: 'SIGKILL',
-        windowsHide: true,
-      })
-      if (result.status === 0) return
-      try {
-        process.kill(groupId, 'SIGKILL')
-        return
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
-        return `taskkill and direct step termination failed: ${String(error)}`
-      }
-    }
-    process.kill(-groupId, 'SIGKILL')
+    const result = terminateStep(groupId, process.platform)
+    if (!result.success || !result.tree) return result.detail
   } catch (error) {
-    if (
-      (error as NodeJS.ErrnoException).code === 'ENOENT' ||
-      (error as NodeJS.ErrnoException).code === 'ESRCH'
-    ) {
-      return
-    }
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
     return `step group cleanup failed: ${String(error)}`
   }
 }
@@ -155,10 +117,6 @@ async function runnerFixture(
   const trackChild = (child: ChildProcess, closed: Promise<unknown>) => {
     children.add(child)
     childClosures.set(child, closed)
-    void closed.then(
-      () => children.delete(child),
-      () => children.delete(child)
-    )
   }
   cleanup(async () => {
     const activeChildren = [...children]
@@ -172,7 +130,13 @@ async function runnerFixture(
     await Promise.all(
       activeChildren.map(async (child) => {
         const closed = childClosures.get(child)
-        if (closed) await waitForClose(closed, 1500).catch(() => undefined)
+        if (closed) {
+          try {
+            await waitForClose(closed, 1500)
+          } catch (error) {
+            errors.push(String(error))
+          }
+        }
       })
     )
     const finalGroupError = await terminateFixtureGroup(join(root, 'process_group'))
@@ -360,6 +324,8 @@ async function runnerFixture(
         {
           cwd: root,
           env: envFor(testOutput, true, exitWithDescendant),
+          detached: process.platform !== 'win32',
+          windowsHide: true,
           stdio: ['ignore', 'pipe', 'pipe'],
         }
       )
@@ -513,10 +479,10 @@ test.group('check:changed runner test outcome', () => {
             process.execPath,
             undefined,
             (pid) => {
-              childGroup = pid
+              if (pid !== undefined) childGroup = pid
             },
             {
-              timeoutMs: 25,
+              timeoutMs: 250,
               terminationGraceMs: 25,
               ...(killFailure !== undefined
                 ? {
@@ -543,13 +509,88 @@ test.group('check:changed runner test outcome', () => {
           }
         } finally {
           if (childGroup) {
-            try {
-              process.kill(-childGroup, 'SIGKILL')
-            } catch {}
+            await stopFixtureGroup(childGroup)
           }
         }
+        assert.isDefined(
+          childGroup,
+          'test retained the detached group independently of active ownership'
+        )
       }
     }).timeout(5000)
+
+  if (process.platform !== 'win32')
+    test('a late child close cannot clear the next active step', async ({ assert }) => {
+      let firstPid: number | undefined
+      let activePid: number | undefined
+      let clearCount = 0
+      let resolveLateClose!: () => void
+      const lateClose = new Promise<void>((resolve) => {
+        resolveLateClose = resolve
+      })
+
+      let secondPid: number | undefined
+      let secondStep: ReturnType<typeof runStep> | undefined
+      try {
+        const timedOut = await runStep(
+          process.execPath,
+          ['-e', 'setInterval(() => {}, 1000)'],
+          'darwin',
+          process.execPath,
+          undefined,
+          (pid, ownerPid) => {
+            if (pid !== undefined) firstPid = pid
+            activePid = updateActiveChild(activePid, pid, ownerPid)
+            if (pid === undefined && ownerPid === firstPid) {
+              clearCount += 1
+            }
+          },
+          {
+            timeoutMs: 25,
+            terminationGraceMs: 25,
+            terminate: () => ({
+              success: false,
+              tree: false,
+              detail: 'controlled termination failure',
+            }),
+            killChild: (child) => {
+              child.once('close', resolveLateClose)
+              return false
+            },
+          }
+        )
+        assert.equal(timedOut.code, 1)
+        assert.equal(clearCount, 1)
+        assert.isDefined(firstPid)
+
+        secondStep = runStep(
+          process.execPath,
+          ['-e', 'setInterval(() => {}, 1000)'],
+          'darwin',
+          process.execPath,
+          undefined,
+          (pid, ownerPid) => {
+            if (pid !== undefined) secondPid = pid
+            activePid = updateActiveChild(activePid, pid, ownerPid)
+          }
+        )
+        assert.isDefined(secondPid)
+
+        process.kill(-firstPid!, 'SIGKILL')
+        await waitForClose(lateClose, 2000)
+        assert.equal(activePid, secondPid)
+        assert.equal(clearCount, 1)
+      } finally {
+        const groups = [firstPid, secondPid].filter((pid): pid is number => pid !== undefined)
+        await Promise.all(groups.map(stopFixtureGroup))
+        if (secondStep) await waitForClose(secondStep, 2000)
+      }
+    }).timeout(5000)
+
+  test('keeps active ownership when an earlier owner clears', ({ assert }) => {
+    assert.equal(updateActiveChild(52, undefined, 51), 52)
+    assert.isUndefined(updateActiveChild(52, undefined, 52))
+  })
 
   test('reports non-Error process-group termination failures', ({ assert }) => {
     assert.deepEqual(
@@ -567,6 +608,47 @@ test.group('check:changed runner test outcome', () => {
         detail: 'process group termination failed: permission denied',
       }
     )
+  })
+
+  test('reports process-tree cleanup failures from a signal handler', ({ assert }) => {
+    const reported: string[] = []
+    const originalError = console.error
+    try {
+      console.error = (message: string) => reported.push(message)
+      terminateStepForSignal(50, 'darwin', () => ({
+        success: false,
+        tree: false,
+        detail: 'default reporter',
+      }))
+    } finally {
+      console.error = originalError
+    }
+    assert.deepEqual(reported.splice(0), [
+      'Could not fully terminate check step process tree: default reporter',
+    ])
+    terminateStepForSignal(
+      50,
+      'darwin',
+      () => ({ success: true, tree: true }),
+      (message) => reported.push(message)
+    )
+    assert.deepEqual(reported, [])
+    terminateStepForSignal(
+      50,
+      'darwin',
+      () => ({ success: false, tree: false, detail: 'process group termination failed: EPERM' }),
+      (message) => reported.push(message)
+    )
+    terminateStepForSignal(
+      51,
+      'win32',
+      () => ({ success: true, tree: false, detail: 'descendants may remain' }),
+      (message) => reported.push(message)
+    )
+    assert.deepEqual(reported, [
+      'Could not fully terminate check step process tree: process group termination failed: EPERM',
+      'Could not fully terminate check step process tree: descendants may remain',
+    ])
   })
 
   test('uses taskkill and direct process termination fallbacks', ({ assert }) => {
