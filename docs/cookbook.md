@@ -17,6 +17,8 @@ already run.
 7. [Recover from a restore uniqueness conflict](#recover-from-a-restore-uniqueness-conflict)
 8. [Map a custom deletion column and serialize UTC ISO](#map-a-custom-deletion-column-and-serialize-utc-iso)
 9. [Recover an application-owned deletion group](#recover-an-application-owned-deletion-group)
+10. [Choose a unique index that allows reuse](#choose-a-unique-index-that-allows-reuse)
+11. [Create trashed fixtures and seed safely](#create-trashed-fixtures-and-seed-safely)
 
 ## Shared fixture and imports
 
@@ -896,3 +898,27 @@ operations and compares persisted row, group and association state across succes
 and rollback. Run `pnpm docs:check`, `pnpm test:consumer` and
 `pnpm test:consumer --compatibility=minimum` from the repository root with Node 24 and pnpm 11.
 This recipe composes existing APIs and does not depend on a future rich bulk-result API.
+
+## Choose a unique index that allows reuse
+
+Choose a database constraint based on whether a value can be reused after deletion. PostgreSQL and SQLite support a partial unique index that excludes trashed rows:
+
+```sql
+CREATE UNIQUE INDEX users_active_email_unique ON users (email)
+WHERE deleted_at IS NULL;
+```
+
+MySQL has no partial unique indexes. A plain `(email, deleted_at)` unique index does **not** enforce uniqueness among active rows because multiple `NULL` values are distinct. Use a generated column holding the email only for active rows, then index it:
+
+```sql
+ALTER TABLE users
+  ADD COLUMN active_email VARCHAR(255)
+    GENERATED ALWAYS AS (IF(deleted_at IS NULL, email, NULL)) STORED,
+  ADD UNIQUE KEY users_active_email_unique (active_email);
+```
+
+Match the generated column type and length to your email column. Application-side checks can race and do not replace a unique constraint. With an active-only index, restoring a trashed row whose email has since been reused fails with a database uniqueness error; the other row remains unchanged. Resolve the conflict before retrying `restore()` on the same trashed instance.
+
+## Create trashed fixtures and seed safely
+
+`deletedAt` serializes as a date-time under its model property name by default; `serializeAs` can hide or rename the serialized field without changing persistence. The [API reference](api.md#model-state) covers column mapping, projections, and `trashed` serialization. A Lucid factory can create trashed fixtures by setting `deletedAt = DateTime.local()` in a `state('trashed')` callback. A seeder using `updateOrCreate()` may try to insert when a matching row is trashed; fetch with `withTrashed()` and explicitly decide whether to restore or update it.

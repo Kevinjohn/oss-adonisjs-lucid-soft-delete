@@ -66,6 +66,11 @@ pnpm test:consumer --compatibility=minimum
 - Formatting, lint, typecheck and the SQLite suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
 - Record a decision that the code cannot explain by itself in `docs/DECISIONS.md`.
 
+## Lucid internals
+
+The query scope relies on a few Lucid 22 internals. [docs/INTERNALS.md](docs/INTERNALS.md) names
+each one, where it lives in Lucid, and the tests that cover it. Check them when upgrading Lucid.
+
 ## Documentation examples
 
 `pnpm docs:check` checks local Markdown file links and GitHub-style ATX heading anchors, explicit

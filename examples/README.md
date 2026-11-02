@@ -144,7 +144,7 @@ router.delete('/users/:id/purge', [UsersController, 'purge'])
 | `DELETE /users/1/purge`   | `DELETE FROM users WHERE id = 1`                          |
 
 Relations, pagination, transactions and the cases the scope does not cover are in the
-[README](../README.md#scope-contract).
+[scope contract](../docs/scope-contract.md).
 
 ## Caller-owned transaction service
 

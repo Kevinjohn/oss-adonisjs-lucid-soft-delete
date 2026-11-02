@@ -1,8 +1,10 @@
 # Update policy: follow AdonisJS.
-# - Patch updates: always.
-# - Minor updates: only for AdonisJS-owned packages. Everything else (TypeScript included) moves
-#   to a new minor by hand, when AdonisJS moves.
+# - Patch updates: always, checked weekly and grouped into one pull request.
+# - Minor updates: only for AdonisJS-owned packages, and only once the release is 30 days old.
+#   Everything else (TypeScript included) moves to a new minor by hand, when AdonisJS moves.
 # - Major updates: never. Raise them by hand alongside an AdonisJS major.
+# Dependabot allows one schedule per ecosystem and directory, so minors cannot run monthly while
+# patches run weekly. The minor cooldown stands in for the slower minor cadence.
 # Dependabot `ignore` rules cannot exclude a pattern, so the minor rule lists the non-AdonisJS
 # packages. Add new third-party dependencies to that list.
 version: 2
@@ -11,11 +13,14 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      semver-minor-days: 30
     groups:
-      adonisjs:
+      patches:
+        update-types: ['patch']
+      adonisjs-minor:
         patterns: ['@adonisjs/*', '@vinejs/*', '@japa/*', '@poppinss/*']
-      development:
-        dependency-type: development
+        update-types: ['minor']
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
@@ -30,6 +35,8 @@ updates:
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-minor']
       - dependency-name: 'luxon'
+        update-types: ['version-update:semver-minor']
+      - dependency-name: 'mysql2'
         update-types: ['version-update:semver-minor']
       - dependency-name: 'pg'
         update-types: ['version-update:semver-minor']

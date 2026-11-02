@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Changed
+
+- Shorten the README to an overview, install steps, a quick example and links. The operation chooser and non-goals move to the [API reference](docs/api.md), uniqueness and fixture guidance to the [cookbook](docs/cookbook.md), and the upstream 2.1.0 notes to a [migration guide](docs/migration.md).
+- Dependabot groups weekly patch updates into one pull request and holds AdonisJS minor updates for 30 days after release.
+
 ## 0.1.1-alpha - 2026-10-27
 
 First tagged prerelease. It contains every change listed under 0.1.0-alpha, which was not tagged or released.
