@@ -8,12 +8,15 @@
 
 Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, ordinary model queries hide them, and explicit methods let you inspect, restore or permanently purge them.
 
-- **Recover mistakes.** `delete()` saves a deletion timestamp instead of removing the row; `restore()` brings it back.
+- **Recover mistakes.** Instance `delete()` saves a deletion timestamp instead of removing the row; `restore()` brings it back.
 - **Hidden by default.** Model fetches, relation queries and relationship counts skip trashed rows unless you ask for `withTrashed()` or `onlyTrashed()`.
-- **Bulk operations.** Builder `softDelete()`, `restore()` and `forceDelete()` keep your predicates and transaction, and return a count, or the changed ids inside a transaction.
+- **Bulk operations.** Builder `softDelete()`, `restore()` and `forceDelete()` keep your predicates and transaction, and return a count, or a receipt of the changed ids with `{ receipt: true }` inside a transaction.
+
+> [!WARNING]
+> Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/api.md#choose-an-operation).
 
 > [!NOTE]
-> `0.1.1-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0; upgrading from upstream? Read the [migration guide](docs/migration.md).
+> `0.1.1-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.1-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0; upgrading from upstream? Read the [migration guide](docs/migration.md). Use the README accompanying the exact version you install.
 
 <!-- TODO(owner): After posting docs/upstream-comment.md to upstream issue 32, add a sentence here linking to the posted comment. -->
 
