@@ -64,8 +64,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
     if (DEPENDENCIES.has(path) || FULL_SUITE.some((pattern) => pattern.test(path))) testAll = true
     else if (SPEC.test(path) && !deleted) tests.add(path)
     else if (/^bin\/check_changed/.test(path)) tests.add(PLAN_SPEC)
-    else if (/^bin\/docs_(check|fs)\.|^tests\/tooling\/docs_fs_wrapper\.py$/.test(path))
-      tests.add(DOCS_CHECK_SPEC)
+    else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()

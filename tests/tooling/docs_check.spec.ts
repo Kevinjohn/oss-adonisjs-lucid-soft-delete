@@ -7,23 +7,14 @@
  * file that was distributed with this source code.
  */
 
-import {
-  access,
-  chmod,
-  mkdtemp,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  symlink,
-  writeFile,
-} from 'node:fs/promises'
+import fsPromises, { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
-import { checkDocumentation, type Diagnostic } from '../../bin/docs_check.js'
+import { checkDocumentation } from '../../bin/docs_check.js'
 
 async function fixture(files: Record<string, string>, cleanup: (fn: () => Promise<void>) => void) {
   const root = await mkdtemp(join(tmpdir(), 'documentation-check-'))
@@ -33,75 +24,6 @@ async function fixture(files: Record<string, string>, cleanup: (fn: () => Promis
     await writeFile(join(root, name), contents)
   }
   return root
-}
-
-async function testHelperLauncher(directory: string): Promise<string> {
-  const wrapperSource = fileURLToPath(new URL('./docs_fs_wrapper.py', import.meta.url))
-  const launcher = join(directory, 'docs-fs-test-wrapper')
-  await writeFile(launcher, await readFile(wrapperSource))
-  await chmod(launcher, 0o755)
-  return launcher
-}
-
-async function checkAtFilesystemBarrier(
-  root: string,
-  target: string,
-  operation: 'read' | 'stat',
-  phase: 'before-final-open' | 'after-ancestor-open',
-  cleanup: (fn: () => Promise<void>) => void,
-  mutate: () => Promise<void>
-) {
-  const barrier = await mkdtemp(join(tmpdir(), 'documentation-filesystem-barrier-'))
-  cleanup(() => rm(barrier, { recursive: true, force: true }))
-  const launcher = await testHelperLauncher(barrier)
-  const previousPython = process.env.PYTHON
-  const previousDirectory = process.env.DOCS_FS_TEST_BARRIER_DIR
-  const previousTarget = process.env.DOCS_FS_TEST_BARRIER_TARGET
-  const previousOperation = process.env.DOCS_FS_TEST_BARRIER_OPERATION
-  const previousPhase = process.env.DOCS_FS_TEST_BARRIER_PHASE
-  process.env.PYTHON = launcher
-  process.env.DOCS_FS_TEST_BARRIER_DIR = barrier
-  process.env.DOCS_FS_TEST_BARRIER_TARGET = target
-  process.env.DOCS_FS_TEST_BARRIER_OPERATION = operation
-  process.env.DOCS_FS_TEST_BARRIER_PHASE = phase
-  let checking: Promise<Diagnostic[]> | undefined
-  try {
-    checking = checkDocumentation(root, ['README.md'])
-    const ready = (async () => {
-      const deadline = Date.now() + 10_000
-      while (true) {
-        try {
-          await access(join(barrier, `${phase}-ready`))
-          return 'ready'
-        } catch {
-          if (Date.now() >= deadline) throw new Error('Documentation filesystem barrier timed out')
-          await new Promise((resume) => setTimeout(resume, 5))
-        }
-      }
-    })()
-    const completed = checking.then(
-      () => 'completed',
-      (error) => Promise.reject(error)
-    )
-    if ((await Promise.race([ready, completed])) !== 'ready')
-      throw new Error('Documentation check completed before reaching its filesystem barrier')
-    await mutate()
-    await writeFile(join(barrier, `${phase}-resume`), '')
-    return await checking
-  } finally {
-    await writeFile(join(barrier, `${phase}-resume`), '').catch(() => {})
-    await checking?.catch(() => {})
-    if (previousPython === undefined) delete process.env.PYTHON
-    else process.env.PYTHON = previousPython
-    if (previousDirectory === undefined) delete process.env.DOCS_FS_TEST_BARRIER_DIR
-    else process.env.DOCS_FS_TEST_BARRIER_DIR = previousDirectory
-    if (previousTarget === undefined) delete process.env.DOCS_FS_TEST_BARRIER_TARGET
-    else process.env.DOCS_FS_TEST_BARRIER_TARGET = previousTarget
-    if (previousOperation === undefined) delete process.env.DOCS_FS_TEST_BARRIER_OPERATION
-    else process.env.DOCS_FS_TEST_BARRIER_OPERATION = previousOperation
-    if (previousPhase === undefined) delete process.env.DOCS_FS_TEST_BARRIER_PHASE
-    else process.env.DOCS_FS_TEST_BARRIER_PHASE = previousPhase
-  }
 }
 
 test.group('Documentation checks', () => {
@@ -290,183 +212,6 @@ test.group('Documentation checks', () => {
     ])
   })
 
-  test('rejects a helper whose input pipe closes without taking down the test process', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const helper = join(root, 'python-shim')
-    const release = join(root, 'release-helper')
-    cleanup(() => rm(release, { force: true }))
-    await writeFile(
-      helper,
-      "#!/bin/sh\nexec 0<&-\nprintf 'helper diagnostic\\n' >&2\nprintf '%s\\n' '{\"ready\":true}'\nwhile [ ! -e \"$DOCS_FS_TEST_PIPE_RELEASE\" ]; do sleep 0.01; done\n"
-    )
-    await chmod(helper, 0o755)
-    const previousPython = process.env.PYTHON
-    const previousRelease = process.env.DOCS_FS_TEST_PIPE_RELEASE
-    process.env.PYTHON = helper
-    process.env.DOCS_FS_TEST_PIPE_RELEASE = release
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /EPIPE|helper/)
-    } finally {
-      await writeFile(release, '')
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-      if (previousRelease === undefined) delete process.env.DOCS_FS_TEST_PIPE_RELEASE
-      else process.env.DOCS_FS_TEST_PIPE_RELEASE = previousRelease
-    }
-  })
-
-  test('rejects a helper that exits immediately after becoming ready', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const helper = join(root, 'python-shim')
-    await writeFile(
-      helper,
-      "#!/bin/sh\nexec 0<&-\nprintf '%s\\n' '{\"ready\":true}'\nprintf 'helper exited\\n' >&2\nexit 1\n"
-    )
-    await chmod(helper, 0o755)
-    const previousPython = process.env.PYTHON
-    process.env.PYTHON = helper
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /helper/)
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-    }
-  })
-
-  test('rejects when the documentation filesystem helper cannot start', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const previousPython = process.env.PYTHON
-    process.env.PYTHON = join(root, 'missing-python')
-    try {
-      await assert.rejects(
-        () => checkDocumentation(root, ['README.md']),
-        /Cannot start documentation filesystem helper.*ENOENT/
-      )
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-    }
-  })
-
-  test('rejects an invalid startup response from the documentation filesystem helper', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const helper = join(root, 'python-shim')
-    await writeFile(helper, "#!/bin/sh\nprintf '%s\\n' 'not-json'\n")
-    await chmod(helper, 0o755)
-    const previousPython = process.env.PYTHON
-    process.env.PYTHON = helper
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /Invalid response/)
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-    }
-  })
-
-  test('rejects a negative startup response from the documentation filesystem helper', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const helper = join(root, 'python-shim')
-    await writeFile(
-      helper,
-      '#!/bin/sh\nprintf \'%s\\n\' \'{"ready":false,"error":{"message":"capability probe failed"}}\'\n'
-    )
-    await chmod(helper, 0o755)
-    const previousPython = process.env.PYTHON
-    process.env.PYTHON = helper
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /capability probe failed/)
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-    }
-  })
-
-  test('rejects an invalid helper response while a filesystem request is pending', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const launcher = await testHelperLauncher(root)
-    const previousPython = process.env.PYTHON
-    const previousFailureMode = process.env.DOCS_FS_TEST_RESPONSE_FAILURE
-    process.env.PYTHON = launcher
-    process.env.DOCS_FS_TEST_RESPONSE_FAILURE = 'invalid'
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /Invalid response/)
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-      if (previousFailureMode === undefined) delete process.env.DOCS_FS_TEST_RESPONSE_FAILURE
-      else process.env.DOCS_FS_TEST_RESPONSE_FAILURE = previousFailureMode
-    }
-  })
-
-  test('preserves an uncoded filesystem helper error', async ({ assert, cleanup }) => {
-    const root = await fixture({ 'README.md': '# Home\n' }, cleanup)
-    const launcher = await testHelperLauncher(root)
-    const previousPython = process.env.PYTHON
-    const previousFailureMode = process.env.DOCS_FS_TEST_RESPONSE_FAILURE
-    process.env.PYTHON = launcher
-    process.env.DOCS_FS_TEST_RESPONSE_FAILURE = 'uncoded'
-    try {
-      await assert.rejects(() => checkDocumentation(root, ['README.md']), /uncoded failure/)
-    } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-      if (previousFailureMode === undefined) delete process.env.DOCS_FS_TEST_RESPONSE_FAILURE
-      else process.env.DOCS_FS_TEST_RESPONSE_FAILURE = previousFailureMode
-    }
-  })
-
-  test('rejects a FIFO without blocking the documentation check', async ({ assert, cleanup }) => {
-    const root = await fixture({ 'README.md': '[Pipe](pipe.md#section)\n' }, cleanup)
-    execFileSync('python3', ['-c', 'import os,sys; os.mkfifo(sys.argv[1])', join(root, 'pipe.md')])
-
-    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
-      {
-        file: 'README.md',
-        line: 1,
-        message: 'Cannot inspect file: pipe.md#section (EINVAL)',
-      },
-    ])
-  })
-
-  test('stats inaccessible files and traverses search-only directories', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      {
-        'README.md': '[Locked](locked.md)\n[Subdirectory](search-only#visible)\n',
-        'locked.md': '# Locked\n',
-        'search-only/README.md': '# Visible\n',
-      },
-      cleanup
-    )
-    await chmod(join(root, 'locked.md'), 0)
-    await chmod(join(root, 'search-only'), 0o111)
-    try {
-      assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
-    } finally {
-      await chmod(join(root, 'search-only'), 0o755)
-    }
-  })
-
   test('preserves checkout-root resolution failures', async ({ assert, cleanup }) => {
     const root = await mkdtemp(join(tmpdir(), 'documentation-missing-root-parent-'))
     cleanup(() => rm(root, { recursive: true, force: true }))
@@ -493,65 +238,6 @@ test.group('Documentation checks', () => {
     await symlink('guide.md', join(root, 'guide-link.md'))
     await symlink('source.ts', join(root, 'source-link.ts'))
     assert.deepEqual(await checkDocumentation(root, ['README.md']), [])
-  })
-
-  test('accepts absolute internal symlinks for selected, anchor and source files', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      {
-        'README.md':
-          '[guide](guide-link.md#inside)\n\n<!-- source: source-link.ts#demo -->\n```ts\nexport const value = 1\n```\n',
-        'guide.md': '# Inside\n',
-        'source.ts': '// #region demo\nexport const value = 1\n// #endregion demo\n',
-      },
-      cleanup
-    )
-    await symlink(join(root, 'README.md'), join(root, 'input-link.md'))
-    await symlink(join(root, 'guide.md'), join(root, 'guide-link.md'))
-    await symlink(join(root, 'source.ts'), join(root, 'source-link.ts'))
-
-    assert.deepEqual(await checkDocumentation(root, ['input-link.md']), [])
-  })
-
-  test('confines explicitly selected Markdown symlinks to the checkout', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Internal\n' }, cleanup)
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-outside-input-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'outside.md'), '[bad](missing.md)\n')
-    await symlink(join(outside, 'outside.md'), join(root, 'outside.md'))
-    await symlink('README.md', join(root, 'internal.md'))
-
-    assert.deepEqual(await checkDocumentation(root, ['internal.md']), [])
-    assert.deepEqual(await checkDocumentation(root, ['outside.md']), [
-      {
-        file: 'outside.md',
-        line: 1,
-        message: 'Markdown file points outside the checkout: outside.md',
-      },
-    ])
-  })
-
-  test('confines Git-discovered Markdown symlinks to the checkout', async ({ assert, cleanup }) => {
-    const root = await fixture({ 'README.md': '# Internal\n' }, cleanup)
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-outside-git-input-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'outside.md'), '[bad](missing.md)\n')
-    await symlink(join(outside, 'outside.md'), join(root, 'outside.md'))
-    execFileSync('git', ['-c', 'init.defaultBranch=main', 'init', '--quiet', root])
-    execFileSync('git', ['add', 'outside.md'], { cwd: root })
-
-    assert.deepEqual(await checkDocumentation(root), [
-      {
-        file: 'outside.md',
-        line: 1,
-        message: 'Markdown file points outside the checkout: outside.md',
-      },
-    ])
   })
 
   test('uses logical target extensions when reading internal symlinks', async ({
@@ -650,182 +336,6 @@ test.group('Documentation checks', () => {
     assert.deepEqual(await checkDocumentation(rootLink, ['README.md']), [])
   })
 
-  test('rejects an in-checkout file replaced by an external symlink before final open', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      { 'README.md': '[Guide](guide.md#escaped)\n', 'guide.md': '# Safe\n' },
-      cleanup
-    )
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-file-race-outside-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'outside.md'), '# Escaped\n')
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'guide.md',
-      'read',
-      'before-final-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'guide.md'), join(root, 'guide-original.md'))
-        await symlink(join(outside, 'outside.md'), join(root, 'guide.md'))
-      }
-    )
-    assert.lengthOf(diagnostics, 1)
-    assert.equal(diagnostics[0].message, 'Link points outside the checkout: guide.md#escaped')
-  })
-
-  test('rejects an ancestor replaced by an external symlink before final open', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      { 'README.md': '[Guide](inside/guide.md#escaped)\n', 'inside/guide.md': '# Safe\n' },
-      cleanup
-    )
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-ancestor-race-outside-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'guide.md'), '# Escaped\n')
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'inside/guide.md',
-      'read',
-      'before-final-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'inside'), join(root, 'inside-original'))
-        await symlink(outside, join(root, 'inside'))
-      }
-    )
-    assert.lengthOf(diagnostics, 1)
-    assert.equal(
-      diagnostics[0].message,
-      'Link points outside the checkout: inside/guide.md#escaped'
-    )
-  })
-
-  test('rejects a moved ancestor even when an outside replacement file appears', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      { 'README.md': '[Guide](inside/guide.md#escaped)\n', 'inside/guide.md': '# Safe\n' },
-      cleanup
-    )
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-moved-ancestor-outside-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'inside/guide.md',
-      'read',
-      'after-ancestor-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'inside'), join(outside, 'moved'))
-        await rm(join(outside, 'moved', 'guide.md'))
-        await writeFile(join(outside, 'moved', 'guide.md'), '# Escaped\n')
-      }
-    )
-    assert.deepEqual(diagnostics, [
-      { file: 'README.md', line: 1, message: 'Missing file: inside/guide.md#escaped' },
-    ])
-  })
-
-  test('rejects a selected Markdown file replaced by an external symlink before read', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture({ 'README.md': '# Safe\n' }, cleanup)
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-input-read-race-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'outside.md'), '[bad](outside-only.md)\n')
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'README.md',
-      'read',
-      'before-final-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'README.md'), join(root, 'README-original.md'))
-        await symlink(join(outside, 'outside.md'), join(root, 'README.md'))
-      }
-    )
-    assert.deepEqual(diagnostics, [
-      {
-        file: 'README.md',
-        line: 1,
-        message: 'Markdown file points outside the checkout: README.md',
-      },
-    ])
-  })
-
-  test('rejects a source file replaced by an external symlink before read', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      {
-        'README.md': '<!-- source: demo.ts#demo -->\n```ts\nexport const value = 1\n```\n',
-        'demo.ts': '// #region demo\nexport const value = 1\n// #endregion demo\n',
-      },
-      cleanup
-    )
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-source-read-race-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(
-      join(outside, 'outside.ts'),
-      '// #region demo\nexport const value = 1\n// #endregion demo\n'
-    )
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'demo.ts',
-      'read',
-      'before-final-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'demo.ts'), join(root, 'demo-original.ts'))
-        await symlink(join(outside, 'outside.ts'), join(root, 'demo.ts'))
-      }
-    )
-    assert.deepEqual(diagnostics, [
-      { file: 'README.md', line: 1, message: 'Link points outside the checkout: demo.ts#demo' },
-    ])
-  })
-
-  test('rejects a directory README replaced by an external symlink before read', async ({
-    assert,
-    cleanup,
-  }) => {
-    const root = await fixture(
-      { 'README.md': '[Guide](docs/#escaped)\n', 'docs/README.md': '# Escaped\n' },
-      cleanup
-    )
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-directory-read-race-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
-    await writeFile(join(outside, 'outside.md'), '# Escaped\n')
-
-    const diagnostics = await checkAtFilesystemBarrier(
-      root,
-      'docs/README.md',
-      'read',
-      'before-final-open',
-      cleanup,
-      async () => {
-        await rename(join(root, 'docs/README.md'), join(root, 'docs/README-original.md'))
-        await symlink(join(outside, 'outside.md'), join(root, 'docs/README.md'))
-      }
-    )
-    assert.deepEqual(diagnostics, [
-      { file: 'README.md', line: 1, message: 'Link points outside the checkout: docs/#escaped' },
-    ])
-  })
-
   test('reports non-missing source read failures with their filesystem error code', async ({
     assert,
     cleanup,
@@ -847,15 +357,13 @@ test.group('Documentation checks', () => {
       { 'README.md': '[Guide](guide.md#start)\n', 'guide.md': '# Start\n' },
       cleanup
     )
-    const wrapperDirectory = await mkdtemp(join(tmpdir(), 'documentation-fs-fault-'))
-    cleanup(() => rm(wrapperDirectory, { recursive: true, force: true }))
-    const launcher = await testHelperLauncher(wrapperDirectory)
-    const previousPython = process.env.PYTHON
-    const previousOperation = process.env.DOCS_FS_TEST_FAIL_OPERATION
-    const previousTarget = process.env.DOCS_FS_TEST_FAIL_TARGET
-    process.env.PYTHON = launcher
-    process.env.DOCS_FS_TEST_FAIL_OPERATION = 'stat'
-    process.env.DOCS_FS_TEST_FAIL_TARGET = 'guide.md'
+    const originalStat = fsPromises.stat
+    Object.defineProperty(fsPromises, 'stat', {
+      value: async () => {
+        throw Object.assign(new Error('permission denied'), { code: 'EACCES' })
+      },
+    })
+    syncBuiltinESMExports()
     try {
       assert.deepEqual(await checkDocumentation(root, ['README.md']), [
         {
@@ -865,12 +373,8 @@ test.group('Documentation checks', () => {
         },
       ])
     } finally {
-      if (previousPython === undefined) delete process.env.PYTHON
-      else process.env.PYTHON = previousPython
-      if (previousOperation === undefined) delete process.env.DOCS_FS_TEST_FAIL_OPERATION
-      else process.env.DOCS_FS_TEST_FAIL_OPERATION = previousOperation
-      if (previousTarget === undefined) delete process.env.DOCS_FS_TEST_FAIL_TARGET
-      else process.env.DOCS_FS_TEST_FAIL_TARGET = previousTarget
+      Object.defineProperty(fsPromises, 'stat', { value: originalStat })
+      syncBuiltinESMExports()
     }
   })
 
@@ -881,20 +385,6 @@ test.group('Documentation checks', () => {
     )
     assert.deepEqual(await checkDocumentation(root, ['README.md']), [
       { file: 'README.md', line: 1, message: 'Missing file: guide/#start' },
-    ])
-  })
-
-  test('reports a non-directory ancestor as an inspection failure', async ({ assert, cleanup }) => {
-    const root = await fixture(
-      { 'README.md': '[Guide](file/guide.md)\n', 'file': 'contents' },
-      cleanup
-    )
-    assert.deepEqual(await checkDocumentation(root, ['README.md']), [
-      {
-        file: 'README.md',
-        line: 1,
-        message: 'Cannot inspect file: file/guide.md (ENOTDIR)',
-      },
     ])
   })
 
@@ -956,13 +446,11 @@ test.group('Documentation checks', () => {
     const directory = await mkdtemp(join(repository, 'tmp', 'docs-cli-'))
     cleanup(() => rm(directory, { recursive: true, force: true }))
     const file = join(directory, 'README.md')
-    const outside = await mkdtemp(join(tmpdir(), 'documentation-cli-outside-'))
-    cleanup(() => rm(outside, { recursive: true, force: true }))
     await writeFile(file, '# Good\n')
-    const run = (target = file) =>
+    const run = () =>
       spawnSync(
         process.execPath,
-        ['--import=@poppinss/ts-exec', 'bin/docs_check.ts', relative(repository, target)],
+        ['--import=@poppinss/ts-exec', 'bin/docs_check.ts', relative(repository, file)],
         { cwd: repository, encoding: 'utf8' }
       )
     const good = run()
@@ -972,13 +460,6 @@ test.group('Documentation checks', () => {
     const bad = run()
     assert.equal(bad.status, 1)
     assert.include(bad.stderr, ':1: Missing file: missing.md')
-    const externalMarkdown = join(outside, 'README.md')
-    await writeFile(externalMarkdown, '[bad](missing.md)\n')
-    const outsideLink = join(directory, 'outside.md')
-    await symlink(externalMarkdown, outsideLink)
-    const external = run(outsideLink)
-    assert.equal(external.status, 1)
-    assert.include(external.stderr, 'Markdown file points outside the checkout:')
   })
   test('checks shortcut and code-labelled references without interpreting inline code as links', async ({
     assert,

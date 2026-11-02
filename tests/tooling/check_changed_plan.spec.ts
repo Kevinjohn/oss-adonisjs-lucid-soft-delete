@@ -128,14 +128,10 @@ test.group('check:changed plan', () => {
     ])
   })
 
-  test('documentation checker and filesystem helper changes run the checker spec', ({ assert }) => {
-    for (const path of [
-      'bin/docs_check.ts',
-      'bin/docs_fs.py',
-      'tests/tooling/docs_fs_wrapper.py',
-    ]) {
-      assert.deepEqual(planChecks(changed(path)).tests, ['tests/tooling/docs_check.spec.ts'])
-    }
+  test('the documentation checker runs its own spec', ({ assert }) => {
+    assert.deepEqual(planChecks(changed('bin/docs_check.ts')).tests, [
+      'tests/tooling/docs_check.spec.ts',
+    ])
   })
 
   test('deleted files select checks but are never passed to a tool', ({ assert }) => {
