@@ -42,6 +42,8 @@ async function waitForReady(path: string): Promise<void> {
 
 async function waitForProcessGroupExit(groupFile: string): Promise<void> {
   await waitForGroupExit(Number(await readFile(groupFile, 'utf8')))
+  // The exited group ID can be reused, so later fixture cleanup must not signal it.
+  await rm(groupFile, { force: true })
 }
 
 async function waitForGroupExit(groupId: number): Promise<void> {
@@ -280,6 +282,11 @@ async function runnerFixture(
     inheritedSigningFailure: inheritedSigningFailure?.status,
     inheritedSigningError: inheritedSigningFailure?.stderr ?? '',
     waitForGroupExit: () => waitForProcessGroupExit(join(root, 'process_group')),
+    hasGroupRecord: () =>
+      access(join(root, 'process_group')).then(
+        () => true,
+        () => false
+      ),
     removePnpmShim: () => rm(shimPath),
     run: async (
       testOutput: string,
@@ -873,6 +880,7 @@ test.group('check:changed runner test outcome', () => {
       assert.equal(result.status, 143, result.output)
       assert.include(result.commands, 'format:check')
       assert.notInclude(result.commands, 'docs:check')
+      assert.isFalse(await run.hasGroupRecord())
     }).timeout(10_000)
 
   if (process.platform !== 'win32')
