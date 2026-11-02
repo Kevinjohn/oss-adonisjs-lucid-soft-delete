@@ -163,7 +163,7 @@ test.group('Published cookbook recipes', (group) => {
     cleanup,
   }) => {
     const client = env.get('DB_CLIENT')
-    if (client === 'pg') return
+    if (client !== 'better-sqlite3') return
 
     cleanup(async () => {
       await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_restore_label_other')
@@ -205,10 +205,11 @@ test.group('Published cookbook recipes', (group) => {
     const rows = await db
       .from('lifecycle_parents')
       .where('label', 'like', 'unique-%')
-      .select('deleted_at')
+      .select('id', 'deleted_at')
+      .orderBy('id', 'asc')
     assert.lengthOf(rows, 2)
-    assert.equal(rows.filter((row) => row.deleted_at === null).length, 1)
-    assert.equal(rows.filter((row) => row.deleted_at !== null).length, 1)
+    assert.isNotNull(rows[0].deleted_at, `Earlier row ${rows[0].id} should remain trashed`)
+    assert.isNull(rows[1].deleted_at, `Active owner ${rows[1].id} should be preserved`)
   })
 
   test('does not recover when restore succeeds without changing the row', async ({
