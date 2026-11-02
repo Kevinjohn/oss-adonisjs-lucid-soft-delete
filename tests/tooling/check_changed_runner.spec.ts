@@ -10,7 +10,7 @@
 import { access, chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { delimiter, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { test } from '@japa/runner'
@@ -21,7 +21,7 @@ const checkChangedPath = join(projectRoot, 'bin/check_changed.ts')
 const loaderUrl = pathToFileURL(createRequire(import.meta.url).resolve('@poppinss/ts-exec')).href
 
 async function waitForReady(path: string): Promise<void> {
-  const deadline = Date.now() + 5000
+  const deadline = Date.now() + 2000
   while (Date.now() < deadline) {
     try {
       await access(path)
@@ -36,7 +36,7 @@ async function waitForReady(path: string): Promise<void> {
 
 async function waitForProcessGroupExit(groupFile: string): Promise<void> {
   const groupId = Number(await readFile(groupFile, 'utf8'))
-  const deadline = Date.now() + 5000
+  const deadline = Date.now() + 2000
   while (Date.now() < deadline) {
     try {
       process.kill(-groupId, 0)
@@ -49,7 +49,7 @@ async function waitForProcessGroupExit(groupFile: string): Promise<void> {
   throw new Error(`Test command process group ${groupId} did not exit`)
 }
 
-async function waitForClose<T>(closed: Promise<T>, timeoutMs = 15_000): Promise<T> {
+async function waitForClose<T>(closed: Promise<T>, timeoutMs = 2000): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   try {
     return await Promise.race([
@@ -66,6 +66,78 @@ async function waitForClose<T>(closed: Promise<T>, timeoutMs = 15_000): Promise<
   }
 }
 
+function terminateFixtureChild(child: ChildProcess): string | undefined {
+  if (!child.pid) return
+  if (process.platform === 'win32') {
+    try {
+      const result = spawnSync('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], {
+        stdio: 'ignore',
+        timeout: 1000,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
+      })
+      if (result.status === 0) return
+    } catch (error) {
+      try {
+        if (child.kill('SIGKILL')) return
+      } catch (killError) {
+        return `taskkill and direct process termination failed: ${String(killError)}`
+      }
+      return `taskkill launch failed and direct process termination was rejected: ${String(error)}`
+    }
+    try {
+      if (child.kill('SIGKILL')) return
+    } catch (error) {
+      return `taskkill and direct process termination failed: ${String(error)}`
+    }
+    return 'taskkill failed and direct process termination was rejected'
+  }
+  try {
+    process.kill(-child.pid, 'SIGKILL')
+    return
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
+    try {
+      if (child.kill('SIGKILL')) return
+    } catch (killError) {
+      return `process group and direct process termination failed: ${String(killError)}`
+    }
+    return `process group cleanup and direct process termination failed: ${String(error)}`
+  }
+}
+
+async function terminateFixtureGroup(groupFile: string): Promise<string | undefined> {
+  try {
+    const groupId = Number(await readFile(groupFile, 'utf8'))
+    if (!Number.isInteger(groupId) || groupId <= 0) return
+    if (process.platform === 'win32') {
+      const result = spawnSync('taskkill.exe', ['/pid', String(groupId), '/t', '/f'], {
+        stdio: 'ignore',
+        timeout: 1000,
+        killSignal: 'SIGKILL',
+        windowsHide: true,
+      })
+      if (result.status === 0) return
+      try {
+        process.kill(groupId, 'SIGKILL')
+        return
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ESRCH') return
+        return `taskkill and direct step termination failed: ${String(error)}`
+      }
+    }
+    process.kill(-groupId, 'SIGKILL')
+  } catch (error) {
+    if (
+      (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+      (error as NodeJS.ErrnoException).code === 'ESRCH'
+    ) {
+      return
+    }
+    return `step group cleanup failed: ${String(error)}`
+  }
+}
+
 type FixtureOptions = {
   change?: 'source' | 'package' | 'docs' | 'none'
   runtimeVersion?: string
@@ -78,7 +150,33 @@ async function runnerFixture(
   options: FixtureOptions = {}
 ) {
   const root = await mkdtemp(join(tmpdir(), 'check-changed-runner-'))
-  cleanup(() => rm(root, { recursive: true, force: true }))
+  const children = new Set<ChildProcess>()
+  const childClosures = new WeakMap<ChildProcess, Promise<unknown>>()
+  const trackChild = (child: ChildProcess, closed: Promise<unknown>) => {
+    children.add(child)
+    childClosures.set(child, closed)
+    void closed.finally(() => children.delete(child))
+  }
+  cleanup(async () => {
+    const activeChildren = [...children]
+    const errors: string[] = []
+    for (const child of activeChildren) {
+      const error = terminateFixtureChild(child)
+      if (error) errors.push(error)
+    }
+    const firstGroupError = await terminateFixtureGroup(join(root, 'process_group'))
+    if (firstGroupError) errors.push(firstGroupError)
+    await Promise.all(
+      activeChildren.map(async (child) => {
+        const closed = childClosures.get(child)
+        if (closed) await waitForClose(closed, 1500).catch(() => undefined)
+      })
+    )
+    const finalGroupError = await terminateFixtureGroup(join(root, 'process_group'))
+    if (finalGroupError) errors.push(finalGroupError)
+    await rm(root, { recursive: true, force: true })
+    if (errors.length) throw new AggregateError(errors.map((error) => new Error(error)))
+  })
   const shimDirectory = join(root, 'bin')
   const logPath = join(root, 'pnpm.log')
   const globalConfigPath = join(root, 'isolated.gitconfig')
@@ -169,7 +267,7 @@ async function runnerFixture(
   const shimPath = join(shimDirectory, 'pnpm')
   await writeFile(
     shimPath,
-    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
+    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  const inheritPipes = process.env.CHECK_CHANGED_EXIT_WITH_DESCENDANT === '1'\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: inheritPipes ? ['ignore', 'inherit', 'inherit'] : 'ignore' })\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  if (inheritPipes) process.exit(0)\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
   )
   await chmod(shimPath, 0o755)
 
@@ -179,7 +277,11 @@ async function runnerFixture(
     checkChangedPath,
     ...cliArgs,
   ]
-  const envFor = (testOutput: string, hang = false): NodeJS.ProcessEnv => ({
+  const envFor = (
+    testOutput: string,
+    hang = false,
+    exitWithDescendant = false
+  ): NodeJS.ProcessEnv => ({
     ...process.env,
     PATH: `${shimDirectory}${delimiter}${process.env.PATH}`,
     CHECK_CHANGED_LOG: logPath,
@@ -187,6 +289,7 @@ async function runnerFixture(
     CHECK_CHANGED_READY: join(root, 'ready'),
     CHECK_CHANGED_GROUP: join(root, 'process_group'),
     CHECK_CHANGED_HANG: hang ? '1' : '0',
+    CHECK_CHANGED_EXIT_WITH_DESCENDANT: exitWithDescendant ? '1' : '0',
     CHECK_CHANGED_FAIL_BUILD: options.failBuild ? '1' : '0',
     GIT_CONFIG_GLOBAL: inheritedConfigPath,
     GIT_CONFIG_NOSYSTEM: '1',
@@ -220,40 +323,27 @@ async function runnerFixture(
       const closed = new Promise<{ status: number | null; signal: NodeJS.Signals | null }>(
         (resolve) => child.once('close', (status, signal) => resolve({ status, signal }))
       )
+      trackChild(child, closed)
       try {
-        const result = await waitForClose(closed, runOptions.timeoutMs ?? 15_000)
+        const result = await waitForClose(closed, runOptions.timeoutMs ?? 2000)
         return { ...result, stdout, stderr, commands: await readFile(logPath, 'utf8') }
       } catch (error) {
-        if (child.pid) {
-          if (process.platform === 'win32') {
-            spawnSync('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], {
-              stdio: 'ignore',
-              windowsHide: true,
-            })
-          } else {
-            try {
-              process.kill(-child.pid, 'SIGKILL')
-            } catch {}
-            try {
-              const groupId = Number(await readFile(join(root, 'process_group'), 'utf8'))
-              if (Number.isInteger(groupId) && groupId > 0) process.kill(-groupId, 'SIGKILL')
-            } catch (cleanupError) {
-              if ((cleanupError as NodeJS.ErrnoException).code !== 'ENOENT') {
-                if (error instanceof Error) Object.assign(error, { cleanupError })
-              }
-            }
-          }
-        }
-        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+        const cleanupErrors = [
+          terminateFixtureChild(child),
+          await terminateFixtureGroup(join(root, 'process_group')),
+        ].filter((issue): issue is string => Boolean(issue))
         try {
-          await waitForClose(closed)
+          await waitForClose(closed, 1500)
         } catch (cleanupError) {
-          if (error instanceof Error) Object.assign(error, { cleanupError })
+          cleanupErrors.push(String(cleanupError))
+        }
+        if (cleanupErrors.length && error instanceof Error) {
+          Object.assign(error, { cleanupError: new AggregateError(cleanupErrors) })
         }
         throw error
       }
     },
-    runBlocked: async (testOutput: string, timeout = false) => {
+    runBlocked: async (testOutput: string, timeout = false, exitWithDescendant = false) => {
       await writeFile(logPath, '')
       const preloadPath = join(root, 'short_timeout.mjs')
       await writeFile(
@@ -266,7 +356,7 @@ async function runnerFixture(
         [...runnerImports, '--enable-source-maps', checkChangedPath, 'main'],
         {
           cwd: root,
-          env: envFor(testOutput, true),
+          env: envFor(testOutput, true, exitWithDescendant),
           stdio: ['ignore', 'pipe', 'pipe'],
         }
       )
@@ -278,6 +368,7 @@ async function runnerFixture(
           child.once('close', (status, signal) => resolve({ status, signal }))
         }
       )
+      trackChild(child, closed)
       try {
         await Promise.race([
           waitForReady(join(root, 'ready')),
@@ -286,23 +377,21 @@ async function runnerFixture(
           }),
         ])
         if (!timeout) child.kill('SIGTERM')
-        const result = await waitForClose(closed)
+        const result = await waitForClose(closed, 2000)
         await waitForProcessGroupExit(join(root, 'process_group'))
         return { ...result, output, commands: await readFile(logPath, 'utf8') }
       } catch (error) {
+        const cleanupErrors = [
+          terminateFixtureChild(child),
+          await terminateFixtureGroup(join(root, 'process_group')),
+        ].filter((issue): issue is string => Boolean(issue))
         try {
-          const groupId = Number(await readFile(join(root, 'process_group'), 'utf8'))
-          if (Number.isInteger(groupId) && groupId > 0) process.kill(-groupId, 'SIGKILL')
+          await waitForClose(closed, 1500)
         } catch (cleanupError) {
-          if ((cleanupError as NodeJS.ErrnoException).code !== 'ENOENT' && error instanceof Error) {
-            Object.assign(error, { cleanupError })
-          }
+          cleanupErrors.push(String(cleanupError))
         }
-        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
-        try {
-          await waitForClose(closed)
-        } catch (cleanupError) {
-          if (error instanceof Error) Object.assign(error, { cleanupError })
+        if (cleanupErrors.length && error instanceof Error) {
+          Object.assign(error, { cleanupError: new AggregateError(cleanupErrors) })
         }
         throw error
       }
@@ -402,6 +491,81 @@ test.group('check:changed runner test outcome', () => {
     })
   })
 
+  if (process.platform !== 'win32')
+    test('bounds cleanup when process-tree termination fails', async ({ assert }) => {
+      for (const killFailure of [
+        undefined,
+        new Error('direct kill failed'),
+        'direct kill failed',
+      ]) {
+        let childGroup: number | undefined
+        try {
+          const result = await runStep(
+            process.execPath,
+            [
+              '-e',
+              "const { spawn } = require('node:child_process'); spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'inherit'] }); process.exit(0)",
+            ],
+            'darwin',
+            process.execPath,
+            undefined,
+            (pid) => {
+              childGroup = pid
+            },
+            {
+              timeoutMs: 25,
+              terminationGraceMs: 25,
+              ...(killFailure !== undefined
+                ? {
+                    killChild: () => {
+                      throw killFailure
+                    },
+                  }
+                : {}),
+              terminate: () => ({
+                success: false,
+                tree: false,
+                detail: 'test process-tree termination failure',
+              }),
+            }
+          )
+          assert.equal(result.code, 1)
+          assert.include(result.output, 'test process-tree termination failure')
+          assert.include(result.output, 'Step did not close after termination')
+          if (killFailure !== undefined) {
+            assert.include(
+              result.output,
+              `Direct process termination failed: ${killFailure instanceof Error ? killFailure.message : killFailure}`
+            )
+          }
+        } finally {
+          if (childGroup) {
+            try {
+              process.kill(-childGroup, 'SIGKILL')
+            } catch {}
+          }
+        }
+      }
+    }).timeout(5000)
+
+  test('reports non-Error process-group termination failures', ({ assert }) => {
+    assert.deepEqual(
+      terminateStep(
+        49,
+        'darwin',
+        () => ({ status: 0 }),
+        () => {
+          throw 'permission denied'
+        }
+      ),
+      {
+        success: false,
+        tree: false,
+        detail: 'process group termination failed: permission denied',
+      }
+    )
+  })
+
   test('uses taskkill and direct process termination fallbacks', ({ assert }) => {
     const calls: Array<{ pid: number; signal: NodeJS.Signals }> = []
     let taskkillArgs: string[] = []
@@ -410,47 +574,103 @@ test.group('check:changed runner test outcome', () => {
       'win32',
       (args) => {
         taskkillArgs = args
-        return 0
+        return { status: 0 }
       },
       (pid, signal) => calls.push({ pid, signal })
     )
     assert.deepEqual(taskkillArgs, ['/pid', '42', '/t', '/f'])
     assert.deepEqual(calls, [])
 
-    terminateStep(
+    const fallback = terminateStep(
       43,
       'win32',
-      () => 1,
+      () => ({ status: 1, error: 'timeout' }),
       (pid, signal) => calls.push({ pid, signal })
     )
-    terminateStep(
-      44,
-      'win32',
-      () => null,
-      () => {
-        throw new Error('process already exited')
+    assert.deepEqual(fallback, {
+      success: true,
+      tree: false,
+      detail:
+        'taskkill failed (timeout); terminated the step process directly, but descendants may remain',
+    })
+    assert.deepEqual(
+      terminateStep(
+        48,
+        'win32',
+        () => ({ status: 1, error: 'timeout' }),
+        () => {
+          throw Object.assign(new Error('access denied'), { code: 'EPERM' })
+        }
+      ),
+      {
+        success: false,
+        tree: false,
+        detail: 'taskkill failed (timeout); direct process termination also failed',
       }
     )
+    const exitedError = Object.assign(new Error('already exited'), { code: 'ESRCH' })
+    const exited = terminateStep(
+      44,
+      'win32',
+      () => ({ status: null }),
+      () => {
+        throw exitedError
+      }
+    )
+    assert.deepEqual(exited, {
+      success: true,
+      tree: false,
+      detail: 'taskkill failed; the step process already exited, but descendants may remain',
+    })
     terminateStep(
       45,
       'darwin',
-      () => 0,
+      () => ({ status: 0 }),
       (pid, signal) => calls.push({ pid, signal })
     )
     terminateStep(2_147_483_647, 'win32')
+    const noGroup = Object.assign(new Error('group already exited'), { code: 'ESRCH' })
+    assert.deepEqual(
+      terminateStep(
+        46,
+        'darwin',
+        () => ({ status: 0 }),
+        () => {
+          throw noGroup
+        }
+      ),
+      { success: true, tree: true }
+    )
+    const denied = Object.assign(new Error('permission denied'), { code: 'EPERM' })
+    assert.deepEqual(
+      terminateStep(
+        47,
+        'darwin',
+        () => ({ status: 0 }),
+        () => {
+          throw denied
+        }
+      ),
+      {
+        success: false,
+        tree: false,
+        detail: 'process group termination failed: permission denied',
+      }
+    )
     assert.deepEqual(calls, [
       { pid: 43, signal: 'SIGKILL' },
       { pid: -45, signal: 'SIGKILL' },
     ])
   })
 
-  test('reports a child command start error without throwing', async ({ assert, cleanup }) => {
-    const run = await runnerFixture(cleanup)
-    await run.removePnpmShim()
-    const result = await run.run('', ['main'], { restrictPath: true })
-    assert.equal(result.status, 1, result.stdout + result.stderr)
-    assert.include(result.stdout, 'Failed to start pnpm:')
-  })
+  if (process.platform !== 'win32')
+    test('reports a child command start error without throwing', async ({ assert, cleanup }) => {
+      const run = await runnerFixture(cleanup)
+      await run.removePnpmShim()
+      const result = await run.run('', ['main'], { restrictPath: true })
+      assert.equal(result.status, 1, result.stdout + result.stderr)
+      assert.include(result.stdout, 'Failed to start pnpm:')
+    })
 
   if (process.platform !== 'win32')
     test('bounds a hung runner and cleans up its process group', async ({ assert, cleanup }) => {
@@ -517,6 +737,19 @@ test.group('check:changed runner test outcome', () => {
     test('kills a timed-out check and continues to later checks', async ({ assert, cleanup }) => {
       const run = await runnerFixture(cleanup, { change: 'none' })
       const result = await run.runBlocked('', true)
+      assert.equal(result.status, 1, result.output)
+      assert.include(result.output, 'Stopped after 600s')
+      assert.include(result.commands, 'format:check')
+      assert.include(result.commands, 'docs:check')
+    }).timeout(10_000)
+
+  if (process.platform !== 'win32')
+    test('reports timeout when a successful child leaves a descendant holding output pipes', async ({
+      assert,
+      cleanup,
+    }) => {
+      const run = await runnerFixture(cleanup, { change: 'none' })
+      const result = await run.runBlocked('', true, true)
       assert.equal(result.status, 1, result.output)
       assert.include(result.output, 'Stopped after 600s')
       assert.include(result.commands, 'format:check')

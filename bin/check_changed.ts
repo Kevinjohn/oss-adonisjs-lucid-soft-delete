@@ -48,7 +48,7 @@ for (const [signal, code] of [
   })
 }
 
-/** Run a command in its own process group, so a hung step can be stopped with its children. */
+/** Run a command with a bounded timeout and platform-specific child cleanup. */
 function run(command: string, args: string[]): Promise<{ code: number; output: string }> {
   return runStep(
     command,

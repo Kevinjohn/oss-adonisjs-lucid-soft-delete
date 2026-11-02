@@ -67,8 +67,10 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
     else if (path === 'bin/check_changed.ts' || path === 'bin/check_changed_process.ts') {
       tests.add(PLAN_SPEC)
       tests.add(RUNNER_SPEC)
-    } else if (path === 'bin/check_changed_plan.ts') tests.add(PLAN_SPEC)
-    else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
+    } else if (path === 'bin/check_changed_plan.ts') {
+      tests.add(PLAN_SPEC)
+      tests.add(RUNNER_SPEC)
+    } else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
