@@ -37,7 +37,7 @@ function killStep(pid: number): void {
   terminateStepForSignal(pid, process.platform)
 }
 
-/** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
+/** Stop the active step and its descendants when the runner receives a terminal signal. */
 for (const [signal, code] of [
   ['SIGINT', 130],
   ['SIGTERM', 143],
