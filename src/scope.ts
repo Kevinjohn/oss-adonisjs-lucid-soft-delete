@@ -8,17 +8,28 @@
  */
 
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
+import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
 import { E_MODEL_SOFT_DELETE } from './errors.js'
 import { getSoftDeletesMode } from './mode.js'
-import { aliasFromTable, resolveTableReference } from './table_reference.js'
+import {
+  aliasFromTable,
+  qualifiedColumnReference,
+  resolveTableReference,
+} from './table_reference.js'
 import { addScopeFilter, removeScopeFilter } from './where_stack.js'
 
 type FilterableQuery = {
-  whereNull(column: string): unknown
-  whereNotNull(column: string): unknown
+  whereNull(column: string | RawBuilderContract | KnexRawReference): unknown
+  whereNotNull(column: string | RawBuilderContract | KnexRawReference): unknown
 }
 
-type KnexBuilderLike = { _single?: { table?: unknown } }
+type KnexRawReference = { toSQL(): unknown }
+
+type KnexBuilderLike = {
+  _single?: { table?: unknown }
+  client: { raw(sql: string): KnexRawReference }
+  queryContext(): unknown
+}
 
 type GroupLimit = {
   /** Lucid's inner `row_number()` builder; the mode and the filter live here. */
@@ -53,11 +64,25 @@ export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
   if (mode === 'with') return removeScopeFilter(query)
 
   const column = deletedAtColumn(query)
-  const reference = `${groupLimit?.alias ?? resolveTableReference(query)}.${column}`
+  const reference = qualifiedColumnReference(
+    query,
+    column,
+    groupLimit?.alias ?? resolveTableReference(query),
+    groupLimit?.alias !== undefined,
+    groupLimit ? (groupLimit.inner as KnexBuilderLike).queryContext() : undefined
+  )
   const filter = mode === 'only' ? 'whereNotNull' : 'whereNull'
 
   if (groupLimit && filter in groupLimit.inner) {
-    ;(groupLimit.inner as FilterableQuery)[filter](reference)
+    const innerReference =
+      typeof reference === 'string'
+        ? reference
+        : reference.toKnex(
+            (groupLimit.inner as KnexBuilderLike).client as Parameters<
+              RawBuilderContract['toKnex']
+            >[0]
+          )
+    ;(groupLimit.inner as FilterableQuery)[filter](innerReference)
     return
   }
 
@@ -74,6 +99,6 @@ export function applySubQueryScope(query: ModelQueryBuilderContract<LucidModel>)
   const mode = getSoftDeletesMode(query)
   if (mode === 'with') return removeScopeFilter(query)
 
-  const reference = `${resolveTableReference(query)}.${deletedAtColumn(query)}`
+  const reference = qualifiedColumnReference(query, deletedAtColumn(query))
   addScopeFilter(query, mode === 'only' ? 'whereNotNull' : 'whereNull', reference)
 }

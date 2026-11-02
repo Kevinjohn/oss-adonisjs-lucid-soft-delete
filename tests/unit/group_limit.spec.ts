@@ -170,7 +170,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     )
   })
 
-  test('qualifies group-limit scopes through object and string relation aliases', async ({
+  test('qualifies group-limit scopes through literal-dot object and string aliases', async ({
     assert,
   }) => {
     const db = await createDatabase()
@@ -193,7 +193,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     const objectDefault = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from({ p: 'posts' }).groupLimit(2).groupOrderBy('p.id', 'asc')
+        posts.from({ 'post.rows': 'posts' }).groupLimit(2).groupOrderBy('id', 'asc')
       )
       .firstOrFail()
     assert.deepEqual(
@@ -204,7 +204,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     const objectOnly = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from({ p: 'posts' }).groupLimit(2).groupOrderBy('p.id', 'asc').onlyTrashed()
+        posts.from({ 'post.rows': 'posts' }).groupLimit(2).groupOrderBy('id', 'asc').onlyTrashed()
       )
       .firstOrFail()
     assert.deepEqual(
@@ -215,7 +215,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     const stringDefault = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts.from('posts as post-rows').groupLimit(2).groupOrderBy('post-rows.id', 'asc')
+        posts.from('posts as post.rows').groupLimit(2).groupOrderBy('id', 'asc')
       )
       .firstOrFail()
     assert.deepEqual(
@@ -226,11 +226,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     const stringOnly = await RelationUser.query()
       .where('id', user.id)
       .preload('posts', (posts) =>
-        posts
-          .from('posts as post-rows')
-          .groupLimit(2)
-          .groupOrderBy('post-rows.id', 'asc')
-          .onlyTrashed()
+        posts.from('posts as post.rows').groupLimit(2).groupOrderBy('id', 'asc').onlyTrashed()
       )
       .firstOrFail()
     assert.deepEqual(

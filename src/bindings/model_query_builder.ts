@@ -13,7 +13,7 @@ import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
 import { installSubQueryScope } from '../sub_query_scope.js'
-import { resolveTableReference } from '../table_reference.js'
+import { qualifiedColumnReference } from '../table_reference.js'
 import { addScopeFilter, groupCallerPredicates } from '../where_stack.js'
 
 /**
@@ -54,7 +54,7 @@ export function extendModelQueryBuilder(builder: any) {
       ensureLifecycleWrite(this)
       if (receipt) ensureReceiptSupport(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
-      addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${column}`)
+      addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
       const write = (target: ModelQueryBuilderContract<LucidModel>) =>
         target.update({ [column]: null })
       if (!receipt) return normaliseWriteCount(await write(this))
@@ -71,7 +71,7 @@ export function extendModelQueryBuilder(builder: any) {
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only')
         return receipt ? { count: 0, ids: [], deletedAt: null } : 0
-      addScopeFilter(this, 'whereNull', `${resolveTableReference(this)}.${column}`)
+      addScopeFilter(this, 'whereNull', qualifiedColumnReference(this, column))
       const deletedAt = deletionTimestamp(this)
       const values = { [column]: deletedAt.toFormat(this.client.dialect.dateTimeFormat) }
       const write = (target: ModelQueryBuilderContract<LucidModel>) => target.update(values)
@@ -89,7 +89,7 @@ export function extendModelQueryBuilder(builder: any) {
       if (receipt) ensureReceiptSupport(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only') {
-        addScopeFilter(this, 'whereNotNull', `${resolveTableReference(this)}.${column}`)
+        addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
       } else {
         groupCallerPredicates(this)
       }

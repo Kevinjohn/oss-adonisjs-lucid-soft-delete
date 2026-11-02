@@ -13,7 +13,11 @@ import { createDatabase, createTables } from '../helpers.js'
 import { RelationUser } from '../fixtures/models.js'
 import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../../src/mode.js'
 import { installModePropagation } from '../../src/propagation.js'
-import { aliasFromTable, resolveTableReference } from '../../src/table_reference.js'
+import {
+  aliasFromTable,
+  qualifiedColumnReference,
+  resolveTableReference,
+} from '../../src/table_reference.js'
 import { addScopeFilter, removeScopeFilter } from '../../src/where_stack.js'
 
 test.group('scope modules', (group) => {
@@ -36,9 +40,11 @@ test.group('scope modules', (group) => {
     assert.equal(aliasFromTable('posts as p'), 'p')
     assert.equal(aliasFromTable('posts AS P'), 'P')
     assert.equal(aliasFromTable('posts as user-rows'), 'user-rows')
+    assert.equal(aliasFromTable('users as user.rows'), 'user.rows')
     assert.equal(aliasFromTable('posts AS u$'), 'u$')
     assert.equal(aliasFromTable('posts as   user-rows   '), 'user-rows')
     assert.equal(aliasFromTable({ p: 'posts' }), 'p')
+    assert.equal(aliasFromTable({ 'user.rows': 'users' }), 'user.rows')
     assert.isUndefined(aliasFromTable('posts'))
     assert.isUndefined(aliasFromTable({ p: 'posts', q: 'users' }))
     assert.isUndefined(aliasFromTable({ p: 1 }))
@@ -61,6 +67,18 @@ test.group('scope modules', (group) => {
       resolveTableReference(RelationUser.query().from('users as user-rows')),
       'user-rows'
     )
+  })
+
+  test('qualified model tables retain schema and table identifier segments', async ({ assert }) => {
+    await createDatabase()
+
+    class SchemaQualifiedUser extends RelationUser {
+      static table = 'public.users'
+    }
+
+    const query = SchemaQualifiedUser.query()
+    assert.equal(resolveTableReference(query), 'public.users')
+    assert.equal(qualifiedColumnReference(query, 'deleted_at'), 'public.users.deleted_at')
   })
 
   test('where stack: one filter after the grouped predicates, replaced on rerun, removable', async ({

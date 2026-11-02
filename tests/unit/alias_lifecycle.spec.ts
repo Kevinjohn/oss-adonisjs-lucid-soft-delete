@@ -29,12 +29,14 @@ test.group('Punctuation alias lifecycle writes', (group) => {
       if (!trx.isCompleted) await trx.rollback()
     })
 
-    const query = () =>
-      RelationUser.query({ client: trx })
-        .from('users as user-rows')
-        .where('user-rows.id', selected.id)
+    const query = (objectAlias = false) => {
+      const builder = RelationUser.query({ client: trx })
+      if (objectAlias) builder.from({ 'user.rows': 'users' })
+      else builder.from('users as user.rows')
+      return builder.where('id', selected.id)
+    }
 
-    const deleted = await query().softDelete({ receipt: true })
+    const deleted = await query(true).softDelete({ receipt: true })
     assert.equal(deleted.count, 1)
     assert.deepEqual(deleted.ids, [selected.id])
     assert.isNotNull(deleted.deletedAt)
@@ -52,7 +54,7 @@ test.group('Punctuation alias lifecycle writes', (group) => {
     assert.isNull(unselectedAfterRestore.deleted_at)
 
     await query().softDelete()
-    const deletedAgain = await query().onlyTrashed().forceDelete({ receipt: true })
+    const deletedAgain = await query(true).onlyTrashed().forceDelete({ receipt: true })
     assert.equal(deletedAgain.count, 1)
     assert.deepEqual(deletedAgain.ids, [selected.id])
     assert.isNull(await trx.from('users').where('id', selected.id).first())
