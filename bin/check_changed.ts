@@ -32,7 +32,24 @@ function changedFiles(base: string): Change[] {
   return [...changes.values()]
 }
 
-let activeGroup: number | undefined
+let activeChild: number | undefined
+
+function killStep(pid: number): void {
+  if (process.platform === 'win32') {
+    const result = spawnSync('taskkill.exe', ['/pid', String(pid), '/t', '/f'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    if (result.status === 0) return
+    try {
+      process.kill(pid, 'SIGKILL')
+    } catch {}
+    return
+  }
+  try {
+    process.kill(-pid, 'SIGKILL')
+  } catch {}
+}
 
 /** A step runs in its own process group, which the terminal's Ctrl-C does not reach. */
 for (const [signal, code] of [
@@ -40,11 +57,7 @@ for (const [signal, code] of [
   ['SIGTERM', 143],
 ] as const) {
   process.on(signal, () => {
-    if (activeGroup) {
-      try {
-        process.kill(-activeGroup, 'SIGKILL')
-      } catch {}
-    }
+    if (activeChild) killStep(activeChild)
     process.exit(code)
   })
 }
@@ -52,18 +65,33 @@ for (const [signal, code] of [
 /** Run a command in its own process group, so a hung step can be stopped with its children. */
 function run(command: string, args: string[]): Promise<{ code: number; output: string }> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
-    activeGroup = child.pid
+    const windowsPnpm = process.platform === 'win32' && command === 'pnpm'
+    const executable = windowsPnpm ? process.execPath : command
+    const pnpmExecPath = process.env.npm_execpath
+    if (windowsPnpm && !pnpmExecPath) {
+      resolve({
+        code: 1,
+        output: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
+      })
+      return
+    }
+    const commandArgs = windowsPnpm ? [pnpmExecPath!, ...args] : args
+    const child = spawn(executable, commandArgs, {
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    })
+    activeChild = child.pid
     let output = ''
     child.stdout.on('data', (chunk) => (output += chunk))
     child.stderr.on('data', (chunk) => (output += chunk))
     const timer = setTimeout(() => {
       output += `\nStopped after ${STEP_TIMEOUT_MS / 1000}s`
-      process.kill(-child.pid!, 'SIGKILL')
+      if (child.pid) killStep(child.pid)
     }, STEP_TIMEOUT_MS)
     child.on('close', (code) => {
       clearTimeout(timer)
-      activeGroup = undefined
+      activeChild = undefined
       resolve({ code: code ?? 1, output })
     })
   })

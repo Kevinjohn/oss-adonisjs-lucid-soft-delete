@@ -48,13 +48,16 @@ async function waitForProcessGroupExit(groupFile: string): Promise<void> {
   throw new Error(`Test command process group ${groupId} did not exit`)
 }
 
-async function waitForClose<T>(closed: Promise<T>): Promise<T> {
+async function waitForClose<T>(closed: Promise<T>, timeoutMs = 15_000): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   try {
     return await Promise.race([
       closed,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Timed out waiting for runner cleanup')), 5000)
+        timer = setTimeout(
+          () => reject(new Error('Timed out waiting for runner cleanup')),
+          timeoutMs
+        )
       }),
     ])
   } finally {
@@ -66,6 +69,7 @@ type FixtureOptions = {
   change?: 'source' | 'package' | 'docs' | 'none'
   runtimeVersion?: string
   failBuild?: boolean
+  probeInheritedSigning?: boolean
 }
 
 async function runnerFixture(
@@ -111,24 +115,26 @@ async function runnerFixture(
     env: cleanGitEnv,
   })
   execFileSync('git', ['add', '.'], { cwd: root, env: cleanGitEnv })
-  const inheritedSigningFailure = spawnSync(
-    'git',
-    [
-      '-c',
-      `user.name=Test User`,
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '--quiet',
-      '-m',
-      'probe',
-    ],
-    {
-      cwd: root,
-      encoding: 'utf8',
-      env: { ...cleanGitEnv, GIT_CONFIG_GLOBAL: inheritedConfigPath },
-    }
-  )
+  const inheritedSigningFailure = options.probeInheritedSigning
+    ? spawnSync(
+        'git',
+        [
+          '-c',
+          'user.name=Test User',
+          '-c',
+          'user.email=test@example.invalid',
+          'commit',
+          '--quiet',
+          '-m',
+          'probe',
+        ],
+        {
+          cwd: root,
+          encoding: 'utf8',
+          env: { ...cleanGitEnv, GIT_CONFIG_GLOBAL: inheritedConfigPath },
+        }
+      )
+    : undefined
   execFileSync(
     'git',
     [
@@ -183,19 +189,61 @@ async function runnerFixture(
     CHECK_CHANGED_FAIL_BUILD: options.failBuild ? '1' : '0',
     GIT_CONFIG_GLOBAL: inheritedConfigPath,
     GIT_CONFIG_NOSYSTEM: '1',
+    npm_execpath: join(shimDirectory, 'pnpm'),
   })
 
   return {
-    inheritedSigningFailure: inheritedSigningFailure.status,
-    inheritedSigningError: inheritedSigningFailure.stderr,
-    run: async (testOutput: string, cliArgs: string[] = ['main']) => {
+    inheritedSigningFailure: inheritedSigningFailure?.status,
+    inheritedSigningError: inheritedSigningFailure?.stderr ?? '',
+    waitForGroupExit: () => waitForProcessGroupExit(join(root, 'process_group')),
+    run: async (testOutput: string, cliArgs: string[] = ['main'], hang = false) => {
       await writeFile(logPath, '')
-      const result = spawnSync(process.execPath, argsFor(cliArgs), {
+      const child = spawn(process.execPath, argsFor(cliArgs), {
         cwd: root,
-        encoding: 'utf8',
-        env: envFor(testOutput),
+        env: envFor(testOutput, hang),
+        detached: process.platform !== 'win32',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
       })
-      return { ...result, commands: await readFile(logPath, 'utf8') }
+      let stdout = ''
+      let stderr = ''
+      child.stdout?.on('data', (chunk) => (stdout += chunk))
+      child.stderr?.on('data', (chunk) => (stderr += chunk))
+      const closed = new Promise<{ status: number | null; signal: NodeJS.Signals | null }>(
+        (resolve) => child.once('close', (status, signal) => resolve({ status, signal }))
+      )
+      try {
+        const result = await waitForClose(closed, 2000)
+        return { ...result, stdout, stderr, commands: await readFile(logPath, 'utf8') }
+      } catch (error) {
+        if (child.pid) {
+          if (process.platform === 'win32') {
+            spawnSync('taskkill.exe', ['/pid', String(child.pid), '/t', '/f'], {
+              stdio: 'ignore',
+              windowsHide: true,
+            })
+          } else {
+            try {
+              process.kill(-child.pid, 'SIGKILL')
+            } catch {}
+            try {
+              const groupId = Number(await readFile(join(root, 'process_group'), 'utf8'))
+              if (Number.isInteger(groupId) && groupId > 0) process.kill(-groupId, 'SIGKILL')
+            } catch (cleanupError) {
+              if ((cleanupError as NodeJS.ErrnoException).code !== 'ENOENT') {
+                if (error instanceof Error) Object.assign(error, { cleanupError })
+              }
+            }
+          }
+        }
+        if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+        try {
+          await waitForClose(closed)
+        } catch (cleanupError) {
+          if (error instanceof Error) Object.assign(error, { cleanupError })
+        }
+        throw error
+      }
     },
     runBlocked: async (testOutput: string, timeout = false) => {
       await writeFile(logPath, '')
@@ -235,7 +283,7 @@ async function runnerFixture(
           }),
         ])
         if (!timeout) child.kill('SIGTERM')
-        const result = await closed
+        const result = await waitForClose(closed)
         await waitForProcessGroupExit(join(root, 'process_group'))
         return { ...result, output, commands: await readFile(logPath, 'utf8') }
       } catch (error) {
@@ -302,7 +350,7 @@ test.group('check:changed runner test outcome', () => {
     assert,
     cleanup,
   }) => {
-    const run = await runnerFixture(cleanup)
+    const run = await runnerFixture(cleanup, { probeInheritedSigning: true })
     assert.equal(run.inheritedSigningFailure, 128)
     assert.include(run.inheritedSigningError, 'missing-test-signer')
     const result = await run.run('Tests  1 passed (1)')
@@ -333,6 +381,16 @@ test.group('check:changed runner test outcome', () => {
       assert.equal(result.commands, '')
     }
   })
+
+  if (process.platform !== 'win32')
+    test('bounds a hung runner and cleans up its process group', async ({ assert, cleanup }) => {
+      const run = await runnerFixture(cleanup, { change: 'none' })
+      await assert.rejects(
+        () => run.run('', ['main'], true),
+        /Timed out waiting for runner cleanup/
+      )
+      await run.waitForGroupExit()
+    }).timeout(10_000)
 
   test('rejects a runtime that differs from the repository requirement', async ({
     assert,

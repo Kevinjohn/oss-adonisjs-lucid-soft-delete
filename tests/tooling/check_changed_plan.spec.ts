@@ -184,6 +184,8 @@ test.group('check:changed test outcome', () => {
       'not a Japa summary',
       'Tests  not a count, 1 passed (1)',
       'Tests  1 passed (3)',
+      'Tests  1 passed (1) trailing text',
+      'Tests  1 passed (1)\nTests  0 failed (0)',
     ]) {
       assert.isFalse(readTestOutcome(output, 0).passed)
     }

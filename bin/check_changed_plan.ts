@@ -88,7 +88,13 @@ export type TestOutcome = { passed: boolean; executed: number }
  */
 export function readTestOutcome(output: string, exitCode: number): TestOutcome {
   // eslint-disable-next-line no-control-regex
-  const summary = output.replace(/\x1b\[[0-9;]*m/g, '').match(/Tests\s+([^\n]*)\((\d+)\)/)
+  const plainOutput = output.replace(/\x1b\[[0-9;]*m/g, '')
+  const summaryLines = plainOutput.split(/\r?\n/).filter((line) => /^\s*Tests\b/.test(line))
+  const summaryLine = summaryLines[0]
+  const summary =
+    summaryLines.length === 1 && summaryLine
+      ? summaryLine.match(/^\s*Tests\s+([^\n]*)\((\d+)\)\s*$/)
+      : null
   const counts = new Map<string, number>()
   let recognized = summary !== null
   if (summary) {
