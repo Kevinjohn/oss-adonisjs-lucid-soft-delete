@@ -39,7 +39,11 @@ Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local Pos
 ## MySQL
 
 For MySQL 8.4 on macOS, start the Homebrew service, create the test database, and run with
-`DB_CLIENT=mysql`. The transactions test also creates and drops `lucid_soft_deletes_second`:
+`DB_CLIENT=mysql`. The lock-wait receipt tests query `performance_schema.data_lock_waits` and
+`performance_schema.threads`. They require Performance Schema to be enabled and the test account
+to have `SELECT` access to those tables. Confirm those test-only prerequisites with the database
+administrator when using a restricted account. The transactions test also creates and drops
+`lucid_soft_deletes_second`:
 
 ```bash
 brew services start mysql@8.4
