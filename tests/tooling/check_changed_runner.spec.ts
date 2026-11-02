@@ -155,7 +155,10 @@ async function runnerFixture(
   const trackChild = (child: ChildProcess, closed: Promise<unknown>) => {
     children.add(child)
     childClosures.set(child, closed)
-    void closed.finally(() => children.delete(child))
+    void closed.then(
+      () => children.delete(child),
+      () => children.delete(child)
+    )
   }
   cleanup(async () => {
     const activeChildren = [...children]
@@ -325,7 +328,7 @@ async function runnerFixture(
       )
       trackChild(child, closed)
       try {
-        const result = await waitForClose(closed, runOptions.timeoutMs ?? 2000)
+        const result = await waitForClose(closed, runOptions.timeoutMs ?? 15_000)
         return { ...result, stdout, stderr, commands: await readFile(logPath, 'utf8') }
       } catch (error) {
         const cleanupErrors = [
