@@ -418,6 +418,11 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
+  let result: {
+    conflictObserved: boolean
+    remainsTrashedAfterConflict: boolean
+    restoredAfterConflictWasResolved: boolean
+  }
   try {
     const label = uniqueLabel('unique')
     const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
@@ -441,14 +446,24 @@ export async function restoreAfterUniqueConflict() {
       await deleted.restore()
     }
     const restored = await RecipeParent.withTrashed().where('id', deleted.id).firstOrFail()
-    return {
+    result = {
       conflictObserved,
       remainsTrashedAfterConflict: stateAfterAttempt.trashed,
       restoredAfterConflictWasResolved: !restored.trashed,
     }
-  } finally {
-    await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  } catch (error) {
+    try {
+      await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Restore recipe failed and its temporary index could not be cleaned up'
+      )
+    }
+    throw error
   }
+  await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  return result
 }
 ```
 
@@ -458,6 +473,10 @@ The recipe recognizes only SQLSTATE `23505` for the named PostgreSQL constraint 
 violations on other columns, propagate before the active owner is deleted. The recipe also requires that it observed that classified conflict before
 recovering; a successful or no-op restore never deletes the active owner.
 
+If both the recipe operation and temporary-index cleanup fail, the recipe throws an `AggregateError`
+containing the operation error first and cleanup error second. A cleanup failure after a successful
+operation is thrown directly.
+
 Expected result: the first restore conflicts and the retry succeeds only after the active owner is
 removed. In production, map the relevant database constraint error to a domain-level conflict and
 choose an explicit recovery: ask the user to choose a new value, merge/rename the conflicting
@@ -466,6 +485,10 @@ trashed. A partial unique index such as `email` where `deleted_at IS NULL` is su
 databases (including PostgreSQL and SQLite); index syntax and support differ by database. MySQL
 does not provide the same partial-index syntax, so a generated nullable key or another schema
 design may be needed. Validate index semantics and migration support for your engine.
+
+This fixture's delete-then-retry recovery policy is not atomic: if the retry fails, the active owner
+has already been deleted. If production requires all-or-nothing behavior, use a transaction strategy
+that can recover from the constraint failure on your database, or choose a different conflict policy.
 
 If the uniqueness error occurs inside a transaction, do not assume that transaction can continue.
 PostgreSQL marks a transaction failed after a statement error; roll back the transaction or use a

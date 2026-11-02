@@ -91,6 +91,104 @@ test.group('Published cookbook recipes', (group) => {
     assert.isTrue(result.restoredAfterConflictWasResolved)
   })
 
+  test('preserves operation and cleanup failures from the restore recipe', async ({
+    assert,
+    cleanup,
+  }) => {
+    const client = env.get('DB_CLIENT')
+    cleanup(async () => {
+      await db.rawQuery('DROP INDEX IF EXISTS lifecycle_parents_active_label_unique')
+      if (client === 'pg') {
+        await db.rawQuery(
+          'DROP TRIGGER IF EXISTS lifecycle_restore_cleanup_failure ON lifecycle_parents'
+        )
+        await db.rawQuery('DROP FUNCTION IF EXISTS lifecycle_restore_cleanup_failure_fn()')
+      } else {
+        await db.rawQuery('DROP TRIGGER IF EXISTS lifecycle_restore_cleanup_failure')
+      }
+    })
+
+    const originalRawQueryDescriptor = Object.getOwnPropertyDescriptor(db, 'rawQuery')
+    const rawQuery = db.rawQuery.bind(db)
+    const cleanupFailure = new Error('temporary index cleanup sentinel')
+    const rawQueryWithCleanupFailure = (...args: Parameters<typeof db.rawQuery>) => {
+      const query = String(args[0])
+      return rawQuery(...args).then((result) => {
+        if (query.includes('DROP INDEX IF EXISTS lifecycle_parents_active_label_unique')) {
+          throw cleanupFailure
+        }
+        return result
+      })
+    }
+    Object.defineProperty(db, 'rawQuery', {
+      configurable: true,
+      value: rawQueryWithCleanupFailure,
+    })
+
+    try {
+      let cleanupOnlyError: unknown
+      try {
+        await restoreAfterUniqueConflict()
+      } catch (error) {
+        cleanupOnlyError = error
+      }
+      assert.equal(cleanupOnlyError, cleanupFailure)
+
+      if (client === 'pg') {
+        await db.rawQuery(`
+          CREATE FUNCTION lifecycle_restore_cleanup_failure_fn() RETURNS trigger
+          LANGUAGE plpgsql AS $$
+          BEGIN
+            IF OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL THEN
+              RAISE EXCEPTION 'restore operation sentinel' USING ERRCODE = 'P0001';
+            END IF;
+            RETURN NEW;
+          END;
+          $$
+        `)
+        await db.rawQuery(`
+          CREATE TRIGGER lifecycle_restore_cleanup_failure
+          BEFORE UPDATE OF deleted_at ON lifecycle_parents
+          FOR EACH ROW EXECUTE FUNCTION lifecycle_restore_cleanup_failure_fn()
+        `)
+      } else {
+        await db.rawQuery(`
+          CREATE TRIGGER lifecycle_restore_cleanup_failure
+          BEFORE UPDATE OF deleted_at ON lifecycle_parents
+          WHEN OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL
+          BEGIN
+            SELECT RAISE(ABORT, 'restore operation sentinel');
+          END
+        `)
+      }
+
+      let dualFailure: unknown
+      try {
+        await restoreAfterUniqueConflict()
+      } catch (error) {
+        dualFailure = error
+      }
+
+      assert.instanceOf(dualFailure, AggregateError)
+      const errors = (dualFailure as AggregateError).errors
+      assert.lengthOf(errors, 2)
+      const operationError = errors[0] as { code?: unknown; message?: unknown }
+      assert.equal(
+        typeof operationError.message === 'string' &&
+          operationError.message.includes('restore operation sentinel'),
+        true
+      )
+      assert.equal(operationError.code, client === 'pg' ? 'P0001' : 'SQLITE_CONSTRAINT_TRIGGER')
+      assert.equal(errors[1], cleanupFailure)
+    } finally {
+      if (originalRawQueryDescriptor) {
+        Object.defineProperty(db, 'rawQuery', originalRawQueryDescriptor)
+      } else {
+        Reflect.deleteProperty(db, 'rawQuery')
+      }
+    }
+  })
+
   test('propagates unexpected restore failures without deleting the active owner', async ({
     assert,
     cleanup,

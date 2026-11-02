@@ -297,6 +297,11 @@ export async function restoreAfterUniqueConflict() {
   await db.rawQuery(
     `CREATE UNIQUE INDEX ${indexName} ON lifecycle_parents (label) WHERE deleted_at IS NULL`
   )
+  let result: {
+    conflictObserved: boolean
+    remainsTrashedAfterConflict: boolean
+    restoredAfterConflictWasResolved: boolean
+  }
   try {
     const label = uniqueLabel('unique')
     const deleted = await RecipeParent.create({ tenantId: 1, label, archivedAt: null })
@@ -320,14 +325,24 @@ export async function restoreAfterUniqueConflict() {
       await deleted.restore()
     }
     const restored = await RecipeParent.withTrashed().where('id', deleted.id).firstOrFail()
-    return {
+    result = {
       conflictObserved,
       remainsTrashedAfterConflict: stateAfterAttempt.trashed,
       restoredAfterConflictWasResolved: !restored.trashed,
     }
-  } finally {
-    await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  } catch (error) {
+    try {
+      await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Restore recipe failed and its temporary index could not be cleaned up'
+      )
+    }
+    throw error
   }
+  await db.rawQuery(`DROP INDEX IF EXISTS ${indexName}`)
+  return result
 }
 // #endregion RESTORE_UNIQUENESS_CONFLICT
 
