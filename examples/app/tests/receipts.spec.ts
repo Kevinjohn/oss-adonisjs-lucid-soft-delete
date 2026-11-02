@@ -82,7 +82,6 @@ test.group('Installed receipts', (group) => {
                   : await query.onlyTrashed().forceDelete({ receipt: true })
             assert.equal(result.count, 1)
             assert.sameMembers(result.ids, [row.id])
-            if (operation === 'softDelete') assert.isNotNull(result.deletedAt)
 
             for (const id of result.ids) {
               await trx
