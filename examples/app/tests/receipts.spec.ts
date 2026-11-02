@@ -80,11 +80,26 @@ test.group('Installed receipts', (group) => {
                 : operation === 'restore'
                   ? await query.restore({ receipt: true })
                   : await query.onlyTrashed().forceDelete({ receipt: true })
+            assert.equal(result.count, 1)
+            assert.sameMembers(result.ids, [row.id])
+            if (operation === 'softDelete') assert.isNotNull(result.deletedAt)
+
             for (const id of result.ids) {
               await trx
                 .table('lifecycle_notes')
                 .insert({ tenant_id: 1, parent_id: id, action: operation })
             }
+
+            const changedRows = await trx.from('lifecycle_parents').where('id', row.id)
+            if (operation === 'forceDelete') {
+              assert.isEmpty(changedRows)
+            } else {
+              assert.lengthOf(changedRows, 1)
+              assert.equal(changedRows[0].deleted_at === null, operation === 'restore')
+            }
+            const notes = await trx.from('lifecycle_notes').where('parent_id', row.id)
+            assert.lengthOf(notes, 1)
+            assert.equal(notes[0].action, operation)
             throw new Error('roll back receipt')
           }),
         'roll back receipt'
