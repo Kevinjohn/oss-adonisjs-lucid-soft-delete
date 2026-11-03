@@ -1,8 +1,6 @@
-# Changelog
-
-All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
 ## Unreleased
+
+## 0.1.3 - 2026-11-03
 
 ### Changed
 
