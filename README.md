@@ -15,8 +15,9 @@ Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, 
 > [!WARNING]
 > Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/api.md#choose-an-operation).
 
-> [!NOTE]
-> `0.1.2-alpha` is a [GitHub prerelease](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/tag/v0.1.2-alpha) and is not published to npm yet. It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
+> Pre-release. Installed from GitHub releases; not on npm.
+
+It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
 
 ## Install
 
