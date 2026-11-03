@@ -42,7 +42,7 @@ Run the repository scripts, not the bare tools:
 | `pnpm format:check`         | Checks Prettier formatting on tracked files                               |
 | `pnpm lint`                 | Runs ESLint with the AdonisJS config                                      |
 | `pnpm docs:check`           | Checks local Markdown links, headings and source markers                  |
-| `pnpm docs:build`           | Builds generated API references and the documentation site               |
+| `pnpm docs:build`           | Builds generated API references and the documentation site                |
 | `pnpm typecheck`            | Runs TypeScript without emitting                                          |
 | `pnpm build`                | Compiles the package to `build/`                                          |
 | `pnpm quick:test`           | Runs the Japa suite against SQLite                                        |

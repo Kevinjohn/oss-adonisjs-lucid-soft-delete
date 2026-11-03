@@ -26,7 +26,7 @@ The same rules as `CONTRIBUTING.md`; every change follows them.
 - `pnpm typecheck` runs TypeScript without emitting files.
 - `pnpm build` compiles the package to `build/`.
 - `pnpm quick:test` runs the Japa suite against SQLite.
-- `pnpm test` builds and runs the SQLite suite under c8 coverage thresholds.
+- `pnpm test` runs lint, then the SQLite suite under c8 coverage thresholds.
 - `pnpm test:built-exports` runs the built package export specs.
 - `pnpm test:pg` runs the suite against a local PostgreSQL 16 cluster.
 - `pnpm test:mysql` runs the suite against MySQL 8.4.
