@@ -1,7 +1,7 @@
 {
-  "name": "@kevinjohn/lucid-soft-deletes",
+  "name": "@kevinjohn/adonisjs-lucid-soft-delete",
   "description": "Soft deletes for AdonisJS 7 Lucid models",
-  "version": "0.1.2-alpha",
+  "version": "0.1.2",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -26,7 +26,7 @@
     ".": "./build/index.js",
     "./types/*": "./build/src/types/*.js",
     "./bindings": "./build/src/bindings/model_query_builder.js",
-    "./provider": "./build/providers/lucid_soft_deletes_provider.js"
+    "./lucid_soft_delete_provider": "./build/providers/lucid_soft_delete_provider.js"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -36,7 +36,7 @@
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
     "pretest": "pnpm lint",
     "test": "c8 pnpm quick:test",
-    "test:built-exports": "cross-env TEST_BUILT_EXPORTS=1 pnpm quick:test --files=declarations.spec.ts",
+    "test:built-exports": "cross-env TEST_BUILT_EXPORTS=1 pnpm quick:test --files=declarations.spec.ts,package_exports.spec.ts",
     "test:consumer": "node --import=@poppinss/ts-exec --enable-source-maps bin/test_consumer.ts",
     "test:pg": "bash bin/pg.sh test",
     "pg:start": "bash bin/pg.sh start",
@@ -129,7 +129,7 @@
       "./configure.ts",
       "./src/types/querybuilder.ts",
       "./src/bindings/model_query_builder.ts",
-      "./providers/lucid_soft_deletes_provider.ts"
+      "./providers/lucid_soft_delete_provider.ts"
     ],
     "outDir": "./build",
     "clean": true,

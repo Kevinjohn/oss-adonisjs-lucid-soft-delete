@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -26,7 +26,7 @@ test.group('check:changed plan', () => {
   test('{$self} runs the full suite')
     .with([
       'src/scope.ts',
-      'providers/lucid_soft_deletes_provider.ts',
+      'providers/lucid_soft_delete_provider.ts',
       'index.ts',
       'configure.ts',
       'tests/helpers.ts',
@@ -79,7 +79,7 @@ test.group('check:changed plan', () => {
     test(`shipped inputs select the consumer gate (${deleted ? 'deleted' : 'added or modified'})`)
       .with([
         'src/mixin.ts',
-        'providers/lucid_soft_deletes_provider.ts',
+        'providers/lucid_soft_delete_provider.ts',
         'index.ts',
         'configure.ts',
         'pnpm-lock.yaml',

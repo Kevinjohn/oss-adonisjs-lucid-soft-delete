@@ -22,8 +22,8 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9+.
 
 ```sh
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2-alpha/kevinjohn-lucid-soft-deletes-0.1.2-alpha.tgz luxon
-node ace configure @kevinjohn/lucid-soft-deletes
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2/kevinjohn-adonisjs-lucid-soft-delete-0.1.2.tgz luxon
+node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
 Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
@@ -36,7 +36,7 @@ Compose the mixin into a model:
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
@@ -95,7 +95,7 @@ purge a row deliberately.
 - [Scope contract](docs/reference/scope-contract.md): query paths and relationship behavior.
 - [Troubleshooting](docs/guide/troubleshooting.md): common symptoms, causes and fixes.
 - [Maintainer verification](docs/maintainers/verification.md): local test databases and checks.
-- Apps moving from the original package: remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/lucid-soft-deletes`.
+- Apps moving from the previous package name or the original package: uninstall the previous package, change its imports to `@kevinjohn/adonisjs-lucid-soft-delete`, remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`. Models that still import the previous package are not recognised by this provider.
 
 ## Contributing
 

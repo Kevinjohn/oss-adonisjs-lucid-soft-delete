@@ -49,6 +49,6 @@ pnpm test:mysql
 `pnpm test:mysql` sets `DB_CLIENT=mysql2` and runs the MySQL suite. The lock-wait receipt tests
 read `performance_schema.data_lock_waits` and `performance_schema.threads`. Performance Schema
 must be enabled and the test account needs `SELECT` access to those tables. The transactions
-tests also create and drop `lucid_soft_deletes_second`.
+tests also create and drop `lucid_soft_delete_second`.
 
 See [Contributing](../../CONTRIBUTING.md) for the installed-package gate and pull-request checks.

@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -14,7 +14,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { hasSoftDeletes, SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { hasSoftDeletes, SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import type {
   ForceDeleteReceipt,
   RestoreReceipt,
@@ -22,7 +22,7 @@ import type {
   SOFT_DELETES,
   SoftDeletesInstance,
   SoftDeletesModel,
-} from '@kevinjohn/lucid-soft-deletes'
+} from '@kevinjohn/adonisjs-lucid-soft-delete'
 import User from '#models/user'
 
 class ExtendedUser extends User {

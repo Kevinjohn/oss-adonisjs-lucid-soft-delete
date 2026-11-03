@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -62,7 +62,9 @@ async function inspectInstalledPackage(appRoot: string) {
   const metadata = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'))
   assert.equal(metadata.name, packageName)
   const storeEntries = await readdir(join(appModules, '.pnpm'))
-  const copies = storeEntries.filter((entry) => entry.startsWith('@kevinjohn+lucid-soft-deletes@'))
+  const copies = storeEntries.filter((entry) =>
+    entry.startsWith('@kevinjohn+adonisjs-lucid-soft-delete@')
+  )
   assert.equal(copies.length, 1, `Expected one installed package copy; found ${copies.length}`)
 
   const license = await readFile(join(packageRoot, 'LICENSE.md'), 'utf8')
@@ -90,7 +92,8 @@ function ace(
 async function configureTwice(appRoot: string, environment: NodeJS.ProcessEnv) {
   const countRegistrations = async () => {
     const rc = await readFile(join(appRoot, 'adonisrc.ts'), 'utf8')
-    return (rc.match(/@kevinjohn\/lucid-soft-deletes\/provider/g) ?? []).length
+    return (rc.match(/@kevinjohn\/adonisjs-lucid-soft-delete\/lucid_soft_delete_provider/g) ?? [])
+      .length
   }
 
   assert.equal(await countRegistrations(), 0, 'The fixture must start without the package provider')
@@ -98,6 +101,25 @@ async function configureTwice(appRoot: string, environment: NodeJS.ProcessEnv) {
   assert.equal(await countRegistrations(), 1, 'Configure must register the provider once')
   ace(appRoot, environment, 'configure', packageName)
   assert.equal(await countRegistrations(), 1, 'Repeated configure must not duplicate the provider')
+}
+
+async function verifyConfiguredProviderResolves(appRoot: string, environment: NodeJS.ProcessEnv) {
+  const rc = await readFile(join(appRoot, 'adonisrc.ts'), 'utf8')
+  assert.match(
+    rc,
+    /@kevinjohn\/adonisjs-lucid-soft-delete\/lucid_soft_delete_provider/,
+    'Configure must register the renamed provider export'
+  )
+  run(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "await import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider'); try { await import('@kevinjohn/adonisjs-lucid-soft-delete/provider'); throw new Error('The old provider subpath must not be exported') } catch (error) { if (error.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') throw error }",
+    ],
+    appRoot,
+    environment
+  )
 }
 
 async function verifyGeneratedSchema(appRoot: string) {
@@ -114,6 +136,7 @@ export async function runConsumerApp(archive: string, runName: string) {
   return withPostgresSchema(appEnvironment(appRoot), async (environment, schema, client) => {
     if (schema) await verifyAppPostgresSchema(appRoot, environment, schema)
     await configureTwice(appRoot, environment)
+    await verifyConfiguredProviderResolves(appRoot, environment)
     ace(appRoot, environment, 'schema:generate')
     ace(appRoot, environment, 'migration:run')
     if (schema && client) await verifyPostgresMigration(client, schema)

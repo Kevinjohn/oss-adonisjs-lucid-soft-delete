@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -8,7 +8,7 @@
  */
 
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import { UserSchema } from '#database/schema'
 
 export default class User extends compose(UserSchema, SoftDeletes) {}

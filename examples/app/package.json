@@ -58,7 +58,7 @@
   "dependencies": {
     "@adonisjs/core": "^7.6.0",
     "@adonisjs/lucid": "^22.4.2",
-    "@kevinjohn/lucid-soft-deletes": "file:../../",
+    "@kevinjohn/adonisjs-lucid-soft-delete": "file:../../",
     "better-sqlite3": "^12.0.0",
     "luxon": "^3.4.4",
     "pg": "^8.0.0",

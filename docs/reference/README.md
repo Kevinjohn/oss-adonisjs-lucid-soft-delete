@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.1.2-alpha`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.1.2`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
@@ -51,7 +51,7 @@ Compose `SoftDeletes` with `BaseModel`:
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   static table = 'users'
@@ -374,8 +374,8 @@ The package root exports:
 The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`; lifecycle methods include `{ receipt: true }` overloads. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
 
 ```ts
-import { hasSoftDeletes, SOFT_DELETES } from '@kevinjohn/lucid-soft-deletes'
-import type { SoftDeletesModel } from '@kevinjohn/lucid-soft-deletes'
+import { hasSoftDeletes, SOFT_DELETES } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import type { SoftDeletesModel } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 // `model` is an unknown value obtained from a dynamic model registry.
 if (hasSoftDeletes(model)) {

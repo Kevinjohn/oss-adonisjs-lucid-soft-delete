@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -12,7 +12,10 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { E_BULK_RECEIPT_REQUIRES_TRANSACTION, SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import {
+  E_BULK_RECEIPT_REQUIRES_TRANSACTION,
+  SoftDeletes,
+} from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 class Parent extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'

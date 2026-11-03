@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -59,7 +59,7 @@ export async function withPostgresSchema<T>(
 ): Promise<T> {
   if (environment.DB_CLIENT !== 'pg') return action(environment, undefined, undefined)
 
-  const schema = `lucid_soft_deletes_consumer_${randomUUID().replaceAll('-', '')}`
+  const schema = `lucid_soft_delete_consumer_${randomUUID().replaceAll('-', '')}`
   const client = connection(environment)
   await client.connect()
   let created = false

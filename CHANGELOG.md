@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+## 0.1.2 - 2026-11-03
+
+### Changed
+
+- Package renamed to `@kevinjohn/adonisjs-lucid-soft-delete`. Migration: reinstall from the new tarball; replace `@kevinjohn/lucid-soft-deletes` with `@kevinjohn/adonisjs-lucid-soft-delete` in imports; change the provider line in `adonisrc.ts` to `@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider`.
+
 ## 0.1.2-alpha - 2026-11-02
 
 ### Fixed

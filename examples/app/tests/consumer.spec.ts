@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -17,7 +17,7 @@ import {
   hasSoftDeletes,
   SOFT_DELETES,
   SoftDeletes,
-} from '@kevinjohn/lucid-soft-deletes'
+} from '@kevinjohn/adonisjs-lucid-soft-delete'
 import User from '#models/user'
 
 class PlainUser extends BaseModel {

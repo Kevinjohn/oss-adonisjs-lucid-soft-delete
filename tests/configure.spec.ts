@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -26,7 +26,7 @@ const cases = [
 
 for (const { name, providerEntry } of cases) {
   test(`configure saves one provider after two runs in a ${name}`, async ({ assert }) => {
-    const root = await mkdtemp(join(tmpdir(), 'lucid-soft-deletes-configure-'))
+    const root = await mkdtemp(join(tmpdir(), 'adonisjs-lucid-soft-delete-configure-'))
     try {
       await writeFile(
         join(root, 'package.json'),
@@ -43,7 +43,7 @@ for (const { name, providerEntry } of cases) {
       )
 
       const importer = (specifier: string) =>
-        specifier === '@kevinjohn/lucid-soft-deletes'
+        specifier === '@kevinjohn/adonisjs-lucid-soft-delete'
           ? import(new URL('../index.ts', import.meta.url).href)
           : import(specifier)
       const ignitor = new IgnitorFactory()
@@ -57,12 +57,16 @@ for (const { name, providerEntry } of cases) {
         })
         .create(pathToFileURL(`${root}/`), { importer })
 
-      await ignitor.ace().handle(['configure', '@kevinjohn/lucid-soft-deletes'])
+      await ignitor.ace().handle(['configure', '@kevinjohn/adonisjs-lucid-soft-delete'])
       const afterFirstRun = await readFile(join(root, 'adonisrc.ts'), 'utf8')
-      assert.equal(afterFirstRun.match(/@kevinjohn\/lucid-soft-deletes\/provider/g)?.length, 1)
+      assert.equal(
+        afterFirstRun.match(/@kevinjohn\/adonisjs-lucid-soft-delete\/lucid_soft_delete_provider/g)
+          ?.length,
+        1
+      )
       if (providerEntry) assert.include(afterFirstRun, providerEntry)
 
-      await ignitor.ace().handle(['configure', '@kevinjohn/lucid-soft-deletes'])
+      await ignitor.ace().handle(['configure', '@kevinjohn/adonisjs-lucid-soft-delete'])
       assert.equal(await readFile(join(root, 'adonisrc.ts'), 'utf8'), afterFirstRun)
     } finally {
       await rm(root, { recursive: true, force: true })
