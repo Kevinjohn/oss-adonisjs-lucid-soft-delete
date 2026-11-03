@@ -66,7 +66,7 @@ pnpm test:consumer --compatibility=minimum
 
 - Branch from `main`. Name the branch `<type>-<issue>-<slug>`, for example `test-12-delete-quietly-paths`.
 - One issue per pull request. Start the body with `Fixes #<issue>`, then a `## Change` section and a `## Verification` section.
-- A behaviour change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
+- A behavior change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
 - Formatting, lint, typecheck and the SQLite test suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
 - Record a decision that the code cannot explain by itself in `docs/maintainers/decisions.md`.
 

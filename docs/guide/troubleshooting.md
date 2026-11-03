@@ -287,4 +287,4 @@ declare deletedAt: DateTime | null
 
 **Expected result:** Instance saves run the normal Lucid model lifecycle. Builder macros make direct bulk changes without instance hooks, automatic `updatedAt`, or custom `prepare`; serialization changes affect only serialized representations.
 
-Source and tests: [instance persistence](../../src/mixin.ts), [builder macros](../../src/bindings/model_query_builder.ts), [builder lifecycle tests](../../tests/builder_lifecycle.spec.ts), [serialization tests](../../tests/serialisation.spec.ts).
+Source and tests: [instance persistence](../../src/mixin.ts), [builder macros](../../src/bindings/model_query_builder.ts), [builder lifecycle tests](../../tests/builder_lifecycle.spec.ts), [serialization tests](../../tests/serialization.spec.ts).

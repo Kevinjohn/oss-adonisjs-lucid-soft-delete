@@ -89,6 +89,6 @@ The function returns `{ id, hidden: true, inRecycleBin: true, visibleAgain: true
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain and checks, and [SECURITY.md](SECURITY.md) for reporting vulnerabilities and the support window.
 
-## Licence
+## License
 
 [MIT](LICENSE.md). Originally created by Lookin Anton as [adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes).

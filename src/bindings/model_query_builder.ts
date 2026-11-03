@@ -5,7 +5,7 @@ import {
   parseReceiptOptions,
   ensureReceiptSupport,
   deletionTimestamp,
-  normaliseWriteCount,
+  normalizeWriteCount,
   executeWithReceipt,
 } from '../receipts.js'
 import { E_MODEL_SOFT_DELETE } from '../errors.js'
@@ -57,7 +57,7 @@ export function extendModelQueryBuilder(builder: any) {
       addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
       const write = (target: ModelQueryBuilderContract<LucidModel>) =>
         target.update({ [column]: null })
-      if (!receipt) return normaliseWriteCount(await write(this))
+      if (!receipt) return normalizeWriteCount(await write(this))
       return executeWithReceipt(this, write)
     }
   )
@@ -75,7 +75,7 @@ export function extendModelQueryBuilder(builder: any) {
       const deletedAt = deletionTimestamp(this)
       const values = { [column]: deletedAt.toFormat(this.client.dialect.dateTimeFormat) }
       const write = (target: ModelQueryBuilderContract<LucidModel>) => target.update(values)
-      if (!receipt) return normaliseWriteCount(await write(this))
+      if (!receipt) return normalizeWriteCount(await write(this))
       const { count, ids } = await executeWithReceipt(this, write)
       return { count, ids, deletedAt: count === 0 ? null : deletedAt }
     }
@@ -94,7 +94,7 @@ export function extendModelQueryBuilder(builder: any) {
         groupCallerPredicates(this)
       }
       const write = (target: ModelQueryBuilderContract<LucidModel>) => target.delete()
-      if (!receipt) return normaliseWriteCount(await write(this))
+      if (!receipt) return normalizeWriteCount(await write(this))
       return executeWithReceipt(this, write)
     }
   )

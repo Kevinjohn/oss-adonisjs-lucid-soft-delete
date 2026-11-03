@@ -17,7 +17,7 @@ import {
 import {
   ensureReceiptSupport,
   executeWithReceipt,
-  normaliseWriteCount,
+  normalizeWriteCount,
   parseReceiptOptions,
 } from '../src/receipts.js'
 
@@ -88,9 +88,9 @@ test.group('Receipt helpers', () => {
       assert.isFalse(parseReceiptOptions(value))
     }
     assert.isTrue(parseReceiptOptions({ receipt: true }))
-    assert.equal(normaliseWriteCount([2]), 2)
-    assert.equal(normaliseWriteCount([]), 0)
-    assert.equal(normaliseWriteCount([{ id: 1 }, { id: 2 }]), 2)
+    assert.equal(normalizeWriteCount([2]), 2)
+    assert.equal(normalizeWriteCount([]), 0)
+    assert.equal(normalizeWriteCount([{ id: 1 }, { id: 2 }]), 2)
   })
 
   test('rejects unsupported dialects and a missing transaction client before inspecting clauses', ({
