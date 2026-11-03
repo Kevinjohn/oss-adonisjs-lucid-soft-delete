@@ -39,13 +39,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [better-sqlite3, pg, mysql]
+        database: [better-sqlite3, pg, mysql2]
     env:
       DB_CLIENT: ${{ matrix.database }}
       DB_HOST: 127.0.0.1
-      DB_PORT: ${{ matrix.database == 'mysql' && 3306 || 5432 }}
-      DB_USER: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
-      DB_PASSWORD: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
+      DB_PORT: ${{ matrix.database == 'mysql2' && 3306 || 5432 }}
+      DB_USER: ${{ matrix.database == 'mysql2' && 'root' || 'postgres' }}
+      DB_PASSWORD: ${{ matrix.database == 'mysql2' && 'root' || 'postgres' }}
       DB_DATABASE: package_test
     services:
       postgres:
@@ -62,7 +62,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       mysql:
-        image: ${{ matrix.database == 'mysql' && 'mysql:8.4' || '' }}
+        image: ${{ matrix.database == 'mysql2' && 'mysql:8.4' || '' }}
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: package_test
