@@ -115,12 +115,12 @@ export function deletionTimestamp(query: Query): DateTime {
   return /S/.test(query.client.dialect.dateTimeFormat) ? now : now.startOf('second')
 }
 
-/** The existing count normalisation, shared by both modes. */
-export function normaliseWriteCount(result: unknown[]): number {
+/** The existing count normalization, shared by both modes. */
+export function normalizeWriteCount(result: unknown[]): number {
   return typeof result[0] === 'number' ? result[0] : result.length
 }
 
-function normaliseId(value: unknown): PrimaryKeyValue {
+function normalizeId(value: unknown): PrimaryKeyValue {
   return typeof value === 'bigint' ? value.toString() : (value as PrimaryKeyValue)
 }
 
@@ -140,7 +140,7 @@ export async function executeWithReceipt(
     const target = query.clone()
     target.returning(pkAttribute) // Lucid resolves the attribute to its column; row keys use the column name
     const rows = (await write(target)) as Record<string, unknown>[]
-    return { count: rows.length, ids: rows.map((row) => normaliseId(row[pkColumn])) }
+    return { count: rows.length, ids: rows.map((row) => normalizeId(row[pkColumn])) }
   }
 
   const reference = qualifiedColumnReference(query, pkColumn)
@@ -149,12 +149,12 @@ export async function executeWithReceipt(
   selector.pojo().clearSelect().select(reference).orderBy(reference, 'asc')
   if (dialect === 'mysql') selector.forUpdate()
   const rows = (await selector.exec()) as unknown as Record<string, unknown>[]
-  const ids = rows.map((row) => normaliseId(row[pkColumn]))
+  const ids = rows.map((row) => normalizeId(row[pkColumn]))
   if (ids.length === 0) return { count: 0, ids }
 
   const target = query.clone()
   target.whereIn(reference, ids)
-  const count = normaliseWriteCount(await write(target))
+  const count = normalizeWriteCount(await write(target))
   if (count !== ids.length) throw new E_BULK_RECEIPT_DIVERGED(ids.length, count)
   return { count, ids }
 }

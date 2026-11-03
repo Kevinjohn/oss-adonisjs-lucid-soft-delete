@@ -625,7 +625,7 @@ test.group('Documentation checks', () => {
     assert.include(escaped.stderr, ':1: Link points outside the checkout:')
     assert.notInclude(escaped.stderr, 'outside-only-missing.md')
   })
-  test('checks shortcut and code-labelled references without interpreting inline code as links', async ({
+  test('checks shortcut and code-labeled references without interpreting inline code as links', async ({
     assert,
     cleanup,
   }) => {
