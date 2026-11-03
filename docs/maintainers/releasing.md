@@ -2,8 +2,9 @@
 
 1. On a branch, bump `version` in `package.json` and turn `## Unreleased` into
    `## <version> - <YYYY-MM-DD>` (add a new empty `## Unreleased` above it).
-2. In the same branch, replace the previous version in the install command in `README.md`, the
-   release tag in `docs/guide/getting-started.md` and the version named in `docs/reference/README.md`.
+2. In the same branch, replace the previous version in the install commands in `README.md` and
+   `README-AGENTS.md`, the release tag in `docs/guide/getting-started.md` and the version named in
+   `docs/reference/README.md`.
 3. Merge the PR.
 4. Actions → release → Run workflow (on `main`).
 
