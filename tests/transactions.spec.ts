@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -218,10 +218,13 @@ test.group('Soft-delete transactions', (group) => {
       await db.rawQuery('CREATE SCHEMA second').exec()
       ;(secondaryConfig as PostgreConfig).searchPath = ['second']
     } else if (dbClient === 'mysql') {
-      await db.rawQuery('DROP DATABASE IF EXISTS lucid_soft_deletes_second').exec()
-      await db.rawQuery('CREATE DATABASE lucid_soft_deletes_second').exec()
+      await db.rawQuery('DROP DATABASE IF EXISTS lucid_soft_delete_second').exec()
+      await db.rawQuery('CREATE DATABASE lucid_soft_delete_second').exec()
       const mysqlConfig = secondaryConfig as { connection: { database?: string } }
-      mysqlConfig.connection = { ...mysqlConfig.connection, database: 'lucid_soft_deletes_second' }
+      mysqlConfig.connection = {
+        ...mysqlConfig.connection,
+        database: 'lucid_soft_delete_second',
+      }
     } else {
       const sqliteConfig = secondaryConfig as SqliteConfig
       if (typeof sqliteConfig.connection === 'string') {
@@ -303,7 +306,7 @@ test.group('Soft-delete transactions', (group) => {
     if (dbClient === 'pg') {
       await db.rawQuery('DROP SCHEMA second CASCADE').exec()
     } else if (dbClient === 'mysql') {
-      await db.rawQuery('DROP DATABASE lucid_soft_deletes_second').exec()
+      await db.rawQuery('DROP DATABASE lucid_soft_delete_second').exec()
     }
   })
 })

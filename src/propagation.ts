@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -9,7 +9,7 @@
 
 import { getSoftDeletesMode, setSoftDeletesMode, type ScopedQuery } from './mode.js'
 
-const PATCHED = Symbol.for('@kevinjohn/lucid-soft-deletes/patched')
+const PATCHED = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/patched')
 
 export function installModePropagation(builder: { prototype: object }): void {
   const prototype = builder.prototype as {

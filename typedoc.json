@@ -5,7 +5,7 @@
     "configure.ts",
     "src/types/querybuilder.ts",
     "src/bindings/model_query_builder.ts",
-    "providers/lucid_soft_deletes_provider.ts"
+    "providers/lucid_soft_delete_provider.ts"
   ],
   "out": "docs/reference/api",
   "plugin": ["typedoc-plugin-markdown"],

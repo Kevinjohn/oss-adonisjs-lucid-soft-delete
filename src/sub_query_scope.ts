@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -12,7 +12,7 @@ import { hasSoftDeletes } from './guard.js'
 import { applySubQueryScope } from './scope.js'
 import { reapplyScopeFilter } from './where_stack.js'
 
-const PATCHED = Symbol.for('@kevinjohn/lucid-soft-deletes/sub-query-scope')
+const PATCHED = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/sub-query-scope')
 
 type SubQueryLike = ModelQueryBuilderContract<LucidModel> & {
   /** `true` on Lucid's relation sub-query builders; absent on plain model builders. */

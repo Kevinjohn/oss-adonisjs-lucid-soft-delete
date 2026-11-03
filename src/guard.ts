@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -9,7 +9,7 @@
 
 import type { LucidModel } from '@adonisjs/lucid/types/model'
 
-export const SOFT_DELETES = Symbol.for('@kevinjohn/lucid-soft-deletes')
+export const SOFT_DELETES = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete')
 
 export type SoftDeletesModel = LucidModel & {
   readonly [SOFT_DELETES]: true

@@ -24,7 +24,7 @@ export async function createDatabase(onQuery?: (event: { sql: string }) => void)
   const test = getActiveTest()
   if (!test) throw new Error('Cannot use "createDatabase" outside of a Japa test')
 
-  const databaseDirectory = await mkdtemp(join(tmpdir(), 'lucid-soft-deletes-'))
+  const databaseDirectory = await mkdtemp(join(tmpdir(), 'adonisjs-lucid-soft-delete-'))
 
   const app = new AppFactory().create(pathToFileURL(databaseDirectory), () => {})
   const logger = new LoggerFactory().create()

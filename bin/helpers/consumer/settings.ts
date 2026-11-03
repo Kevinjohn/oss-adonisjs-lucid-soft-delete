@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const packageName = '@kevinjohn/lucid-soft-deletes'
+export const packageName = '@kevinjohn/adonisjs-lucid-soft-delete'
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 export const fixtureRoot = join(repoRoot, 'examples/app')
 
@@ -38,7 +38,7 @@ if (process.env.DB_CLIENT && !['pg', 'better-sqlite3', 'sqlite'].includes(proces
   throw new Error(`Unsupported DB_CLIENT for the installed-consumer gate: ${process.env.DB_CLIENT}`)
 }
 
-export const tempRoot = await mkdtemp(join(tmpdir(), 'lucid-soft-deletes-consumer-'))
+export const tempRoot = await mkdtemp(join(tmpdir(), 'adonisjs-lucid-soft-delete-consumer-'))
 
 export function appEnvironment(appRoot: string) {
   const environment: NodeJS.ProcessEnv = {

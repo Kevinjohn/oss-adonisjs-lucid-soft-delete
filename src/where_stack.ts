@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -10,7 +10,7 @@
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
 
-const SCOPE_NODE = Symbol.for('@kevinjohn/lucid-soft-deletes/scope-node')
+const SCOPE_NODE = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/scope-node')
 
 type WhereNode = { method: string; args: unknown[]; [SCOPE_NODE]?: WhereNode[][] | true }
 type KnexWhere = Record<string, (...args: unknown[]) => unknown>
