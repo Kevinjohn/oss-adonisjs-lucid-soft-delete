@@ -9,6 +9,20 @@
 
 import { Exception } from '@adonisjs/core/exceptions'
 
+export class LifecycleWriteUnsupportedException extends Exception {
+  static code = 'E_LIFECYCLE_WRITE_UNSUPPORTED'
+  static status = 500
+
+  constructor(reason: string) {
+    super(`Bulk lifecycle writes do not support ${reason}`, {
+      code: LifecycleWriteUnsupportedException.code,
+      status: LifecycleWriteUnsupportedException.status,
+    })
+  }
+}
+
+export const E_LIFECYCLE_WRITE_UNSUPPORTED = LifecycleWriteUnsupportedException
+
 class ModelSoftDeleteException extends Exception {
   static code = 'E_MODEL_SOFT_DELETE'
   static status = 500

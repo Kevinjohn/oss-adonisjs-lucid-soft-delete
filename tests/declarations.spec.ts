@@ -9,7 +9,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { test } from '@japa/runner'
-import { E_MODEL_UNKNOWN_DELETION_STATE } from '../index.js'
+import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_UNKNOWN_DELETION_STATE } from '../index.js'
 
 test.group('Emitted declarations', () => {
   if (!process.env.TEST_BUILT_EXPORTS) return
@@ -27,6 +27,10 @@ test.group('Emitted declarations', () => {
 
   test('the root entry exports the unknown deletion state exception', ({ assert }) => {
     assert.equal(E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
+  })
+
+  test('the root entry exports the lifecycle write unsupported exception', ({ assert }) => {
+    assert.equal(E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {

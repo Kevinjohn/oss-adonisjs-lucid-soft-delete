@@ -17,7 +17,7 @@ import {
 } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { E_MODEL_SOFT_DELETE, SoftDeletes } from '../index.js'
+import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE, SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
 import { CustomPost, RelationComment, RelationUser, RelationPost } from './fixtures/models.js'
@@ -196,7 +196,15 @@ test.group('Builder lifecycle', (group) => {
     assert.equal(posts[0].user_id, other.id)
     await db.table('industries').insert({ id: 1, title: 'retained' })
     await db.table('industry_user').insert({ user_id: parent.id, industry_id: 1 })
-    await assert.rejects(() => parent.related('industries').query().softDelete(), /many-to-many/)
+    let error: unknown
+    try {
+      await parent.related('industries').query().softDelete()
+    } catch (caught) {
+      error = caught
+    }
+    assert.instanceOf(error, E_LIFECYCLE_WRITE_UNSUPPORTED)
+    assert.equal((error as { code?: string }).code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
+    assert.equal((error as { status?: number }).status, 500)
     await assert.rejects(() => parent.related('industries').query().forceDelete(), /many-to-many/)
     await assert.rejects(
       () => parent.related('industries').query().onlyTrashed().restore(),

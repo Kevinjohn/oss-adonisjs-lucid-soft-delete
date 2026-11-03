@@ -231,7 +231,7 @@ Source and tests: [transaction state tests](../../tests/transactions.spec.ts), [
 
 **Likely cause:** Lucid routes a many-to-many relation builder's writes through the pivot table and builds has-many-through writes with a sub-query the database rejects. The package rejects builder `restore()`, `softDelete()` and `forceDelete()` on both relation builders before writing, because those methods target related model rows, not pivot links or the intermediate model.
 
-**Check:** Confirm whether the write is being called on a many-to-many or has-many-through relation query, such as `parent.related('tags').query()`. The error explains that lifecycle writes on these relation builders are unsupported.
+**Check:** Confirm whether the write is being called on a many-to-many or has-many-through relation query, such as `parent.related('tags').query()`. The error code is `E_LIFECYCLE_WRITE_UNSUPPORTED`, which identifies lifecycle writes on these relation builders as unsupported.
 
 **Correction:** Read the related IDs through the relation query, then issue a lifecycle write on the related model query with those IDs. The related query scopes the selected IDs to the parent relation; choosing a normal model builder for the write avoids redirecting the update/delete to the pivot:
 
