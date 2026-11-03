@@ -29,8 +29,17 @@ test.group('Emitted declarations', () => {
     assert.equal(E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
   })
 
-  test('the root entry exports the lifecycle write unsupported exception', ({ assert }) => {
+  test('the built root entry exports the lifecycle write unsupported exception', async ({
+    assert,
+  }) => {
     assert.equal(E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
+
+    const builtRoot = await import(new URL('../build/index.js', import.meta.url).href)
+    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
+
+    assert.isDefined(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED)
+    assert.equal(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
+    assert.include(rootDeclaration, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {
@@ -42,5 +51,20 @@ test.group('Emitted declarations', () => {
     assert.include(rootDeclaration, 'SoftDeleteReceipt')
     assert.include(rootDeclaration, 'E_BULK_RECEIPT_DIVERGED')
     assert.include(augmentation, 'receipt: true')
+  })
+
+  test('the root declaration exports the errors namespace', async ({ assert }) => {
+    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
+
+    assert.include(rootDeclaration, 'export * as errors')
+  })
+
+  test('the types barrel emits a declaration', async ({ assert }) => {
+    const typesDeclaration = await readFile(
+      new URL('../build/src/types/index.d.ts', import.meta.url),
+      'utf8'
+    )
+
+    assert.include(typesDeclaration, 'SoftDeleteReceipt')
   })
 })
