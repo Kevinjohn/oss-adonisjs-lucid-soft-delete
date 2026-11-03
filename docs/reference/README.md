@@ -368,7 +368,7 @@ The package root exports:
 | `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                           |
 | `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, runtime capability guard, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
 | `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                           |
-| `E_LIFECYCLE_WRITE_UNSUPPORTED`                                                                                     | Lifecycle writes on many-to-many and has-many-through relation builders are rejected before writing.                          |
+| `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                 |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                   |
 | `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                   |
 

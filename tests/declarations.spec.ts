@@ -39,7 +39,13 @@ test.group('Emitted declarations', () => {
 
     assert.isDefined(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED)
     assert.equal(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
+    assert.equal(
+      builtRoot.LifecycleWriteUnsupportedException,
+      builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED
+    )
+    assert.equal(builtRoot.LifecycleWriteUnsupportedException.status, 500)
     assert.include(rootDeclaration, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
+    assert.include(rootDeclaration, 'LifecycleWriteUnsupportedException')
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {

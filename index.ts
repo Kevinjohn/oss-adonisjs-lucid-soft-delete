@@ -10,6 +10,7 @@ export type {
 export { hasSoftDeletes, SOFT_DELETES } from './src/guard.js'
 export type { SoftDeletesModel } from './src/guard.js'
 export {
+  LifecycleWriteUnsupportedException,
   E_LIFECYCLE_WRITE_UNSUPPORTED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
