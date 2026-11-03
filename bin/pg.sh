@@ -4,8 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 DATA="$ROOT/tmp/pg16"
 LOG="$ROOT/tmp/pg16.log"
 LOCK="$ROOT/tmp/pg16.lock"
-# Use an available port per invocation by default; set DB_PORT to pin one explicitly.
-PORT="${DB_PORT:-$(node -e 'const server = require("node:net").createServer(); server.listen(0, "127.0.0.1", () => { console.log(server.address().port); server.close() })')}"
+PORT="${DB_PORT:-55432}"
 COMMAND="${1:-}"
 [ "$#" -eq 0 ] || shift
 fail() { echo "$*" >&2; exit 1; }
@@ -24,7 +23,7 @@ for path in "$ROOT/tmp" "$DATA"; do
     [ "$(cd "$path" && pwd -P)" = "$path" ] || fail "ambiguous managed directory: $path"
   fi
 done
-missing() { fail 'PostgreSQL 16 not found: brew install postgresql@16, or run DB_CLIENT=pg pnpm quick:test against your own PostgreSQL 16 (see CONTRIBUTING.md)'; }
+missing() { fail 'PostgreSQL 16 not found: brew install postgresql@16, or run DB_CLIENT=pg pnpm quick:test against your own PostgreSQL 16 (see docs/maintainers/verification.md)'; }
 if prefix="$(brew --prefix --installed postgresql@16 2>/dev/null)"; then
   BIN="$prefix/bin"
 elif ctl="$(command -v pg_ctl)"; then
