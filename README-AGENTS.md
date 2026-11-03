@@ -38,7 +38,7 @@ Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-luc
 
 ## Source map
 
-`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply query scopes; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` augments Lucid types. `providers/` registers the runtime and `tests/` covers behavior, tooling and types.
+`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply query scopes; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` registers the query builder macros and `src/types/querybuilder.ts` augments the Lucid types. `providers/` registers the runtime and `tests/` covers behavior, tooling and types.
 
 ## Further reading
 

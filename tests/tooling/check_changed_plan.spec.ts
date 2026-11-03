@@ -30,6 +30,7 @@ test.group('check:changed plan', () => {
       'index.ts',
       'configure.ts',
       'tests/helpers.ts',
+      'tests/helpers/database.ts',
       'tests/fixtures/models.ts',
       'tests/types/builder.ts',
       'bin/test.ts',
@@ -94,6 +95,7 @@ test.group('check:changed plan', () => {
     .with([
       'tests/x.spec.ts',
       'tests/helpers.ts',
+      'tests/helpers/database.ts',
       'bin/test.ts',
       'README.md',
       'docs/x.md',
