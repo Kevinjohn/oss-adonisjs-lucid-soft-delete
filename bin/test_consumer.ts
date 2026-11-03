@@ -21,7 +21,8 @@ async function packCandidate() {
   const destination = join(tempRoot, 'package')
   await mkdir(destination)
   run('pnpm', ['pack', '--pack-destination', destination], repoRoot)
-  const archives = (await readdir(destination)).filter((name) => name.endsWith('.tgz'))
+  const destinationEntries = await readdir(destination)
+  const archives = destinationEntries.filter((name) => name.endsWith('.tgz'))
   if (archives.length !== 1) {
     throw new Error(`Expected one packed package archive; found ${archives.length}`)
   }

@@ -40,7 +40,7 @@ const RUNNER_SPEC = 'tests/tooling/check_changed_runner.spec.ts'
 const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
-  /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.mjs$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
+  /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.ts$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
 
 /**
  * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but

@@ -332,7 +332,7 @@ async function runnerFixture(
     },
     runBlocked: async (testOutput: string, timeout = false, exitWithDescendant = false) => {
       await writeFile(logPath, '')
-      const preloadPath = join(root, 'short_timeout.mjs')
+      const preloadPath = join(root, 'short_timeout.js')
       await writeFile(
         preloadPath,
         'const original = globalThis.setTimeout; globalThis.setTimeout = (callback, delay, ...args) => original(callback, delay === 600000 ? 500 : delay, ...args)\n'
@@ -505,13 +505,13 @@ test.group('check:changed runner test outcome', () => {
 
   test('selects the package script pnpm entry point on Windows', ({ assert }) => {
     assert.deepEqual(
-      resolveStepCommand('pnpm', 'win32', 'node.exe', 'C:/pnpm/pnpm.mjs', ['typecheck']),
-      { executable: 'node.exe', args: ['C:/pnpm/pnpm.mjs', 'typecheck'] }
+      resolveStepCommand('pnpm', 'win32', 'node.exe', 'C:/pnpm/pnpm.js', ['typecheck']),
+      { executable: 'node.exe', args: ['C:/pnpm/pnpm.js', 'typecheck'] }
     )
     assert.deepEqual(resolveStepCommand('pnpm', 'win32', 'node.exe', undefined, ['build']), {
       error: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
     })
-    assert.deepEqual(resolveStepCommand('git', 'win32', 'node.exe', 'pnpm.mjs', ['status']), {
+    assert.deepEqual(resolveStepCommand('git', 'win32', 'node.exe', 'pnpm.js', ['status']), {
       executable: 'git',
       args: ['status'],
     })

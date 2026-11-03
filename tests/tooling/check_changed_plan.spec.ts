@@ -110,10 +110,10 @@ test.group('check:changed plan', () => {
   })
 
   test('consumer gate files run the gate and lint', ({ assert }) => {
-    const plan = planChecks(changed('bin/helpers/consumer/harness.mjs'))
+    const plan = planChecks(changed('bin/helpers/consumer/harness.ts'))
     assert.isTrue(plan.consumer)
-    assert.deepEqual(plan.lint, ['bin/helpers/consumer/harness.mjs'])
-    assert.isFalse(plan.typecheck)
+    assert.deepEqual(plan.lint, ['bin/helpers/consumer/harness.ts'])
+    assert.isTrue(plan.typecheck)
   })
 
   test('a changed tooling spec runs on its own', ({ assert }) => {
