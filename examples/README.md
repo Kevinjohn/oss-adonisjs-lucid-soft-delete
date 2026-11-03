@@ -1,6 +1,6 @@
 # Examples: soft-deleted users in an AdonisJS 7 app
 
-Follow the complete [recycle-bin tutorial](../docs/tutorial.md) to install the package from this
+Follow the complete [recycle-bin tutorial](../docs/guide/getting-started.md) to install the package from this
 source checkout, configure a fixture app, migrate its database, and exercise create, hide, list,
 restore, and permanent purge. It uses the installed-consumer app under `examples/app/`, which also
 serves as the packed-package test fixture for `pnpm test:consumer`.
@@ -144,7 +144,7 @@ router.delete('/users/:id/purge', [UsersController, 'purge'])
 | `DELETE /users/1/purge`   | `DELETE FROM users WHERE id = 1`                          |
 
 Relations, pagination, transactions and the cases the scope does not cover are in the
-[scope contract](../docs/scope-contract.md).
+[scope contract](../docs/reference/scope-contract.md).
 
 ## Caller-owned transaction service
 
@@ -184,7 +184,7 @@ suite, including `examples/app/tests/lifecycle.spec.ts`.
 
 ## Application-owned recovery groups
 
-The [group recovery cookbook recipe](../docs/cookbook.md#recover-an-application-owned-deletion-group)
+The [group recovery cookbook recipe](../docs/recipes/index.md#recover-an-application-owned-deletion-group)
 composes the existing count-returning mutation APIs into a one-use recovery lifecycle. The
 maintained service, generic fixture migration and installed-consumer tests live in this example
 app; group validity, tenant authorization, cleanup eligibility and the transaction boundary belong

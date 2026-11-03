@@ -68,11 +68,11 @@ pnpm test:consumer --compatibility=minimum
 - One issue per pull request. Start the body with `Fixes #<issue>`, then a `## Change` section and a `## Verification` section.
 - A behaviour change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
 - Formatting, lint, typecheck and the SQLite test suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
-- Record a decision that the code cannot explain by itself in `docs/DECISIONS.md`.
+- Record a decision that the code cannot explain by itself in `docs/maintainers/decisions.md`.
 
 ## Lucid internals
 
-The query scope relies on a few Lucid 22 internals. [docs/INTERNALS.md](docs/INTERNALS.md) names
+The query scope relies on a few Lucid 22 internals. [docs/maintainers/internals.md](docs/maintainers/internals.md) names
 each one, where it lives in Lucid, and the tests that cover it. Check them when upgrading Lucid.
 
 ## Documentation examples

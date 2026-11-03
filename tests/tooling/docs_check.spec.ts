@@ -197,11 +197,15 @@ test.group('Documentation checks', () => {
     assert.lengthOf(diagnostics, 1)
     assert.include(diagnostics[0].message, 'Missing anchor: #L9')
   })
-  test('discovers tracked and unignored new Markdown with Git', async ({ assert, cleanup }) => {
+  test('checks new docs layout Markdown while leaving historical changelog links alone', async ({
+    assert,
+    cleanup,
+  }) => {
     const root = await fixture(
       {
         'README.md': '# Home\n[Missing](tracked-missing.md)\n',
-        'docs/new.md': '[Missing](untracked-missing.md)\n',
+        'CHANGELOG.md': '[Historic](docs/old-layout.md)\n',
+        'docs/guide/getting-started.md': '[Missing](untracked-missing.md)\n',
         '.gitignore': 'ignored.md\n',
         'ignored.md': '[wrong](missing.md)\n',
       },
@@ -212,7 +216,7 @@ test.group('Documentation checks', () => {
     const diagnostics = await checkDocumentation(root)
     assert.sameMembers(
       diagnostics.map((item) => item.file),
-      ['README.md', 'docs/new.md']
+      ['README.md', 'docs/guide/getting-started.md']
     )
     assert.isTrue(diagnostics.every((item) => item.message.startsWith('Missing file:')))
   })

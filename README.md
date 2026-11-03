@@ -13,7 +13,7 @@ Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, 
 - **Bulk operations.** Builder `softDelete()`, `restore()` and `forceDelete()` keep your predicates and transaction, and return a count, or a receipt of the changed ids with `{ receipt: true }` inside a transaction.
 
 > [!WARNING]
-> Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/api.md#choose-an-operation).
+> Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/reference/README.md#choose-an-operation).
 
 > Pre-release. Installed from GitHub releases; not on npm.
 
@@ -28,7 +28,7 @@ pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/do
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
-Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The [tutorial](docs/tutorial.md#add-the-column-to-an-existing-application) shows the migration.
+Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The [tutorial](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 
 ## Quick example
 
@@ -72,17 +72,17 @@ export async function demonstrateRecovery(email: string) {
 }
 ```
 
-Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns `{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The restored row remains in the database. The [tutorial](docs/tutorial.md) supplies the complete setup and exercises this journey, including a separate deliberate physical purge.
+Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns `{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The restored row remains in the database. The [tutorial](docs/guide/getting-started.md) supplies the complete setup and exercises this journey, including a separate deliberate physical purge.
 
 The function returns `{ id, hidden: true, inRecycleBin: true, visibleAgain: true }`.
 
 ## Documentation
 
-- [Tutorial](docs/tutorial.md): build a recycle bin from setup to permanent purge.
-- [Cookbook](docs/cookbook.md): batches, transactions, related records, counts, uniqueness and fixtures.
-- [API reference](docs/api.md): every method, its result, hooks, errors and TypeScript types.
-- [Scope contract](docs/scope-contract.md): which queries hide trashed rows and which do not.
-- [Troubleshooting](docs/troubleshooting.md): symptoms, causes and fixes.
+- [Getting started](docs/guide/getting-started.md): build a recycle bin from setup to permanent purge.
+- [Recipes](docs/recipes/index.md): batches, transactions, related records, counts, uniqueness and fixtures.
+- [API reference](docs/reference/README.md): every method, its result, hooks, errors and TypeScript types.
+- [Scope contract](docs/reference/scope-contract.md): which queries hide trashed rows and which do not.
+- [Troubleshooting](docs/guide/troubleshooting.md): symptoms, causes and fixes.
 - Apps moving from the original package: remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/lucid-soft-deletes`.
 
 ## Contributing

@@ -46,7 +46,10 @@
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
-    "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts"
+    "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts",
+    "docs:api": "typedoc",
+    "docs:dev": "pnpm docs:api && vitepress dev docs",
+    "docs:build": "pnpm docs:api && vitepress build docs"
   },
   "c8": {
     "reporter": [
@@ -104,7 +107,10 @@
     "pg": "^8.0.0",
     "prettier": "^3.8.1",
     "tsdown": "^0.23.4",
-    "typescript": "^5.9.3"
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4"
   },
   "peerDependencies": {
     "@adonisjs/core": "^7.0.0",

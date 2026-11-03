@@ -221,7 +221,8 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
           { cwd: root, encoding: 'utf8' }
         )
           .split('\0')
-          .filter(Boolean)
+          // Historical entries keep links to the documentation layout that existed when written.
+          .filter((file) => Boolean(file) && file !== 'CHANGELOG.md')
       ),
     ].sort()
   const diagnostics: Diagnostic[] = []

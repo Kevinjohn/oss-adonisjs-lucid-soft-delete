@@ -1,0 +1,38 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "index.ts",
+    "configure.ts",
+    "src/types/querybuilder.ts",
+    "src/bindings/model_query_builder.ts",
+    "providers/lucid_soft_deletes_provider.ts"
+  ],
+  "out": "docs/reference/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryFileName": "index",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "hidePageHeader": true,
+  "githubPages": false,
+  "gitRevision": "main",
+  "treatWarningsAsErrors": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "rewrittenLink": true,
+    "notDocumented": false,
+    "unusedMergeModuleWith": true
+  },
+  "requiredToBeDocumented": [
+    "Enum",
+    "EnumMember",
+    "Variable",
+    "Function",
+    "Class",
+    "Interface",
+    "Method",
+    "Accessor",
+    "TypeAlias"
+  ]
+}

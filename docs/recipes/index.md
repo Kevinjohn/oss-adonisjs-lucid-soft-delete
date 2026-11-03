@@ -27,16 +27,16 @@ The setup and models below are complete for the recipes. The parent table has `i
 table has `id`, `tenant_id`, `parent_id`, `label`, and nullable `deleted_at`. `lifecycle_notes`
 has `id`, `tenant_id`, `parent_id`, and `action`. `users` has `id`, unique `email`, `username`, and
 nullable `deleted_at`. These are the tables created by
-[`examples/app/database/migrations/0001_create_users_table.ts`](../examples/app/database/migrations/0001_create_users_table.ts)
+[`examples/app/database/migrations/0001_create_users_table.ts`](../../examples/app/database/migrations/0001_create_users_table.ts)
 and
-[`examples/app/database/migrations/0002_create_lifecycle_tables.ts`](../examples/app/database/migrations/0002_create_lifecycle_tables.ts).
+[`examples/app/database/migrations/0002_create_lifecycle_tables.ts`](../../examples/app/database/migrations/0002_create_lifecycle_tables.ts).
 In a new application, create equivalent columns and a database unique constraint for values that
 must remain unique; the recipes do not create tables or authorization rules.
 
 The fixture uses `tenantId` in model queries, which Lucid maps to `tenant_id`. In your application,
 keep your own authorization and tenant conditions in each mutation query.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RECIPE_SETUP -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RECIPE_SETUP -->
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
@@ -105,7 +105,7 @@ response handling in your own application boundary.
 Use a `withTrashed()` query to find a row that the default scope hides, then call its instance
 `restore()` method. The row becomes visible to ordinary queries again.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#ACCIDENTAL_RESTORE -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#ACCIDENTAL_RESTORE -->
 
 ```ts
 export async function restoreAccidentallyDeletedRecord() {
@@ -142,7 +142,7 @@ Use `softDelete()` for a bulk update and `onlyTrashed().forceDelete()` for a phy
 the complete caller selection, including tenant and selected IDs, onto both queries. `delete()` and
 `del()` are physical query-builder deletes and do not mean soft delete.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#TENANT_BATCH -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#TENANT_BATCH -->
 
 ```ts
 export async function softDeleteAndPurgeSelectedBatch(tenantId: number) {
@@ -225,7 +225,7 @@ The parent's and each related query's visibility modes are independent. Use `wit
 parent query to read a deleted parent. Choose the child mode in the preload callback; without it,
 children remain active-only.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#PARENT_CHILD_READ_MODES -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#PARENT_CHILD_READ_MODES -->
 
 ```ts
 export async function readDeletedParentWithIndependentChildModes() {
@@ -277,7 +277,7 @@ Parent `withTrashed()` does not bypass child scopes or tenant rules.
 Set the mode separately inside each aggregate callback. The default related count includes active
 children, `withTrashed()` counts all children, and `onlyTrashed()` counts just deleted children.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RELATED_COUNTS -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RELATED_COUNTS -->
 
 ```ts
 export async function countActiveAllAndTrashedChildren() {
@@ -318,7 +318,7 @@ rollback leaves the row active, creates no note, and runs no after-commit callba
 discard model instances used in the transaction and refetch them before reuse; the in-memory model
 is not rewound by the database rollback.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#TRANSACTION_BOOKKEEPING -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#TRANSACTION_BOOKKEEPING -->
 
 ```ts
 export async function mutateAndBookkeepTogether(outcome: 'commit' | 'rollback') {
@@ -368,7 +368,7 @@ Use a receipt inside a caller-owned transaction when the application needs to wr
 for exactly the rows changed by a batch mutation. The mutation and notes commit or roll back
 together.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RECEIPT_BOOKKEEPING -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RECEIPT_BOOKKEEPING -->
 
 ```ts
 export async function softDeleteWithReceipt(tenantId: number) {
@@ -409,7 +409,7 @@ another unique key. This executable fixture adds a temporary partial unique inde
 labels to demonstrate the conflict. In your application, put the equivalent index in a migration
 for the real key that must be unique among active rows.
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#RESTORE_UNIQUENESS_CONFLICT -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RESTORE_UNIQUENESS_CONFLICT -->
 
 ```ts
 export async function restoreAfterUniqueConflict() {
@@ -508,7 +508,7 @@ timestamp. In a real schema, do not reuse a column that already stores a separat
 The `CustomDeletionParent` definition is in the shared setup. The operation below shows the
 datetime assignment and serialized result:
 
-<!-- source: ../examples/app/app/services/soft_delete_recipes.ts#CUSTOM_COLUMN_UTC_SERIALIZATION -->
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#CUSTOM_COLUMN_UTC_SERIALIZATION -->
 
 ```ts
 export async function customDeletionColumnWithUtcSerialization() {
@@ -555,7 +555,7 @@ Only publish notifications or other external effects after that transaction comm
 ### Schema and setup
 
 Keep the shared `lifecycle_parents` table above. Apply the example's
-[recovery migration](../examples/app/database/migrations/0003_create_recovery_tables.ts)
+[recovery migration](../../examples/app/database/migrations/0003_create_recovery_tables.ts)
 with the existing application migrations before invoking the service. It adds only:
 
 - `recovery_groups`: UUID primary key `id`, integer `tenant_id`, `label`, `status` and `created_at`.
@@ -565,10 +565,10 @@ with the existing application migrations before invoking the service. It adds on
   not an immutable history table. A new deletion replaces an earlier association for the same row.
 
 The fixture migrations run automatically in both installed-consumer gates. No new package
-configuration or installation command is needed; follow the [tutorial setup](tutorial.md#prerequisites-and-source-checkout)
+configuration or installation command is needed; follow the [tutorial setup](../guide/getting-started.md#prerequisites-and-source-checkout)
 for an installed app. The service imports only public packed package exports:
 
-<!-- source: ../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_SETUP -->
+<!-- source: ../../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_SETUP -->
 
 ```ts
 import { randomUUID } from 'node:crypto'
@@ -614,7 +614,7 @@ handle transaction conflicts/deadlocks and retry the **whole** transaction as ap
 their database. Do not combine this protocol with uncoordinated restore, delete or ownership
 writes and assume a timestamp comparison can reconstruct deletion ownership.
 
-<!-- source: ../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_OPERATIONS -->
+<!-- source: ../../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_OPERATIONS -->
 
 ```ts
 /**
@@ -826,12 +826,12 @@ export async function purgeGroup(
 ### Invoke a complete lifecycle
 
 This maintained invocation is exercised by
-[`group_recovery_example.spec.ts`](../examples/app/tests/group_recovery_example.spec.ts).
+[`group_recovery_example.spec.ts`](../../examples/app/tests/group_recovery_example.spec.ts).
 Run it in the migrated fixture app, for example by importing and awaiting
 `demonstrateGroupRecovery()` from an application command. Each `db.transaction` below is the
 caller-owned unit of work; the recipe operations never commit it themselves.
 
-<!-- source: ../examples/app/app/services/group_recovery_example.ts#GROUP_RECOVERY_EXAMPLE -->
+<!-- source: ../../examples/app/app/services/group_recovery_example.ts#GROUP_RECOVERY_EXAMPLE -->
 
 ```ts
 import db from '@adonisjs/lucid/services/db'
@@ -940,7 +940,7 @@ the callback and committing would defeat this atomicity guarantee.
   A later valid transaction may retry restoration.
 
 The installed-consumer
-[`group_recovery.spec.ts`](../examples/app/tests/group_recovery.spec.ts) imports these exact
+[`group_recovery.spec.ts`](../../examples/app/tests/group_recovery.spec.ts) imports these exact
 operations and compares persisted row, group and association state across success, stale cleanup
 and rollback. Run `pnpm docs:check`, `pnpm test:consumer` and
 `pnpm test:consumer --compatibility=minimum` from the repository root with Node 24 and pnpm 11.
@@ -968,4 +968,4 @@ Match the generated column type and length to your email column. Application-sid
 
 ## Create trashed fixtures and seed safely
 
-`deletedAt` serializes as a date-time under its model property name by default; `serializeAs` can hide or rename the serialized field without changing persistence. The [API reference](api.md#model-state) covers column mapping, projections, and `trashed` serialization. A Lucid factory can create trashed fixtures by setting `deletedAt = DateTime.local()` in a `state('trashed')` callback. A seeder using `updateOrCreate()` may try to insert when a matching row is trashed; fetch with `withTrashed()` and explicitly decide whether to restore or update it.
+`deletedAt` serializes as a date-time under its model property name by default; `serializeAs` can hide or rename the serialized field without changing persistence. The [API reference](../reference/#model-state) covers column mapping, projections, and `trashed` serialization. A Lucid factory can create trashed fixtures by setting `deletedAt = DateTime.local()` in a `state('trashed')` callback. A seeder using `updateOrCreate()` may try to insert when a matching row is trashed; fetch with `withTrashed()` and explicitly decide whether to restore or update it.
