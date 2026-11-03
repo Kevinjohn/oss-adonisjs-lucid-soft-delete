@@ -19,6 +19,7 @@ test.group('check:changed plan', () => {
       typecheck: true,
       tests: ['tests/scope.spec.ts'],
       consumer: false,
+      builtExports: false,
       skipped: [],
     })
   })
@@ -54,13 +55,21 @@ test.group('check:changed plan', () => {
       typecheck: false,
       tests: [],
       consumer: false,
+      builtExports: false,
       skipped: [],
     })
   })
 
   test('build, tmp and coverage output is ignored', ({ assert }) => {
     const plan = planChecks(changed('build/index.js', 'tmp/x.ts', 'coverage/lcov.info'))
-    assert.deepEqual(plan, { lint: [], typecheck: false, tests: [], consumer: false, skipped: [] })
+    assert.deepEqual(plan, {
+      lint: [],
+      typecheck: false,
+      tests: [],
+      consumer: false,
+      builtExports: false,
+      skipped: [],
+    })
   })
 
   test('{$self} runs only the consumer gate')
@@ -71,6 +80,7 @@ test.group('check:changed plan', () => {
         typecheck: false,
         tests: [],
         consumer: true,
+        builtExports: false,
         skipped: [],
       })
     })
@@ -130,6 +140,19 @@ test.group('check:changed plan', () => {
       'tests/tooling/check_changed_runner.spec.ts',
     ])
   })
+
+  test('shipped export inputs select the built exports gate after build')
+    .with([
+      'index.ts',
+      'src/types/querybuilder.ts',
+      'src/receipts.ts',
+      'src/mixin.ts',
+      'tests/declarations.spec.ts',
+    ])
+    .run(({ assert }, path) => {
+      const plan = planChecks(changed(path))
+      assert.isTrue(plan.builtExports)
+    })
 
   test('the runner process helper selects planner and runner specs', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed_process.ts')).tests, [
