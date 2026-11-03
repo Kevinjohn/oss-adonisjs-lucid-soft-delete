@@ -35,6 +35,8 @@ pnpm quick:test
 
 ## Checks
 
+`pnpm check` runs the quick profile (`--full` adds the rest).
+
 Run the repository scripts, not the bare tools:
 
 | Script                      | What it does                                                              |

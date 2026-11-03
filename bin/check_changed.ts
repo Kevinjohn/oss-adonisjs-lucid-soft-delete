@@ -119,8 +119,16 @@ if (plan.lint === 'all') {
 if (plan.typecheck) await step('typecheck', 'pnpm', ['typecheck'])
 else console.log('typecheck: skip (no TypeScript or type config changed)')
 
-// tests/declarations.spec.ts reads build/ and runs only with TEST_BUILT_EXPORTS set.
-if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
+// Built export specs and tests/declarations.spec.ts read build/.
+const needsBuild = Boolean(plan.tests.length || plan.builtExports)
+const buildPassed = needsBuild ? await step('build', 'pnpm', ['build']) : false
+
+if (plan.builtExports) {
+  if (buildPassed) await step('built exports', 'pnpm', ['test:built-exports'])
+  else console.log('built exports: skip (build failed)')
+}
+
+if (plan.tests.length && !buildPassed) {
   console.log('tests: skip (build failed)')
 } else if (plan.tests.length) {
   const explicit = plan.tests !== 'all'

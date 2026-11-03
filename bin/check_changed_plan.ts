@@ -16,6 +16,7 @@ export type Plan = {
   /** Spec files to run, or the full test suite. Empty skips the step. */
   tests: 'all' | string[]
   consumer: boolean
+  builtExports: boolean
   /** Suites selected by the change but left out by `--static`. */
   skipped: string[]
 }
@@ -41,13 +42,23 @@ const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
   /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.ts$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
+/** Inputs whose package export shape is asserted against the compiled package. */
+const BUILT_EXPORTS =
+  /^(index\.ts|src\/types\/|src\/(receipts|mixin)\.ts|tests\/declarations\.spec\.ts$)/
 
 /**
  * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but
  * leaves out the full test suite and the consumer gate, which a batch run covers once.
  */
 export function planChecks(changes: Change[], staticOnly = false): Plan {
-  const plan: Plan = { lint: [], typecheck: false, tests: [], consumer: false, skipped: [] }
+  const plan: Plan = {
+    lint: [],
+    typecheck: false,
+    tests: [],
+    consumer: false,
+    builtExports: false,
+    skipped: [],
+  }
   const lint = new Set<string>()
   const tests = new Set<string>()
   let lintAll = false
@@ -55,6 +66,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 
   for (const { path, deleted } of changes) {
     if (CONSUMER.test(path)) plan.consumer = true
+    if (BUILT_EXPORTS.test(path)) plan.builtExports = true
     if (IGNORED.test(path)) continue
 
     if (LINT_CONFIG.has(path)) lintAll = true
