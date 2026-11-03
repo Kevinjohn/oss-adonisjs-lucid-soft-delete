@@ -4,9 +4,9 @@ All notable changes to this project are documented here. This changelog follows 
 
 ## Unreleased
 
-### Breaking
+### Changed
 
-- Malformed receipt options throw `InvalidArgumentsException` (was `TypeError`).
+- Breaking: malformed receipt options throw `InvalidArgumentsException` (was `TypeError`).
 
 ## 0.1.2 - 2026-11-03
 
