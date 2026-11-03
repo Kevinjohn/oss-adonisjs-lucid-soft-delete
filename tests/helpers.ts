@@ -9,11 +9,13 @@ import { Emitter } from '@adonisjs/core/events'
 import { Database } from '@adonisjs/lucid/database'
 import { BaseModel } from '@adonisjs/lucid/orm'
 
-/** The database the suite runs against: `DB_CLIENT=pg`, `DB_CLIENT=mysql`, or SQLite. */
+/** The database the suite runs against: `DB_CLIENT=pg`, `DB_CLIENT=mysql2`, or SQLite. */
 export const dbClient: 'sqlite' | 'pg' | 'mysql' =
-  process.env.DB_CLIENT === 'pg' || process.env.DB_CLIENT === 'mysql'
-    ? process.env.DB_CLIENT
-    : 'sqlite'
+  process.env.DB_CLIENT === 'pg'
+    ? 'pg'
+    : process.env.DB_CLIENT === 'mysql' || process.env.DB_CLIENT === 'mysql2'
+      ? 'mysql'
+      : 'sqlite'
 
 /**
  * Creates an instance of the database class for making queries
@@ -47,7 +49,7 @@ export async function createDatabase(onQuery?: (event: { sql: string }) => void)
             port: Number(process.env.DB_PORT || 5432),
             user: process.env.DB_USER || process.env.USER,
             password: process.env.DB_PASSWORD,
-            database: process.env.DB_DATABASE || 'lucid_soft_deletes_test',
+            database: process.env.DB_DATABASE || 'package_test',
           },
         },
         mysql: {
@@ -58,7 +60,7 @@ export async function createDatabase(onQuery?: (event: { sql: string }) => void)
             port: Number(process.env.DB_PORT || 3306),
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD,
-            database: process.env.DB_DATABASE || 'lucid_soft_deletes_test',
+            database: process.env.DB_DATABASE || 'package_test',
           },
         },
       },

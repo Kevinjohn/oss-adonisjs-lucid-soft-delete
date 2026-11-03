@@ -12,6 +12,8 @@ import { test } from '@japa/runner'
 import { E_MODEL_UNKNOWN_DELETION_STATE } from '../index.js'
 
 test.group('Emitted declarations', () => {
+  if (!process.env.TEST_BUILT_EXPORTS) return
+
   test('the root entry loads the query builder augmentation', async ({ assert }) => {
     const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
     const augmentation = await readFile(

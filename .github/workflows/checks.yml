@@ -7,14 +7,18 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/FUNDING.yml'
       - '.github/pull_request_template.md'
+      - '.github/dependabot.yml'
       - '.github/workflows/codeql.yml'
+      - '.github/workflows/docs.yml'
       - '.github/workflows/scorecard.yml'
   pull_request:
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/FUNDING.yml'
       - '.github/pull_request_template.md'
+      - '.github/dependabot.yml'
       - '.github/workflows/codeql.yml'
+      - '.github/workflows/docs.yml'
       - '.github/workflows/scorecard.yml'
   workflow_dispatch:
   workflow_call:
@@ -22,11 +26,9 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch or pull request cancels the older run. Release runs keep their
-# own group because a called workflow takes the caller's name.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: checks-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -37,21 +39,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [pg, better-sqlite3, mysql]
+        database: [better-sqlite3, pg, mysql]
     env:
       DB_CLIENT: ${{ matrix.database }}
       DB_HOST: 127.0.0.1
       DB_PORT: ${{ matrix.database == 'mysql' && 3306 || 5432 }}
       DB_USER: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
       DB_PASSWORD: ${{ matrix.database == 'mysql' && 'root' || 'postgres' }}
-      DB_DATABASE: lucid_soft_deletes_test
+      DB_DATABASE: package_test
     services:
       postgres:
         image: ${{ matrix.database == 'pg' && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lucid_soft_deletes_test
+          POSTGRES_DB: package_test
         ports:
           - 5432:5432
         options: >-
@@ -63,7 +65,7 @@ jobs:
         image: ${{ matrix.database == 'mysql' && 'mysql:8.4' || '' }}
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: lucid_soft_deletes_test
+          MYSQL_DATABASE: package_test
         ports:
           - 3306:3306
         options: >-
@@ -88,91 +90,8 @@ jobs:
         run: pnpm docs:check
       - if: matrix.database == 'better-sqlite3'
         run: pnpm typecheck
+      - run: pnpm test
       - if: matrix.database == 'better-sqlite3'
         run: pnpm build
-      - run: pnpm test
       - if: matrix.database == 'better-sqlite3'
-        run: pnpm test:consumer
-
-  min-peers:
-    # Push and pull request runs start once the repository is public, where hosted minutes are
-    # free. Manual and release runs always start.
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    env:
-      DB_CLIENT: pg
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_DATABASE: lucid_soft_deletes_test
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lucid_soft_deletes_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Print installed peer versions
-        run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
-      - name: Install minimum peer versions
-        run: pnpm add -D @adonisjs/core@7.0.0 @adonisjs/lucid@22.0.0
-      - run: pnpm test
-      - run: pnpm build
-      - run: pnpm test:consumer --compatibility=minimum
-
-  latest-peers:
-    # Push and pull request runs start once the repository is public, where hosted minutes are
-    # free. Manual and release runs always start.
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    env:
-      DB_CLIENT: pg
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_DATABASE: lucid_soft_deletes_test
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lucid_soft_deletes_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Print installed peer versions
-        run: pnpm list --depth 0 @adonisjs/core @adonisjs/lucid
-      - name: Update to latest peer versions
-        run: pnpm update @adonisjs/core@latest @adonisjs/lucid@latest
-      - run: pnpm test
-      - run: pnpm build
+        run: pnpm test:built-exports

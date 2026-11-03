@@ -29,18 +29,39 @@
     "./provider": "./build/providers/lucid_soft_deletes_provider.js"
   },
   "scripts": {
-    "format:check": "git ls-files -z | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
-    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "git ls-files -z | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
-    "pretest": "pnpm build",
+    "pretest": "pnpm lint",
     "test": "c8 pnpm quick:test",
+    "test:built-exports": "cross-env TEST_BUILT_EXPORTS=1 pnpm quick:test --files=declarations.spec.ts",
     "test:consumer": "node --import=@poppinss/ts-exec --enable-source-maps bin/test_consumer.ts",
+    "test:pg": "bash bin/pg.sh test",
+    "pg:start": "bash bin/pg.sh start",
+    "pg:stop": "bash bin/pg.sh stop",
+    "test:mysql": "cross-env DB_CLIENT=mysql2 pnpm quick:test",
     "check:changed": "node --import=@poppinss/ts-exec --enable-source-maps bin/check_changed.ts",
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
     "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts"
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "exclude": [
+      "tests/**",
+      "bin/**"
+    ],
+    "check-coverage": true,
+    "statements": 100,
+    "lines": 100,
+    "branches": 95,
+    "functions": 100
   },
   "keywords": [
     "adonisjs",

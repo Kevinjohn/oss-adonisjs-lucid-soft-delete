@@ -82,7 +82,7 @@ test.group('scope modules', (group) => {
           ? 'main'
           : dbClient === 'pg'
             ? 'public'
-            : (process.env.DB_DATABASE ?? 'lucid_soft_deletes_test')
+            : (process.env.DB_DATABASE ?? 'package_test')
       }.users`
     }
 
