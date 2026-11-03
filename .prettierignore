@@ -1,2 +1,4 @@
-# Tracked generated lockfiles
+build/
+coverage/
 pnpm-lock.yaml
+docs/reference/api/
