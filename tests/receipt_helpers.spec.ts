@@ -8,6 +8,7 @@
  */
 
 import { test } from '@japa/runner'
+import { InvalidArgumentsException } from '@adonisjs/core/exceptions'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import {
   E_BULK_RECEIPT_DIVERGED,
@@ -80,10 +81,10 @@ function preselectQuery(dialect: string, rows: Record<string, unknown>[]) {
 test.group('Receipt helpers', () => {
   test('validates option values and preserves the numeric count contract', ({ assert }) => {
     for (const value of [null, [], 'yes', 1, false]) {
-      assert.throws(() => parseReceiptOptions(value), TypeError)
+      assert.throws(() => parseReceiptOptions(value), InvalidArgumentsException)
     }
-    assert.throws(() => parseReceiptOptions({ receipt: 'true' }), TypeError)
-    assert.throws(() => parseReceiptOptions({ reciept: true }), TypeError)
+    assert.throws(() => parseReceiptOptions({ receipt: 'true' }), InvalidArgumentsException)
+    assert.throws(() => parseReceiptOptions({ reciept: true }), InvalidArgumentsException)
     for (const value of [undefined, {}, { receipt: undefined }, { receipt: false }]) {
       assert.isFalse(parseReceiptOptions(value))
     }
