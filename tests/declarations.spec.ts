@@ -58,4 +58,19 @@ test.group('Emitted declarations', () => {
     assert.include(rootDeclaration, 'E_BULK_RECEIPT_DIVERGED')
     assert.include(augmentation, 'receipt: true')
   })
+
+  test('the root declaration exports the errors namespace', async ({ assert }) => {
+    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
+
+    assert.include(rootDeclaration, 'export * as errors')
+  })
+
+  test('the types barrel emits a declaration', async ({ assert }) => {
+    const typesDeclaration = await readFile(
+      new URL('../build/src/types/index.d.ts', import.meta.url),
+      'utf8'
+    )
+
+    assert.include(typesDeclaration, 'SoftDeleteReceipt')
+  })
 })

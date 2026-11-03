@@ -1,5 +1,7 @@
 import './src/types/querybuilder.js'
 
+export * as errors from './src/errors.js'
+
 export { configure } from './configure.js'
 export { SoftDeletes } from './src/mixin.js'
 export type {
