@@ -9,16 +9,16 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { createDatabase, createTables, dbClient } from '../helpers.js'
-import { RelationUser } from '../fixtures/models.js'
-import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../../src/mode.js'
-import { installModePropagation } from '../../src/propagation.js'
+import { createDatabase, createTables, dbClient } from './helpers.js'
+import { RelationUser } from './fixtures/models.js'
+import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../src/mode.js'
+import { installModePropagation } from '../src/propagation.js'
 import {
   aliasFromTable,
   qualifiedColumnReference,
   resolveTableReference,
-} from '../../src/table_reference.js'
-import { addScopeFilter, removeScopeFilter } from '../../src/where_stack.js'
+} from '../src/table_reference.js'
+import { addScopeFilter, removeScopeFilter } from '../src/where_stack.js'
 
 test.group('scope modules', (group) => {
   group.setup(() => {

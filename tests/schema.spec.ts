@@ -10,10 +10,10 @@
 import { compose } from '@adonisjs/core/helpers'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../../src/mixin.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from '../helpers.js'
-import { UserSchema } from '../fixtures/schema_user.js'
+import { SoftDeletes } from '../src/mixin.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
+import { UserSchema } from './fixtures/schema_user.js'
 
 class User extends compose(UserSchema, SoftDeletes) {}
 

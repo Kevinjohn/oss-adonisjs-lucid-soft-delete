@@ -11,9 +11,9 @@ import { DateTime, Settings } from 'luxon'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../../src/mixin.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from '../helpers.js'
+import { SoftDeletes } from '../src/mixin.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
 
 class Post extends compose(BaseModel, SoftDeletes) {
   static table = 'posts'

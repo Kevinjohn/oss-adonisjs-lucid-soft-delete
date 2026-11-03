@@ -15,9 +15,9 @@ import type {
   TransactionClientContract,
 } from '@adonisjs/lucid/types/database'
 import { dirname, join } from 'node:path'
-import { createDatabase, createTables, dbClient } from '../helpers.js'
-import { RelationPost, RelationUser } from '../fixtures/models.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+import { createDatabase, createTables, dbClient } from './helpers.js'
+import { RelationPost, RelationUser } from './fixtures/models.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 async function createUser(username: string) {
   const user = new RelationUser()

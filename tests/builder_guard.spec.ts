@@ -10,9 +10,9 @@
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
-import { E_MODEL_SOFT_DELETE } from '../../src/errors.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from '../helpers.js'
+import { E_MODEL_SOFT_DELETE } from '../src/errors.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
 
 /** A deletedAt column without SoftDeletes, so only the capability guard can reject restore(). */
 class PlainModel extends BaseModel {

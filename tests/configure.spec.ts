@@ -38,13 +38,13 @@ for (const { name, providerEntry } of cases) {
         `import { defineConfig } from '@adonisjs/core/app'\nexport default defineConfig({ providers: [${providerEntry}] })\n`
       )
       await symlink(
-        fileURLToPath(new URL('../../node_modules', import.meta.url)),
+        fileURLToPath(new URL('../node_modules', import.meta.url)),
         join(root, 'node_modules')
       )
 
       const importer = (specifier: string) =>
         specifier === '@kevinjohn/lucid-soft-deletes'
-          ? import(new URL('../../index.ts', import.meta.url).href)
+          ? import(new URL('../index.ts', import.meta.url).href)
           : import(specifier)
       const ignitor = new IgnitorFactory()
         .withCoreProviders()

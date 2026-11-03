@@ -11,10 +11,10 @@
 
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { runFresh } from './consumer/fresh.mjs'
-import { run } from './consumer/harness.mjs'
-import { runMinimum } from './consumer/minimum.mjs'
-import { compatibility, database, repoRoot, tempRoot } from './consumer/settings.mjs'
+import { runFresh } from './helpers/consumer/fresh.mjs'
+import { run } from './helpers/consumer/harness.mjs'
+import { runMinimum } from './helpers/consumer/minimum.mjs'
+import { compatibility, database, repoRoot, tempRoot } from './helpers/consumer/settings.mjs'
 
 async function packCandidate() {
   run('pnpm', ['build'], repoRoot)

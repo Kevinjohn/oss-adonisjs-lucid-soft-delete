@@ -10,9 +10,9 @@
 import { test } from '@japa/runner'
 import type { Assert } from '@japa/assert'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { createDatabase, createTables } from '../helpers.js'
-import { RelationIndustry, RelationPost, RelationUser } from '../fixtures/models.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
+import { RelationIndustry, RelationPost, RelationUser } from './fixtures/models.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 /**
  * The soft-delete filter must sit inside the `row_number()` subquery, before Lucid closes it as

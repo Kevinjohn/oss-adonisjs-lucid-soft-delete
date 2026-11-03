@@ -3,8 +3,8 @@ import { test } from '@japa/runner'
 import { column, BaseModel, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { createDatabase, createTables } from '../helpers.js'
-import { SoftDeletes } from '../../src/mixin.js'
+import { createDatabase, createTables } from './helpers.js'
+import { SoftDeletes } from '../src/mixin.js'
 
 test.group('Relations', () => {
   test('querying model relation with soft delete', async ({ assert }) => {

@@ -13,13 +13,13 @@ import {
   E_BULK_RECEIPT_DIVERGED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
-} from '../../index.js'
+} from '../index.js'
 import {
   ensureReceiptSupport,
   executeWithReceipt,
   normaliseWriteCount,
   parseReceiptOptions,
-} from '../../src/receipts.js'
+} from '../src/receipts.js'
 
 /** Exercise the preselect algorithm independently of the suite's configured database driver. */
 function preselectQuery(dialect: string, rows: Record<string, unknown>[]) {

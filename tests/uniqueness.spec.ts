@@ -10,9 +10,9 @@
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
-import { SoftDeletes } from '../../src/mixin.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase } from '../helpers.js'
+import { SoftDeletes } from '../src/mixin.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase } from './helpers.js'
 
 class ReusableRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'unique_records_reuse'

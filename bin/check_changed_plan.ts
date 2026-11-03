@@ -13,7 +13,7 @@ export type Plan = {
   /** Files for ESLint, or the whole project. Empty skips the step. */
   lint: 'all' | string[]
   typecheck: boolean
-  /** Spec files to run, or the full unit suite. Empty skips the step. */
+  /** Spec files to run, or the full test suite. Empty skips the step. */
   tests: 'all' | string[]
   consumer: boolean
   /** Suites selected by the change but left out by `--static`. */
@@ -23,7 +23,7 @@ export type Plan = {
 const IGNORED = /^(build|tmp|examples|coverage)\//
 const LINTABLE = /\.(ts|mts|cts|js|mjs|cjs)$/
 const TYPED = /\.(ts|mts|cts)$/
-const SPEC = /^tests\/(unit|tooling)\/.+\.spec\.ts$/
+const SPEC = /^tests\/(?:tooling\/.+|[^/]+)\.spec\.ts$/
 const DEPENDENCIES = new Set(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'])
 const LINT_CONFIG = new Set(['eslint.config.js', ...DEPENDENCIES])
 const TYPE_CONFIG = new Set(['tsconfig.json', ...DEPENDENCIES])
@@ -40,11 +40,11 @@ const RUNNER_SPEC = 'tests/tooling/check_changed_runner.spec.ts'
 const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
-  /^(scripts|examples\/app|src|providers)\/|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
+  /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.mjs$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
 
 /**
  * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but
- * leaves out the full unit suite and the consumer gate, which a batch run covers once.
+ * leaves out the full test suite and the consumer gate, which a batch run covers once.
  */
 export function planChecks(changes: Change[], staticOnly = false): Plan {
   const plan: Plan = { lint: [], typecheck: false, tests: [], consumer: false, skipped: [] }
@@ -72,7 +72,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
   plan.tests = testAll && !staticOnly ? 'all' : [...tests].sort()
-  if (staticOnly && testAll) plan.skipped.push('unit suite')
+  if (staticOnly && testAll) plan.skipped.push('test suite')
   if (staticOnly && plan.consumer) {
     plan.consumer = false
     plan.skipped.push('consumer')

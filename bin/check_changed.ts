@@ -119,7 +119,7 @@ if (plan.lint === 'all') {
 if (plan.typecheck) await step('typecheck', 'pnpm', ['typecheck'])
 else console.log('typecheck: skip (no TypeScript or type config changed)')
 
-// tests/unit/declarations.spec.ts reads build/.
+// tests/declarations.spec.ts reads build/.
 if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   console.log('tests: skip (build failed)')
 } else if (plan.tests.length) {
@@ -128,8 +128,8 @@ if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   const { code, output } = await run('pnpm', ['quick:test', ...files])
   const outcome = readTestOutcome(output, code)
   report('tests', outcome.passed, `${outcome.executed} tests run`, output)
-} else if (!plan.skipped.includes('unit suite')) console.log('tests: skip (no tests affected)')
-if (plan.skipped.includes('unit suite')) console.log('unit suite: skip (--static)')
+} else if (!plan.skipped.includes('test suite')) console.log('tests: skip (no tests affected)')
+if (plan.skipped.includes('test suite')) console.log('test suite: skip (--static)')
 
 if (plan.consumer) await step('consumer', 'pnpm', ['test:consumer'])
 else if (plan.skipped.includes('consumer')) console.log('consumer: skip (--static)')

@@ -12,9 +12,9 @@ import { test } from '@japa/runner'
 import { BaseModel, belongsTo, column, hasMany, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { createDatabase, createTables } from '../helpers.js'
-import { SoftDeletes } from '../../src/mixin.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
+import { SoftDeletes } from '../src/mixin.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 test.group('Scope bypasses', (group) => {
   group.setup(() => {
