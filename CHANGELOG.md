@@ -8,6 +8,10 @@ All notable changes to this project are documented here. This changelog follows 
 
 - Breaking: many-to-many and has-many-through lifecycle writes reject with `E_LIFECYCLE_WRITE_UNSUPPORTED` (was a plain `Error`).
 
+### Added
+
+- `errors` namespace export and `./types` entry.
+
 ## 0.1.2 - 2026-11-03
 
 ### Changed

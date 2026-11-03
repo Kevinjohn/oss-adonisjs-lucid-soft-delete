@@ -80,6 +80,24 @@ async function inspectInstalledPackage(appRoot: string) {
   }
 }
 
+async function verifyPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) {
+  await writeFile(
+    join(appRoot, 'package_exports.ts'),
+    `import type { SoftDeleteReceipt } from '${packageName}/types'\n\nexport type ConsumerSoftDeleteReceipt = SoftDeleteReceipt\n`
+  )
+
+  run(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import assert from 'node:assert/strict'; import { E_MODEL_SOFT_DELETE, errors } from '${packageName}'; assert.equal(errors.E_MODEL_SOFT_DELETE, E_MODEL_SOFT_DELETE)`,
+    ],
+    appRoot,
+    environment
+  )
+}
+
 function ace(
   appRoot: string,
   environment: NodeJS.ProcessEnv,
@@ -134,6 +152,7 @@ export async function runConsumerApp(archive: string, runName: string) {
   await installPackedPackage(appRoot, archive)
   const installed = await inspectInstalledPackage(appRoot)
   return withPostgresSchema(appEnvironment(appRoot), async (environment, schema, client) => {
+    await verifyPublicApi(appRoot, environment)
     if (schema) await verifyAppPostgresSchema(appRoot, environment, schema)
     await configureTwice(appRoot, environment)
     await verifyConfiguredProviderResolves(appRoot, environment)
