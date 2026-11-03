@@ -95,6 +95,7 @@ purge a row deliberately.
 - [Scope contract](docs/reference/scope-contract.md): query paths and relationship behavior.
 - [Troubleshooting](docs/guide/troubleshooting.md): common symptoms, causes and fixes.
 - [Maintainer verification](docs/maintainers/verification.md): local test databases and checks.
+- Apps moving from the original package: remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/lucid-soft-deletes`.
 
 ## Contributing
 
