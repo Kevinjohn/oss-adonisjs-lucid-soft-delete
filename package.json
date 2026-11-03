@@ -42,6 +42,7 @@
     "pg:start": "bash bin/pg.sh start",
     "pg:stop": "bash bin/pg.sh stop",
     "test:mysql": "cross-env DB_CLIENT=mysql2 pnpm quick:test",
+    "check": "node --import=@poppinss/ts-exec --enable-source-maps bin/check.ts",
     "check:changed": "node --import=@poppinss/ts-exec --enable-source-maps bin/check_changed.ts",
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",

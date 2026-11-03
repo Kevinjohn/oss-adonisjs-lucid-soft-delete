@@ -20,6 +20,7 @@ The same rules as `CONTRIBUTING.md`; every change follows them.
 
 ## Checks
 
+- `pnpm check` runs the quick profile (`--full` adds the rest).
 - `pnpm format:check` checks formatting on tracked files.
 - `pnpm lint` runs ESLint with the AdonisJS config.
 - `pnpm docs:check` checks local Markdown links, headings and source markers.
