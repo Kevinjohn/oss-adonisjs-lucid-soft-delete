@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in Lucid Soft Delete does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report security problems privately through the security policy, not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: The smallest code, config or request sequence that shows the problem. A repository link is ideal.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: package-version
+    attributes:
+      label: Lucid Soft Delete version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database
+      options:
+        - SQLite
+        - PostgreSQL
+        - MySQL
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node.js version and the versions of @adonisjs/core and @adonisjs/lucid.
+      placeholder: |
+        Node.js 24.x
+        @adonisjs/core 7.x
+        @adonisjs/lucid 22.x
+    validations:
+      required: true
