@@ -8,6 +8,7 @@
  */
 
 import { DateTime } from 'luxon'
+import { InvalidArgumentsException } from '@adonisjs/core/exceptions'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import {
   E_BULK_RECEIPT_DIVERGED,
@@ -53,18 +54,19 @@ type KnexLike = {
 const SUPPORTED_DIALECTS = new Set(['postgres', 'mysql', 'sqlite3', 'better-sqlite3'])
 const REJECTED_GROUPINGS = new Set(['join', 'group', 'having', 'order', 'union'])
 
-/** Returns true for receipt mode. Throws TypeError for anything other than undefined or { receipt?: boolean }. */
+/** Returns true for receipt mode. Throws InvalidArgumentsException for malformed options. */
 export function parseReceiptOptions(options: unknown): boolean {
   if (options === undefined) return false
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
-    throw new TypeError('Bulk lifecycle options must be an object')
+    throw new InvalidArgumentsException('Bulk lifecycle options must be an object')
   }
   for (const key of Object.keys(options)) {
-    if (key !== 'receipt') throw new TypeError(`Unknown bulk lifecycle option "${key}"`)
+    if (key !== 'receipt')
+      throw new InvalidArgumentsException(`Unknown bulk lifecycle option "${key}"`)
   }
   const receipt = (options as { receipt?: unknown }).receipt
   if (receipt !== undefined && typeof receipt !== 'boolean') {
-    throw new TypeError('Bulk lifecycle option "receipt" must be a boolean')
+    throw new InvalidArgumentsException('Bulk lifecycle option "receipt" must be a boolean')
   }
   return receipt === true
 }
