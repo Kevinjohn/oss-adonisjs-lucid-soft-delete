@@ -249,7 +249,7 @@ async function runnerFixture(
   const shimPath = join(shimDirectory, 'pnpm')
   await writeFile(
     shimPath,
-    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  const inheritPipes = process.env.CHECK_CHANGED_EXIT_WITH_DESCENDANT === '1'\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: inheritPipes ? ['ignore', 'inherit', 'inherit'] : 'ignore' })\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  if (inheritPipes) process.exit(0)\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
+    `#!/usr/bin/env node\nimport { appendFileSync, writeFileSync } from 'node:fs'\nimport { spawn } from 'node:child_process'\nappendFileSync(process.env.CHECK_CHANGED_LOG, process.argv.slice(2).join(' ') + '\\n')\nif (process.env.CHECK_CHANGED_HANG === '1' && process.argv[2] === 'format:check') {\n  const inheritPipes = process.env.CHECK_CHANGED_EXIT_WITH_DESCENDANT === '1'\n  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: inheritPipes ? ['ignore', 'inherit', 'inherit'] : 'ignore' })\n  writeFileSync(process.env.CHECK_CHANGED_GROUP, String(process.pid))\n  writeFileSync(process.env.CHECK_CHANGED_READY, '')\n  if (inheritPipes) process.exit(0)\n  setInterval(() => {}, 1000)\n}\nif (process.argv[2] === 'quick:test') {\n  appendFileSync(process.env.CHECK_CHANGED_LOG, 'TEST_BUILT_EXPORTS=' + (process.env.TEST_BUILT_EXPORTS ?? '') + '\\n')\n  process.stdout.write(process.env.CHECK_CHANGED_TEST_OUTPUT + '\\n')\n}\nif (process.argv[2] === 'build' && process.env.CHECK_CHANGED_FAIL_BUILD === '1') process.exit(1)\n`
   )
   await chmod(shimPath, 0o755)
 
@@ -457,6 +457,16 @@ test.group('check:changed runner test outcome', () => {
     assert.include(result.stdout, 'tests: pass (2 tests run)')
     assert.include(result.commands, 'quick:test')
     assert.include(result.commands, 'docs:check')
+  })
+
+  test('runs the selected tests with built-export specs enabled after the build', async ({
+    assert,
+    cleanup,
+  }) => {
+    const run = await runnerFixture(cleanup)
+    const result = await run.run('Tests  1 passed (1)')
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.include(result.commands, 'build\nquick:test\nTEST_BUILT_EXPORTS=1\n')
   })
 
   test('accepts a passing summary that includes todo tests', async ({ assert, cleanup }) => {
