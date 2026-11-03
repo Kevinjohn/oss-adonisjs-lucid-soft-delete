@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -13,7 +13,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 class RecipeParent extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'

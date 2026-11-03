@@ -8,19 +8,19 @@ Examples below use `Record` for a model composed with `SoftDeletes`, and `db` fo
 
 **Likely cause:** The provider has not booted, the model does not use the mixin, or the installed package version is incompatible with the project's AdonisJS/Lucid versions. A `deletedAt` column by itself does not install model scopes or builder macros.
 
-**Check:** Confirm that `@kevinjohn/lucid-soft-deletes/provider` is listed under `providers` in `adonisrc.ts`, and that the model extends `compose(BaseModel, SoftDeletes)`. The provider registers the builder macros during `boot()`.
+**Check:** Confirm that `@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider` is listed under `providers` in `adonisrc.ts`, and that the model extends `compose(BaseModel, SoftDeletes)`. The provider registers the builder macros during `boot()`.
 
 **Correction:** Register the provider (or run the package's configure command), and compose the model with the mixin:
 
 ```ts
 // Contextual fragment in adonisrc.ts.
-providers: [() => import('@kevinjohn/lucid-soft-deletes/provider')]
+providers: [() => import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider')]
 ```
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export default class Record extends compose(BaseModel, SoftDeletes) {
   static table = 'records'
@@ -34,7 +34,7 @@ Then restart the application so its provider boot sequence runs again. `withTras
 
 **Expected result:** A normal model query returns rows with `deleted_at IS NULL`; `Record.withTrashed()` includes both states, and `Record.onlyTrashed()` returns rows with a deletion timestamp.
 
-Source and tests: [provider](../../providers/lucid_soft_deletes_provider.ts), [model builder bindings](../../src/bindings/model_query_builder.ts), [model API tests](../../tests/model.spec.ts), [builder guard tests](../../tests/builder_guard.spec.ts).
+Source and tests: [provider](../../providers/lucid_soft_delete_provider.ts), [model builder bindings](../../src/bindings/model_query_builder.ts), [model API tests](../../tests/model.spec.ts), [builder guard tests](../../tests/builder_guard.spec.ts).
 
 ## Queries fail because `deleted_at` is missing or uses the wrong column
 

@@ -37,7 +37,7 @@ export default class AddDeletedAtToUsers extends BaseSchema {
 // app/models/user.ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })

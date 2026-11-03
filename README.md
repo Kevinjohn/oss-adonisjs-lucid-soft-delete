@@ -4,7 +4,7 @@
 [![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24-339933)](package.json)
 [![AdonisJS 7](https://img.shields.io/badge/AdonisJS-7-5a45ff)](https://adonisjs.com)
 
-> Pre-release. Installed from GitHub releases; not on npm.
+> Installed from GitHub releases; not on npm.
 
 ## What you get
 
@@ -22,8 +22,8 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9+.
 
 ```sh
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2-alpha/kevinjohn-lucid-soft-deletes-0.1.2-alpha.tgz luxon
-node ace configure @kevinjohn/lucid-soft-deletes
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2/kevinjohn-adonisjs-lucid-soft-delete-0.1.2.tgz luxon
+node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
 Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
@@ -36,7 +36,7 @@ Compose the mixin into a model:
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export default class User extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })

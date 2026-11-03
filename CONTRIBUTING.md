@@ -58,7 +58,7 @@ Use `pnpm test:pg` for the throwaway local PostgreSQL setup or set `DB_CLIENT=pg
 For MySQL 8.4, start the service, create `package_test`, and run `pnpm test:mysql` (which sets `DB_CLIENT=mysql2`). Lock-wait receipt tests read `performance_schema.data_lock_waits`
 and `performance_schema.threads`, so Performance Schema must be enabled and the test account needs
 `SELECT` access to those tables. The transaction tests also create and drop
-`lucid_soft_deletes_second`.
+`lucid_soft_delete_second`.
 
 `pnpm test` runs the SQLite suite under c8 after linting. CI also runs the suite on PostgreSQL 16
 and MySQL 8.4, and tests the minimum and latest supported peer versions. The packed consumer gate
@@ -118,7 +118,7 @@ code in the guide. Update the source and expected results together when changing
 ### MySQL
 
 The supported MySQL version is 8.4. Lock-wait receipt tests query Performance Schema tables and
-need `SELECT` access; transaction tests create and drop `lucid_soft_deletes_second`. Confirm those
+need `SELECT` access; transaction tests create and drop `lucid_soft_delete_second`. Confirm those
 test-only prerequisites with the database administrator when using a restricted account.
 
 ## Code of conduct

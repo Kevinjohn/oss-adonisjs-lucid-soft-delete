@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *

@@ -44,7 +44,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 class RecipeParent extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'
@@ -576,7 +576,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export class RecoverableRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'

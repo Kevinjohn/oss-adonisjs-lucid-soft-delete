@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  *
@@ -13,7 +13,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 export class RecoverableRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'

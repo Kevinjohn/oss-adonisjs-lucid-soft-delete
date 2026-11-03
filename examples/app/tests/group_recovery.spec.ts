@@ -1,5 +1,5 @@
 /*
- * @kevinjohn/lucid-soft-deletes
+ * @kevinjohn/adonisjs-lucid-soft-delete
  *
  * (c) 2026 Kevinjohn Gallagher
  */
@@ -9,7 +9,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime, Settings } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/lucid-soft-deletes'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import { deleteGroup, invalidateGroup, purgeGroup, restoreGroup } from '#services/group_recovery'
 
 class TestRecord extends compose(BaseModel, SoftDeletes) {
