@@ -1,34 +1,33 @@
-# @kevinjohn/lucid-soft-deletes
+# Lucid Soft Delete for AdonisJS
 
-[![checks](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/actions/workflows/checks.yml/badge.svg)](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/actions/workflows/checks.yml)
-[![release](https://img.shields.io/github/v/release/Kevinjohn/oss-adonisjs-lucid-soft-delete?include_prereleases&label=release)](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases)
-[![node](https://img.shields.io/badge/node-%3E%3D24-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![AdonisJS](https://img.shields.io/badge/AdonisJS-7-5A45FF?logo=adonisjs&logoColor=white)](https://adonisjs.com/)
-[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)
-
-Soft deletes for AdonisJS 7 Lucid models. Deleted records stay in the database, ordinary model queries hide them, and explicit methods let you inspect, restore or permanently purge them.
-
-- **Recover mistakes.** Instance `delete()` saves a deletion timestamp instead of removing the row; `restore()` brings it back.
-- **Hidden by default.** Model fetches, relation queries and relationship counts skip trashed rows unless you ask for `withTrashed()` or `onlyTrashed()`.
-- **Bulk operations.** Builder `softDelete()`, `restore()` and `forceDelete()` keep your predicates and transaction, and return a count, or a receipt of the changed ids with `{ receipt: true }` inside a transaction.
-
-> [!WARNING]
-> Builder `delete()` and `del()` delete rows physically, even after `onlyTrashed()`. Use builder `softDelete()` or `forceDelete()`; see [choose an operation](docs/reference/README.md#choose-an-operation).
+[![checks](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/actions/workflows/checks.yml)
+[![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24-339933)](package.json)
+[![AdonisJS 7](https://img.shields.io/badge/AdonisJS-7-5a45ff)](https://adonisjs.com)
 
 > Pre-release. Installed from GitHub releases; not on npm.
 
-It continues [lookinlab/adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes) 2.1.0. Use the README accompanying the exact version you install.
+## What you get
+
+A soft-delete mixin for AdonisJS 7 Lucid models. Deleted rows stay in the database with a
+`deleted_at` timestamp. Ordinary model queries hide them; use explicit methods to include,
+restore or permanently remove them. Instance methods follow Lucid model lifecycle hooks, while
+builder methods support bulk operations and optional transaction receipts.
+
+Builder `delete()` and `del()` are physical deletes, even after `onlyTrashed()`. Use builder
+`softDelete()` for recoverable bulk deletion and `forceDelete()` only when you intend to remove
+rows permanently. See [the operation guide](docs/reference/README.md#choose-an-operation).
 
 ## Install
 
 Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9+.
 
-```bash
+```sh
 pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.2-alpha/kevinjohn-lucid-soft-deletes-0.1.2-alpha.tgz luxon
 node ace configure @kevinjohn/lucid-soft-deletes
 ```
 
-Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The [tutorial](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
+Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
+[tutorial](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 
 ## Quick example
 
@@ -72,23 +71,38 @@ export async function demonstrateRecovery(email: string) {
 }
 ```
 
-Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns `{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The restored row remains in the database. The [tutorial](docs/guide/getting-started.md) supplies the complete setup and exercises this journey, including a separate deliberate physical purge.
+Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns
+`{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The row remains in the
+database. The [tutorial](docs/guide/getting-started.md) gives the full setup and also shows how to
+purge a row deliberately.
 
-The function returns `{ id, hidden: true, inRecycleBin: true, visibleAgain: true }`.
+## Tested against
+
+|                         | Every pull request | Weekly and before each release          |
+| ----------------------- | ------------------ | --------------------------------------- |
+| Node.js                 | 24                 | 24                                      |
+| AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
+| Lucid                   | locked version     | lowest supported and latest 22.x        |
+| SQLite (better-sqlite3) | yes                | yes                                     |
+| PostgreSQL 16           | yes                | yes                                     |
+| MySQL 8.4               | yes                | yes                                     |
 
 ## Documentation
 
-- [Getting started](docs/guide/getting-started.md): build a recycle bin from setup to permanent purge.
-- [Recipes](docs/recipes/index.md): batches, transactions, related records, counts, uniqueness and fixtures.
-- [API reference](docs/reference/README.md): every method, its result, hooks, errors and TypeScript types.
-- [Scope contract](docs/reference/scope-contract.md): which queries hide trashed rows and which do not.
-- [Troubleshooting](docs/guide/troubleshooting.md): symptoms, causes and fixes.
+- [Getting started](docs/guide/getting-started.md): add soft deletes to an application.
+- [Recipes](docs/recipes/index.md): batch operations, transactions, counts and fixtures.
+- [API reference](docs/reference/README.md): methods, return values, hooks, errors and types.
+- [Scope contract](docs/reference/scope-contract.md): query paths and relationship behavior.
+- [Troubleshooting](docs/guide/troubleshooting.md): common symptoms, causes and fixes.
+- [Maintainer verification](docs/maintainers/verification.md): local test databases and checks.
 - Apps moving from the original package: remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/lucid-soft-deletes`.
 
 ## Contributing
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain and checks, and [SECURITY.md](SECURITY.md) for reporting vulnerabilities and the support window.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks,
+and [SECURITY.md](SECURITY.md) for vulnerability reports and the support window.
 
 ## License
 
-[MIT](LICENSE.md). Originally created by Lookin Anton as [adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes).
+[MIT](LICENSE.md). Originally created by Lookin Anton as
+[adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes).

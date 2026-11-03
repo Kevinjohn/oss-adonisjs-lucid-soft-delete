@@ -1,24 +1,34 @@
-# Security
+# Security policy
 
 ## Supported versions
 
-This package supports the current AdonisJS major. When the next major ships, the previous line
-receives fixes for six months. Only the latest release on each supported line receives fixes.
-
-| Package line | AdonisJS | Status    |
-| ------------ | -------- | --------- |
-| 0.x          | 7        | Supported |
+Only the latest 0.x release receives security fixes. Upgrade to the latest release to receive them.
 
 ## Reporting a vulnerability
 
-Report a vulnerability privately through
-[GitHub private vulnerability reporting](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/security/advisories/new).
-Do not open a public issue for a defect that exposes or changes rows it should not; other security
-concerns can go in an [issue](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues).
-Describe the affected version, the model and query shape involved, and the observed and expected rows. Omit any
-production data. There is no response-time promise.
+Report suspected vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/security/advisories/new)
+or by email to [cve@kevinjohngallagher.com](mailto:cve@kevinjohngallagher.com). Never open a public
+issue for a vulnerability.
 
-This package runs inside the application's own database connection and adds no network, file or
-credential handling of its own. The likely class of defect is a query that returns or modifies rows
-it should not, such as a trashed row appearing in a scoped result. Treat such a report as a
-correctness bug with a security label.
+Include the affected package version, model and query shape, and the observed and expected rows. Do
+not include production data or credentials.
+
+## Verifying a release
+
+Check a downloaded archive against the SHA-256 in the GitHub release notes:
+
+```sh
+shasum -a 256 <tarball>.tgz
+```
+
+## Security model
+
+This package runs inside the application's database connection and adds no network, file or
+credential handling of its own. Its security-sensitive boundary is which rows a query reads or
+changes. The application remains responsible for authorization, tenant filters, retention and
+access to any raw or joined queries outside the model scopes. See the [scope contract](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/docs/reference/scope-contract.md)
+for the query paths that receive the soft-delete filter and those that do not.
+
+## Independent review
+
+None yet.
