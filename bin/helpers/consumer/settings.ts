@@ -20,12 +20,12 @@ if (Number(process.versions.node.split('.')[0]) !== 24) {
   throw new Error(`The installed-consumer gate requires Node 24; found ${process.versions.node}`)
 }
 
-const arguments_ = process.argv.slice(2)
-const compatibilityArguments = arguments_.filter((argument) =>
+const cliArguments = process.argv.slice(2)
+const compatibilityArguments = cliArguments.filter((argument) =>
   argument.startsWith('--compatibility=')
 )
-if (compatibilityArguments.length > 1 || arguments_.length !== compatibilityArguments.length) {
-  throw new Error('Usage: node bin/test_consumer.mjs [--compatibility=latest|minimum]')
+if (compatibilityArguments.length > 1 || cliArguments.length !== compatibilityArguments.length) {
+  throw new Error('Usage: node bin/test_consumer.ts [--compatibility=latest|minimum]')
 }
 
 export const compatibility = compatibilityArguments[0]?.split('=')[1] ?? 'latest'
@@ -40,8 +40,8 @@ if (process.env.DB_CLIENT && !['pg', 'better-sqlite3', 'sqlite'].includes(proces
 
 export const tempRoot = await mkdtemp(join(tmpdir(), 'lucid-soft-deletes-consumer-'))
 
-export function appEnvironment(appRoot) {
-  const environment = {
+export function appEnvironment(appRoot: string) {
+  const environment: NodeJS.ProcessEnv = {
     ...process.env,
     CI: 'true',
     NODE_ENV: 'test',

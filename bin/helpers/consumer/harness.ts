@@ -9,15 +9,20 @@
 
 import { spawnSync } from 'node:child_process'
 import { relative } from 'node:path'
-import { repoRoot } from './settings.mjs'
+import { repoRoot } from './settings.js'
 
-function redact(value) {
+function redact(value: unknown) {
   const password = process.env.DB_PASSWORD
   return password ? String(value).split(password).join('[REDACTED]') : String(value)
 }
 
 /** Run one command and retain its useful output in the consumer-gate log. */
-export function run(command, args, cwd, environment = process.env) {
+export function run(
+  command: string,
+  args: string[],
+  cwd: string,
+  environment: NodeJS.ProcessEnv = process.env
+) {
   const label = `${command} ${args.join(' ')}`
   console.log(`\n[${relative(repoRoot, cwd) || '.'}] $ ${label}`)
   const result = spawnSync(command, args, {

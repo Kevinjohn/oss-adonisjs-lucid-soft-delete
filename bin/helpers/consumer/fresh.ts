@@ -7,9 +7,9 @@
  * file that was distributed with this source code.
  */
 
-import { runConsumerApp } from './consumer_app.mjs'
+import { runConsumerApp } from './consumer_app.js'
 
-/** Exact minimum AdonisJS and Lucid peers declared by the package. */
-export function runMinimum(archive) {
-  return runConsumerApp(archive, 'minimum')
+/** Current compatible AdonisJS and Lucid peer releases. */
+export function runFresh(archive: string) {
+  return runConsumerApp(archive, 'latest')
 }
