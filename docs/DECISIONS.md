@@ -162,27 +162,27 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 - **Decision:** Add a second Lucid prototype hook. `installSubQueryScope()` wraps `ModelQueryBuilder.prototype.applyWhere()` and, for a relation sub-query builder (`isRelatedSubQuery === true`, not a `where` callback child) whose model has the mixin, calls `applySubQueryScope()` before flushing the where stack.
 - **Reason:** Lucid's relation sub-query classes (`BaseSubQueryBuilder` and the five relation builders) are not exported, and `prepare()` lives on that unexported base class, so it cannot be wrapped directly. Every rendering path (`select(subQuery.prepare())` and `whereExists(subQuery.prepare())` through `toKnex()`, `has` with an operator through `toSQL()`, `loadCount` and `loadAggregate` through `withAggregate`) flushes `whereStack` with `applyWhere()` after `prepare()` has added the relation constraint, so that method sees the final mode and the constrained builder for all five relation types. The group-limit detection in `applyScope()` reads SQL from a clone, which would re-enter the same hook, so `applySubQueryScope()` skips it; relation sub-queries have no group-limit path.
-- **Evidence:** `tests/unit/scope_bypass.spec.ts` (counts, existence checks, mode switches in callbacks) and `tests/unit/scope_aggregates.spec.ts` (has-one, many-to-many, has-many-through, self-join alias, plain related model) pass on SQLite and PostgreSQL. With the hook's `isRelatedSubQuery` guard inverted or the install call removed, the aggregate tests fail on counts.
+- **Evidence:** `tests/scope_bypass.spec.ts` (counts, existence checks, mode switches in callbacks) and `tests/scope_aggregates.spec.ts` (has-one, many-to-many, has-many-through, self-join alias, plain related model) pass on SQLite and PostgreSQL. With the hook's `isRelatedSubQuery` guard inverted or the install call removed, the aggregate tests fail on counts.
 
 ## 2026-10-27: Preserve the scope already installed before subclass hooks
 
 - **Decision:** Reapply an existing scope node at `applyWhere()` time across all where-stack collections. Keep hook-time scope application and group-limit detection unchanged. A later hook switching to `withTrashed()` retains the filter installed earlier; a later `clearWhere()` removes it and remains outside append-only protection.
 - **Reason:** Subclass hooks run after inherited hooks. Their appended OR predicates must be regrouped before SQL rendering, but rereading mode here would change write and preview semantics. Bulk-operation macros own their mode semantics.
-- **Evidence:** `tests/unit/subclass_hooks.spec.ts` covers appended OR predicates, pagination counts, grouped stacks, modes, reused builders, related reads, aggregates, group limits, and the two hook limitations.
+- **Evidence:** `tests/subclass_hooks.spec.ts` covers appended OR predicates, pagination counts, grouped stacks, modes, reused builders, related reads, aggregates, group limits, and the two hook limitations.
 
 ## 2026-10-27: Explicit bulk lifecycle macros
 
 - **Decision:** Add builder `softDelete()` for matching active rows and `forceDelete()` for physical deletion. `onlyTrashed().softDelete()` returns zero; `onlyTrashed().forceDelete()` selects only trashed rows. Other force-delete modes select all matching rows. Builder `delete()` and `del()` retain their physical, unscoped contract; any next-major change is tracked separately in #59.
 - **Reason:** Bulk writes bypass instance hooks, custom column preparation and automatic `updatedAt` updates. Explicit methods provide safe lifecycle vocabulary without changing existing Lucid write behavior. Scope predicates belong inside each macro; the shared `applyWhere` wrapper only re-applies an existing scope node.
 - **Boundary:** Lucid redirects many-to-many update/delete builders to the pivot table, so both macros and builder `restore()` reject that shape before mutation. Has-many-through update/delete builders render a `select *` sub-query that every supported database rejects, so they are rejected the same way. Callers can select related IDs and query the related model directly. Has-many builders preserve their parent constraint.
-- **Evidence:** `tests/unit/builder_lifecycle.spec.ts` covers mode combinations, stored timestamps, repeated/cloned builders, caller predicates, custom columns, transactions, hooks, relation writes and database rejection. Installed-consumer tests exercise the public runtime and declaration exports.
+- **Evidence:** `tests/builder_lifecycle.spec.ts` covers mode combinations, stored timestamps, repeated/cloned builders, caller predicates, custom columns, transactions, hooks, relation writes and database rejection. Installed-consumer tests exercise the public runtime and declaration exports.
 
 ## 2026-10-27: Keep builder `delete()` physical; use explicit lifecycle macros for bulk writes
 
 - **Decision:** Choose option 1 from #59: retain physical, unscoped builder `delete()` and `del()` on soft-delete models. Use the existing builder `restore()` macro and the explicit `softDelete()` and `forceDelete()` macros proposed in #57 for lifecycle operations. No next-major runtime change is planned by this decision.
 - **Reason:** Rejecting existing writes would break bulk-delete and related-query callers. Applying read modes to writes would change their selection rules and complicate the shared read-scope wrapper. Explicit operations supply the safe vocabulary without changing the established write contract.
 - **Boundaries:** This records the next-major choice only; it does not introduce a version bump, migration, or runtime change for 0.1.0-alpha. A future proposal to reject or scope `delete()` / `del()` must reopen the decision with consumer migration evidence, a major version, migration notes and revised bulk-write contract tests.
-- **Evidence:** The existing bulk-write characterisations in `tests/unit/scope_bypass.spec.ts` retain the documented physical-delete contract. #52 documents its hazard; #57 owns the explicit alternative APIs and their tests.
+- **Evidence:** The existing bulk-write characterisations in `tests/scope_bypass.spec.ts` retain the documented physical-delete contract. #52 documents its hazard; #57 owns the explicit alternative APIs and their tests.
 
 ## 2026-10-27: Number the first release 0.1.0-alpha and distribute it through GitHub
 
@@ -200,4 +200,4 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Reason:** Unsupported dialects, relations, and query shapes cannot guarantee that the receipt describes the intended target-table mutation.
 - **Reason:** Relation `groupLimit()` and `groupOrderBy()` are rejected from their deferred Lucid state before cloning because relation clones drop those constraints.
 - **Reason:** The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
-- **Evidence:** `tests/unit/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.
+- **Evidence:** `tests/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.

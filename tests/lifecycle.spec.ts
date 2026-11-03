@@ -21,14 +21,14 @@ import {
 } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '../../src/mixin.js'
+import { SoftDeletes } from '../src/mixin.js'
 import {
   E_MODEL_FORCE_DELETED,
   E_MODEL_NOT_PERSISTED,
   E_MODEL_UNKNOWN_DELETION_STATE,
-} from '../../src/errors.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables, dbClient } from '../helpers.js'
+} from '../src/errors.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables, dbClient } from './helpers.js'
 
 class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   static table = 'users'

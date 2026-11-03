@@ -14,10 +14,10 @@ const changed = (...paths: string[]) => paths.map((path) => ({ path, deleted: fa
 
 test.group('check:changed plan', () => {
   test('a changed spec runs on its own with lint and typecheck', ({ assert }) => {
-    assert.deepEqual(planChecks(changed('tests/unit/scope.spec.ts')), {
-      lint: ['tests/unit/scope.spec.ts'],
+    assert.deepEqual(planChecks(changed('tests/scope.spec.ts')), {
+      lint: ['tests/scope.spec.ts'],
       typecheck: true,
-      tests: ['tests/unit/scope.spec.ts'],
+      tests: ['tests/scope.spec.ts'],
       consumer: false,
       skipped: [],
     })
@@ -38,7 +38,7 @@ test.group('check:changed plan', () => {
       'pnpm-lock.yaml',
     ])
     .run(({ assert }, path) => {
-      assert.equal(planChecks(changed(path, 'tests/unit/scope.spec.ts')).tests, 'all')
+      assert.equal(planChecks(changed(path, 'tests/scope.spec.ts')).tests, 'all')
     })
 
   test('{$self} lints the whole project')
@@ -92,7 +92,7 @@ test.group('check:changed plan', () => {
 
   test('unshipped files do not select the consumer gate')
     .with([
-      'tests/unit/x.spec.ts',
+      'tests/x.spec.ts',
       'tests/helpers.ts',
       'bin/test.ts',
       'README.md',
@@ -110,9 +110,9 @@ test.group('check:changed plan', () => {
   })
 
   test('consumer gate files run the gate and lint', ({ assert }) => {
-    const plan = planChecks(changed('scripts/consumer/harness.mjs'))
+    const plan = planChecks(changed('bin/helpers/consumer/harness.mjs'))
     assert.isTrue(plan.consumer)
-    assert.deepEqual(plan.lint, ['scripts/consumer/harness.mjs'])
+    assert.deepEqual(plan.lint, ['bin/helpers/consumer/harness.mjs'])
     assert.isFalse(plan.typecheck)
   })
 
@@ -151,26 +151,26 @@ test.group('check:changed plan', () => {
 
   test('deleted files select checks but are never passed to a tool', ({ assert }) => {
     const plan = planChecks([
-      { path: 'tests/unit/old.spec.ts', deleted: true },
+      { path: 'tests/old.spec.ts', deleted: true },
       { path: 'src/old.ts', deleted: true },
     ])
     assert.deepEqual(plan.lint, [])
     assert.isTrue(plan.typecheck)
     assert.equal(plan.tests, 'all')
 
-    const specOnly = planChecks([{ path: 'tests/unit/old.spec.ts', deleted: true }])
+    const specOnly = planChecks([{ path: 'tests/old.spec.ts', deleted: true }])
     assert.deepEqual(specOnly.tests, [])
     assert.isTrue(specOnly.typecheck)
   })
 })
 
 test.group('check:changed --static plan', () => {
-  test('keeps changed specs but leaves out the unit suite and consumer gate', ({ assert }) => {
-    const plan = planChecks(changed('src/scope.ts', 'tests/unit/scope.spec.ts'), true)
-    assert.deepEqual(plan.tests, ['tests/unit/scope.spec.ts'])
+  test('keeps changed specs but leaves out the full test suite and consumer gate', ({ assert }) => {
+    const plan = planChecks(changed('src/scope.ts', 'tests/scope.spec.ts'), true)
+    assert.deepEqual(plan.tests, ['tests/scope.spec.ts'])
     assert.isFalse(plan.consumer)
-    assert.deepEqual(plan.skipped, ['unit suite', 'consumer'])
-    assert.deepEqual(plan.lint, ['src/scope.ts', 'tests/unit/scope.spec.ts'])
+    assert.deepEqual(plan.skipped, ['test suite', 'consumer'])
+    assert.deepEqual(plan.lint, ['src/scope.ts', 'tests/scope.spec.ts'])
     assert.isTrue(plan.typecheck)
   })
 

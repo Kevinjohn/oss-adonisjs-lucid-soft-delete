@@ -11,8 +11,8 @@ import { getActiveTest, test } from '@japa/runner'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { createDatabase, dbClient } from '../helpers.js'
-import { SoftDeletes } from '../../src/mixin.js'
+import { createDatabase, dbClient } from './helpers.js'
+import { SoftDeletes } from '../src/mixin.js'
 
 test.group('Cascade boundaries', () => {
   test('soft delete leaves relations intact and force delete follows foreign keys', async ({

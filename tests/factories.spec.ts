@@ -11,9 +11,9 @@ import { test } from '@japa/runner'
 import { FactoryManager } from '@adonisjs/lucid/factories'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import { createDatabase, createTables } from '../helpers.js'
-import { RelationUser } from '../fixtures/models.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
+import { RelationUser } from './fixtures/models.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 test.group('Soft-delete factories, seeders, and transactions', (group) => {
   group.setup(() => {

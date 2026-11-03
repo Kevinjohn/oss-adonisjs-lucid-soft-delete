@@ -17,10 +17,10 @@ import {
 } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { E_MODEL_SOFT_DELETE, SoftDeletes } from '../../index.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from '../helpers.js'
-import { CustomPost, RelationComment, RelationUser, RelationPost } from '../fixtures/models.js'
+import { E_MODEL_SOFT_DELETE, SoftDeletes } from '../index.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.js'
+import { CustomPost, RelationComment, RelationUser, RelationPost } from './fixtures/models.js'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'

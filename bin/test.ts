@@ -4,17 +4,8 @@ import { processCLIArgs, configure, run } from '@japa/runner'
 
 processCLIArgs(process.argv.slice(2))
 configure({
+  files: ['tests/**/*.spec.ts'],
   plugins: [assert(), expectTypeOf()],
-  suites: [
-    {
-      name: 'unit',
-      files: ['tests/unit/**/*.spec.ts'],
-    },
-    {
-      name: 'tooling',
-      files: ['tests/tooling/**/*.spec.ts'],
-    },
-  ],
 })
 
 run()

@@ -11,7 +11,7 @@ sub-query (`isRelatedSubQuery`, not a `where` callback child) for a model with t
 soft-delete filter is added before the where stack is flushed. Every way Lucid renders a sub-query
 (`toKnex()` for `select` and `whereExists`, `toSQL()` for `has` with an operator) passes through
 `applyWhere()` after `prepare()` has added the relation constraint. These are the package's two
-Lucid prototype hooks; `tests/unit/scope_aggregates.spec.ts` and `tests/unit/scope_bypass.spec.ts`
+Lucid prototype hooks; `tests/scope_aggregates.spec.ts` and `tests/scope_bypass.spec.ts`
 cover the second.
 
 The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
@@ -20,7 +20,7 @@ into one where group and call its `getWrappingMethod()` to rebuild the caller's 
 (`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
 builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
 change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
-`tests/unit/scope.spec.ts` and `tests/unit/builder_restore.spec.ts` cover it.
+`tests/scope.spec.ts` and `tests/builder_restore.spec.ts` cover it.
 
 For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
 `adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and

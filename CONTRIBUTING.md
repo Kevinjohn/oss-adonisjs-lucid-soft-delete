@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node.js 24 and pnpm 11. The default suite uses SQLite; CI also runs it on PostgreSQL 16 and MySQL 8.4. Run the repository checks through these scripts:
+Use Node.js 24 and pnpm 11. The default test suite uses SQLite; CI also runs it on PostgreSQL 16 and MySQL 8.4. Run the repository checks through these scripts:
 
 ```bash
 pnpm format:check
@@ -19,12 +19,12 @@ configuration also select the packed-consumer gate, which requires network acces
 to tests, `bin/` tooling, or prose do not select that gate. The fast local documentation check
 runs on every invocation, including prose-only changes; it does not fetch external URLs.
 `pnpm check:changed --static [base]` still runs changed spec files on their own but leaves out the
-full unit suite and the packed-consumer gate, printing a `skip` line for each. Use it per change
+full test suite and the packed-consumer gate, printing a `skip` line for each. Use it per change
 when one full run covers several changes together.
 
 ## PostgreSQL
 
-To run the runtime suite against PostgreSQL 16 on macOS, start the local service and create the
+To run the runtime test suite against PostgreSQL 16 on macOS, start the local service and create the
 test database:
 
 ```bash
@@ -67,7 +67,7 @@ pnpm test:consumer --compatibility=minimum
 - Branch from `main`. Name the branch `<type>-<issue>-<slug>`, for example `test-12-delete-quietly-paths`.
 - One issue per pull request. Start the body with `Fixes #<issue>`, then a `## Change` section and a `## Verification` section.
 - A behaviour change or bug fix ships with a test that fails without it. Say in the body which line was broken to make the test fail.
-- Formatting, lint, typecheck and the SQLite suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
+- Formatting, lint, typecheck and the SQLite test suite must pass locally. CI runs the suite on SQLite, PostgreSQL and MySQL, the minimum peer versions and the installed-package gate.
 - Record a decision that the code cannot explain by itself in `docs/DECISIONS.md`.
 
 ## Lucid internals

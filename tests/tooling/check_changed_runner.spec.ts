@@ -853,7 +853,7 @@ test.group('check:changed runner test outcome', () => {
     const run = await runnerFixture(cleanup)
     const result = await run.run('', ['--static', 'main'])
     assert.equal(result.status, 0, result.stdout + result.stderr)
-    assert.include(result.stdout, 'unit suite: skip (--static)')
+    assert.include(result.stdout, 'test suite: skip (--static)')
     assert.include(result.stdout, 'consumer: skip (--static)')
     assert.include(result.commands, 'docs:check')
   })

@@ -9,16 +9,13 @@
 
 import { readFile } from 'node:fs/promises'
 import { test } from '@japa/runner'
-import { E_MODEL_UNKNOWN_DELETION_STATE } from '../../index.js'
+import { E_MODEL_UNKNOWN_DELETION_STATE } from '../index.js'
 
 test.group('Emitted declarations', () => {
   test('the root entry loads the query builder augmentation', async ({ assert }) => {
-    const rootDeclaration = await readFile(
-      new URL('../../build/index.d.ts', import.meta.url),
-      'utf8'
-    )
+    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
     const augmentation = await readFile(
-      new URL('../../build/src/types/querybuilder.d.ts', import.meta.url),
+      new URL('../build/src/types/querybuilder.d.ts', import.meta.url),
       'utf8'
     )
 
@@ -31,12 +28,9 @@ test.group('Emitted declarations', () => {
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {
-    const rootDeclaration = await readFile(
-      new URL('../../build/index.d.ts', import.meta.url),
-      'utf8'
-    )
+    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
     const augmentation = await readFile(
-      new URL('../../build/src/types/querybuilder.d.ts', import.meta.url),
+      new URL('../build/src/types/querybuilder.d.ts', import.meta.url),
       'utf8'
     )
     assert.include(rootDeclaration, 'SoftDeleteReceipt')

@@ -10,15 +10,15 @@
 import { test } from '@japa/runner'
 import { BaseModel, column, hasMany, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { createDatabase, createTables } from '../helpers.js'
+import { createDatabase, createTables } from './helpers.js'
 import {
   RelationComment,
   RelationIndustry,
   RelationPost,
   RelationProfile,
   RelationUser,
-} from '../fixtures/models.js'
-import { extendModelQueryBuilder } from '../../src/bindings/model_query_builder.js'
+} from './fixtures/models.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 async function createUser(username: string, managerId: number | null = null) {
   const user = new RelationUser()

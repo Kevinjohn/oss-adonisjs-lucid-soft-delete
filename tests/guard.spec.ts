@@ -11,8 +11,8 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
-import { SoftDeletes } from '../../src/mixin.js'
-import { hasSoftDeletes } from '../../src/guard.js'
+import { SoftDeletes } from '../src/mixin.js'
+import { hasSoftDeletes } from '../src/guard.js'
 
 test.group('Soft-delete capability guard', () => {
   test('recognizes a model composed with SoftDeletes', ({ assert }) => {

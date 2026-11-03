@@ -13,7 +13,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const packageName = '@kevinjohn/lucid-soft-deletes'
-export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 export const fixtureRoot = join(repoRoot, 'examples/app')
 
 if (Number(process.versions.node.split('.')[0]) !== 24) {
@@ -25,7 +25,7 @@ const compatibilityArguments = arguments_.filter((argument) =>
   argument.startsWith('--compatibility=')
 )
 if (compatibilityArguments.length > 1 || arguments_.length !== compatibilityArguments.length) {
-  throw new Error('Usage: node scripts/test_packed_consumer.mjs [--compatibility=latest|minimum]')
+  throw new Error('Usage: node bin/test_consumer.mjs [--compatibility=latest|minimum]')
 }
 
 export const compatibility = compatibilityArguments[0]?.split('=')[1] ?? 'latest'
