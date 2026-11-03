@@ -34,7 +34,7 @@ if (compatibility !== 'latest' && compatibility !== 'minimum') {
 }
 
 export const database = process.env.DB_CLIENT === 'pg' ? 'pg' : 'better-sqlite3'
-if (process.env.DB_CLIENT && !['pg', 'better-sqlite3', 'sqlite'].includes(process.env.DB_CLIENT)) {
+if (process.env.DB_CLIENT && !['pg', 'better-sqlite3'].includes(process.env.DB_CLIENT)) {
   throw new Error(`Unsupported DB_CLIENT for the installed-consumer gate: ${process.env.DB_CLIENT}`)
 }
 

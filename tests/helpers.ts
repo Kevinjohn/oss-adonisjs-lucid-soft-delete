@@ -9,13 +9,18 @@ import { Emitter } from '@adonisjs/core/events'
 import { Database } from '@adonisjs/lucid/database'
 import { BaseModel } from '@adonisjs/lucid/orm'
 
+const configuredDbClient = process.env.DB_CLIENT
+
+if (
+  configuredDbClient !== undefined &&
+  !['pg', 'mysql2', 'better-sqlite3'].includes(configuredDbClient)
+) {
+  throw new Error(`Unsupported DB_CLIENT: ${configuredDbClient}; use pg, mysql2 or better-sqlite3`)
+}
+
 /** The database the suite runs against: `DB_CLIENT=pg`, `DB_CLIENT=mysql2`, or SQLite. */
 export const dbClient: 'sqlite' | 'pg' | 'mysql' =
-  process.env.DB_CLIENT === 'pg'
-    ? 'pg'
-    : process.env.DB_CLIENT === 'mysql' || process.env.DB_CLIENT === 'mysql2'
-      ? 'mysql'
-      : 'sqlite'
+  configuredDbClient === 'pg' ? 'pg' : configuredDbClient === 'mysql2' ? 'mysql' : 'sqlite'
 
 /**
  * Creates an instance of the database class for making queries
