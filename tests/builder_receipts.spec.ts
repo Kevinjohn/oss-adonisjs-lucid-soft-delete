@@ -8,6 +8,7 @@
  */
 
 import { compose } from '@adonisjs/core/helpers'
+import { InvalidArgumentsException } from '@adonisjs/core/exceptions'
 import {
   BaseModel,
   beforeDelete,
@@ -565,7 +566,7 @@ test.group('Builder receipts', (group) => {
           LifecycleUser.query({ client: trx })
             .where('id', user.id)
             .softDelete(options as never),
-        TypeError
+        InvalidArgumentsException
       )
       assert.lengthOf(statements.slice(start), 0)
     }

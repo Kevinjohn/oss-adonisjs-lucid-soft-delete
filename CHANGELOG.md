@@ -7,6 +7,7 @@ All notable changes to this project are documented here. This changelog follows 
 ### Changed
 
 - Breaking: many-to-many and has-many-through lifecycle writes reject with `E_LIFECYCLE_WRITE_UNSUPPORTED` (was a plain `Error`).
+- Breaking: malformed receipt options throw `InvalidArgumentsException` (was `TypeError`).
 
 ### Added
 
