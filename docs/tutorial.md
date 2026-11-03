@@ -175,8 +175,7 @@ confirmation UI.
 
 This tutorial targets the `v0.1.2-alpha` tag selected above. Keep that revision when reproducing its results; use the documentation of the release you install when adapting it to an application. The fixture's
 `file:../../` dependency and `pnpm build` install the package from the checkout. An application
-installs the release tarball instead; the README's install section gives its URL. The package is
-not published to npm.
+installs the release tarball instead; the README's install section gives its URL. GitHub releases are the package distribution source.
 
 The fixture establishes package behavior only. For installed-package checks, including the
 latest-compatible and minimum-peer packed-consumer runs, see [the example guide](../examples/README.md).

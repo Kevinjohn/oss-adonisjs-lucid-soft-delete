@@ -38,8 +38,6 @@
     "precompile": "pnpm lint",
     "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
     "build": "pnpm compile",
-    "prepublishOnly": "pnpm build",
-    "version": "pnpm build",
     "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts"
   },
   "devDependencies": {
@@ -91,10 +89,6 @@
     "adonis-soft-deletes"
   ],
   "prettier": "@adonisjs/prettier-config",
-  "publishConfig": {
-    "access": "public",
-    "tag": "alpha"
-  },
   "packageManager": "pnpm@11.23.0",
   "tsdown": {
     "entry": [

@@ -5,7 +5,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 ## 2026-10-25: Preserve project history with a merge commit
 
 - **Decision:** Import the prior project's master at `83c08d6` with an unrelated-history merge commit, retaining its full ancestry and licence text.
-- **Reason:** The PRD requires provenance in Git history and both copyright notices in the distributed licence.
+- **Reason:** The PRD requires retaining Git history and both copyright notices in the distributed licence.
 - **Evidence:** WP0 ancestry, commit-count, licence, and ignore checks.
 
 ## 2026-10-25: Retain the existing private-plan ignore rule
