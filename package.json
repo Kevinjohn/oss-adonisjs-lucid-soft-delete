@@ -12,14 +12,16 @@
       "onFail": "download"
     }
   },
-  "main": "./build/index.js",
   "type": "module",
   "files": [
     "build",
     "!build/bin",
     "!build/tests",
+    "README-AGENTS.md",
+    "SECURITY.md",
     "CHANGELOG.md"
   ],
+  "main": "./build/index.js",
   "exports": {
     ".": "./build/index.js",
     "./types/*": "./build/src/types/*.js",
@@ -41,6 +43,24 @@
     "prepublishOnly": "pnpm build",
     "version": "pnpm build",
     "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts"
+  },
+  "keywords": [
+    "adonisjs",
+    "adonisjs-lucid",
+    "adonisjs-soft-deletes",
+    "adonis",
+    "adonis-lucid",
+    "adonis-soft-deletes"
+  ],
+  "author": "Kevinjohn Gallagher",
+  "license": "MIT",
+  "homepage": "https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete#readme",
+  "bugs": {
+    "url": "https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete.git"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.0.0",
@@ -69,33 +89,14 @@
   "peerDependencies": {
     "@adonisjs/core": "^7.0.0",
     "@adonisjs/lucid": "^22.0.0",
-    "luxon": "^3.4.4"
+    "luxon": "^3.4.4",
+    "typescript": "^5.9.3 || ^6.0.3"
   },
-  "author": "Kevinjohn Gallagher",
-  "license": "MIT",
-  "homepage": "https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete.git"
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   },
-  "bugs": {
-    "url": "https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/issues"
-  },
-  "keywords": [
-    "adonisjs",
-    "adonisjs-lucid",
-    "adonisjs-lucid-soft-deletes",
-    "adonisjs-soft-deletes",
-    "adonis",
-    "adonis-lucid",
-    "adonis-soft-deletes"
-  ],
-  "prettier": "@adonisjs/prettier-config",
-  "publishConfig": {
-    "access": "public",
-    "tag": "alpha"
-  },
-  "packageManager": "pnpm@11.23.0",
   "tsdown": {
     "entry": [
       "./index.ts",
@@ -113,5 +114,11 @@
     "treeshake": false,
     "sourcemaps": false,
     "target": "esnext"
-  }
+  },
+  "prettier": "@adonisjs/prettier-config",
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
+  "packageManager": "pnpm@11.23.0"
 }
