@@ -4,7 +4,7 @@
 [![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24-339933)](package.json)
 [![AdonisJS 7](https://img.shields.io/badge/AdonisJS-7-5a45ff)](https://adonisjs.com)
 
-> Installed from GitHub releases; not on npm.
+> Pre-release. Installed from GitHub releases; not on npm.
 
 ## What you get
 
