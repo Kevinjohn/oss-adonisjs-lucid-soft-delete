@@ -52,6 +52,18 @@ function runReleaseCheck(root: string) {
   })
 }
 
+async function packingFixture(cleanup: (fn: () => Promise<void>) => void, changelog: string) {
+  const root = await fixture(cleanup)
+  await writeFile(join(root, 'CHANGELOG.md'), changelog)
+  const fakePnpm = join(root, 'fake-bin/pnpm')
+  await writeFile(
+    fakePnpm,
+    `#!/usr/bin/env bash\nset -euo pipefail\ncase "$1" in\n  build) ;;\n  pack) printf 'fixture tarball' > tmp/release/release-check.tgz ;;\n  *) echo "unexpected pnpm command: $*" >&2; exit 2 ;;\nesac\n`
+  )
+  await chmod(fakePnpm, 0o755)
+  return root
+}
+
 test.group('release check', () => {
   test('rejects a version whose tag already exists', async ({ assert, cleanup }) => {
     const root = await fixture(cleanup)
@@ -71,6 +83,66 @@ test.group('release check', () => {
 
     assert.notEqual(result.status, 0)
     assert.include(result.stderr, `CHANGELOG.md has no '## ${version} - YYYY-MM-DD' heading`)
+  })
+
+  test('accepts an empty Unreleased section above the released version', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await packingFixture(
+      cleanup,
+      `# Changelog\n\n## Unreleased\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`
+    )
+
+    const result = runReleaseCheck(root)
+
+    assert.equal(result.status, 0, result.stderr)
+  })
+
+  test('refuses entries under Unreleased, which the tarball would ship', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(cleanup)
+    await writeFile(
+      join(root, 'CHANGELOG.md'),
+      `# Changelog\n\n## Unreleased\n\n- Later change\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`
+    )
+
+    const result = runReleaseCheck(root)
+
+    assert.notEqual(result.status, 0)
+    assert.include(result.stderr, "entries under '## Unreleased'")
+  })
+
+  test('matches the version heading literally', async ({ assert, cleanup }) => {
+    const root = await fixture(cleanup)
+    await writeFile(
+      join(root, 'CHANGELOG.md'),
+      `# Changelog\n\n## ${version.replaceAll('.', 'x')} - 2026-11-03\n\nFixture notes.\n`
+    )
+
+    const result = runReleaseCheck(root)
+
+    assert.notEqual(result.status, 0)
+    assert.include(result.stderr, `CHANGELOG.md has no '## ${version} - YYYY-MM-DD' heading`)
+  })
+
+  test('writes only the exact version section into the release notes', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await packingFixture(
+      cleanup,
+      `# Changelog\n\n## ${version} - 2026-11-03\n\n- Current\n\n## ${version.replaceAll('.', 'a')} - 2025-01-01\n\n- Other\n`
+    )
+
+    const result = runReleaseCheck(root)
+
+    assert.equal(result.status, 0, result.stderr)
+    const notes = await readFile(join(root, 'tmp/release/notes.md'), 'utf8')
+    assert.include(notes, '- Current')
+    assert.notInclude(notes, '- Other')
   })
 
   test('packs the release, writes install notes and exports its workflow values', async ({
