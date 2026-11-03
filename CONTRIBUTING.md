@@ -29,9 +29,9 @@ test database:
 
 ```bash
 brew services start postgresql@16
-createdb lucid_soft_deletes_test
+createdb package_test
 pg_isready
-DB_CLIENT=pg DB_USER="$USER" DB_DATABASE=lucid_soft_deletes_test pnpm test
+DB_CLIENT=pg DB_USER="$USER" DB_DATABASE=package_test pnpm quick:test
 ```
 
 Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local PostgreSQL setup.
@@ -39,7 +39,7 @@ Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` as needed for a non-default local Pos
 ## MySQL
 
 For MySQL 8.4 on macOS, start the Homebrew service, create the test database, and run with
-`DB_CLIENT=mysql`. The lock-wait receipt tests query `performance_schema.data_lock_waits` and
+`pnpm test:mysql` (which sets `DB_CLIENT=mysql2`). The lock-wait receipt tests query `performance_schema.data_lock_waits` and
 `performance_schema.threads`. They require Performance Schema to be enabled and the test account
 to have `SELECT` access to those tables. Confirm those test-only prerequisites with the database
 administrator when using a restricted account. The transactions test also creates and drops
@@ -47,8 +47,8 @@ administrator when using a restricted account. The transactions test also create
 
 ```bash
 brew services start mysql@8.4
-mysql -uroot -e "CREATE DATABASE IF NOT EXISTS lucid_soft_deletes_test"
-DB_CLIENT=mysql pnpm test
+mysql -uroot -e "CREATE DATABASE IF NOT EXISTS package_test"
+pnpm test:mysql
 ```
 
 ## Installed-package gate
