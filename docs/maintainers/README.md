@@ -4,7 +4,7 @@ This section covers project decisions, internals, verification and release work.
 kept in the repository and are not published in the user documentation site.
 
 - [Verification](verification.md): required checks and local PostgreSQL/MySQL setup.
-- [Releasing](releasing.md): manual release process.
+- [Releasing](releasing.md): the release workflow and its local gate.
 - [Decisions](decisions.md): recorded design and maintenance decisions.
 - [Internals](internals.md): Lucid internals used by query scoping.
 - [History](history/README.md): historical implementation notes.
