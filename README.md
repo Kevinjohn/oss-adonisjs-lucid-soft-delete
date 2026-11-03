@@ -95,7 +95,7 @@ purge a row deliberately.
 - [Scope contract](docs/reference/scope-contract.md): query paths and relationship behavior.
 - [Troubleshooting](docs/guide/troubleshooting.md): common symptoms, causes and fixes.
 - [Maintainer verification](docs/maintainers/verification.md): local test databases and checks.
-- Apps moving from the previous package name: remove the previous provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`.
+- Apps moving from the previous package name or the original package: uninstall the previous package, change its imports to `@kevinjohn/adonisjs-lucid-soft-delete`, remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`. Models that still import the previous package are not recognised by this provider.
 
 ## Contributing
 
