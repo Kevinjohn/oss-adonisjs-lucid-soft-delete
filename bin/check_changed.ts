@@ -119,12 +119,13 @@ if (plan.lint === 'all') {
 if (plan.typecheck) await step('typecheck', 'pnpm', ['typecheck'])
 else console.log('typecheck: skip (no TypeScript or type config changed)')
 
-// tests/declarations.spec.ts reads build/.
+// tests/declarations.spec.ts reads build/ and runs only with TEST_BUILT_EXPORTS set.
 if (plan.tests.length && !(await step('build', 'pnpm', ['build']))) {
   console.log('tests: skip (build failed)')
 } else if (plan.tests.length) {
   const explicit = plan.tests !== 'all'
   const files = explicit ? (plan.tests as string[]).flatMap((file) => ['--files', file]) : []
+  process.env.TEST_BUILT_EXPORTS = '1'
   const { code, output } = await run('pnpm', ['quick:test', ...files])
   const outcome = readTestOutcome(output, code)
   report('tests', outcome.passed, `${outcome.executed} tests run`, output)
