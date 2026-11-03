@@ -11,17 +11,18 @@
 
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { runFresh } from './helpers/consumer/fresh.mjs'
-import { run } from './helpers/consumer/harness.mjs'
-import { runMinimum } from './helpers/consumer/minimum.mjs'
-import { compatibility, database, repoRoot, tempRoot } from './helpers/consumer/settings.mjs'
+import { runFresh } from './helpers/consumer/fresh.js'
+import { run } from './helpers/consumer/harness.js'
+import { runMinimum } from './helpers/consumer/minimum.js'
+import { compatibility, database, repoRoot, tempRoot } from './helpers/consumer/settings.js'
 
 async function packCandidate() {
   run('pnpm', ['build'], repoRoot)
   const destination = join(tempRoot, 'package')
   await mkdir(destination)
   run('pnpm', ['pack', '--pack-destination', destination], repoRoot)
-  const archives = (await readdir(destination)).filter((name) => name.endsWith('.tgz'))
+  const destinationEntries = await readdir(destination)
+  const archives = destinationEntries.filter((name) => name.endsWith('.tgz'))
   if (archives.length !== 1) {
     throw new Error(`Expected one packed package archive; found ${archives.length}`)
   }

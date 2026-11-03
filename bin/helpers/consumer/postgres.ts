@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import pg from 'pg'
-import { run } from './harness.mjs'
+import { run } from './harness.js'
 
 const appSchemaCheck = `import pg from 'pg'
 const client = new pg.Client({
@@ -31,7 +31,7 @@ try {
 }
 `
 
-function connection(environment) {
+function connection(environment: NodeJS.ProcessEnv) {
   assert.ok(environment.DB_DATABASE, 'DB_DATABASE is required for the PostgreSQL consumer gate')
   return new pg.Client({
     host: environment.DB_HOST,
@@ -42,21 +42,28 @@ function connection(environment) {
   })
 }
 
-function combineFailure(previous, next) {
+function combineFailure(previous: unknown, next: unknown) {
   return previous
     ? new AggregateError([previous, next], 'PostgreSQL consumer cleanup failed')
     : next
 }
 
 /** Run one consumer against an empty, disposable PostgreSQL schema. */
-export async function withPostgresSchema(environment, action) {
-  if (environment.DB_CLIENT !== 'pg') return action(environment)
+export async function withPostgresSchema<T>(
+  environment: NodeJS.ProcessEnv,
+  action: (
+    environment: NodeJS.ProcessEnv,
+    schema: string | undefined,
+    client: pg.Client | undefined
+  ) => Promise<T>
+): Promise<T> {
+  if (environment.DB_CLIENT !== 'pg') return action(environment, undefined, undefined)
 
   const schema = `lucid_soft_deletes_consumer_${randomUUID().replaceAll('-', '')}`
   const client = connection(environment)
   await client.connect()
   let created = false
-  let result
+  let result!: T
   let failure
   try {
     await client.query(`CREATE SCHEMA "${schema}"`)
@@ -89,7 +96,7 @@ export async function withPostgresSchema(environment, action) {
 }
 
 /** Confirm the fixture migration created its table in this run's schema. */
-export async function verifyPostgresMigration(client, schema) {
+export async function verifyPostgresMigration(client: pg.Client, schema: string) {
   const { rows } = await client.query(
     'SELECT tablename FROM pg_tables WHERE schemaname = $1 ORDER BY tablename',
     [schema]
@@ -101,11 +108,15 @@ export async function verifyPostgresMigration(client, schema) {
 }
 
 /** Ensure the installed app's pg driver honors the isolated search path. */
-export async function verifyAppPostgresSchema(appRoot, environment, schema) {
-  const script = join(appRoot, 'tmp', 'check_postgres_schema.mjs')
+export async function verifyAppPostgresSchema(
+  appRoot: string,
+  environment: NodeJS.ProcessEnv,
+  schema: string
+) {
+  const script = join(appRoot, 'tmp', 'check_postgres_schema.js')
   await writeFile(script, appSchemaCheck)
   try {
-    const current = run(process.execPath, ['tmp/check_postgres_schema.mjs'], appRoot, environment)
+    const current = run(process.execPath, ['tmp/check_postgres_schema.js'], appRoot, environment)
     assert.equal(current.trim(), schema, 'The consumer app did not select its isolated schema')
   } finally {
     await rm(script)

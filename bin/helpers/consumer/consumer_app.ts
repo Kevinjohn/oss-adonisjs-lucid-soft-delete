@@ -10,13 +10,9 @@
 import assert from 'node:assert/strict'
 import { readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { join, sep } from 'node:path'
-import { copyFixture } from './fixture.mjs'
-import { run } from './harness.mjs'
-import {
-  verifyAppPostgresSchema,
-  verifyPostgresMigration,
-  withPostgresSchema,
-} from './postgres.mjs'
+import { copyFixture } from './fixture.js'
+import { run } from './harness.js'
+import { verifyAppPostgresSchema, verifyPostgresMigration, withPostgresSchema } from './postgres.js'
 import {
   appEnvironment,
   compatibility,
@@ -24,14 +20,14 @@ import {
   packageName,
   repoRoot,
   tempRoot,
-} from './settings.mjs'
+} from './settings.js'
 
 const minimumPeers = {
   '@adonisjs/core': '7.0.0',
   '@adonisjs/lucid': '22.0.0',
 }
 
-async function installPackedPackage(appRoot, archive) {
+async function installPackedPackage(appRoot: string, archive: string) {
   const manifestPath = join(appRoot, 'package.json')
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
   manifest.dependencies ??= {}
@@ -49,7 +45,7 @@ async function installPackedPackage(appRoot, archive) {
   run('pnpm', ['install', '--no-frozen-lockfile'], appRoot)
 }
 
-async function inspectInstalledPackage(appRoot) {
+async function inspectInstalledPackage(appRoot: string) {
   const packageRoot = join(appRoot, 'node_modules', packageName)
   const installedPath = await realpath(packageRoot)
   const appModules = await realpath(join(appRoot, 'node_modules'))
@@ -82,11 +78,16 @@ async function inspectInstalledPackage(appRoot) {
   }
 }
 
-function ace(appRoot, environment, command, ...arguments_) {
+function ace(
+  appRoot: string,
+  environment: NodeJS.ProcessEnv,
+  command: string,
+  ...arguments_: string[]
+) {
   run(process.execPath, ['ace', command, ...arguments_], appRoot, environment)
 }
 
-async function configureTwice(appRoot, environment) {
+async function configureTwice(appRoot: string, environment: NodeJS.ProcessEnv) {
   const countRegistrations = async () => {
     const rc = await readFile(join(appRoot, 'adonisrc.ts'), 'utf8')
     return (rc.match(/@kevinjohn\/lucid-soft-deletes\/provider/g) ?? []).length
@@ -99,13 +100,13 @@ async function configureTwice(appRoot, environment) {
   assert.equal(await countRegistrations(), 1, 'Repeated configure must not duplicate the provider')
 }
 
-async function verifyGeneratedSchema(appRoot) {
+async function verifyGeneratedSchema(appRoot: string) {
   const schema = await readFile(join(appRoot, 'database/schema.ts'), 'utf8')
   assert.match(schema, /\bdeletedAt\b/, 'Generated schema must include deletedAt')
 }
 
 /** Exercise the packed package as a dependency of a separate AdonisJS application. */
-export async function runConsumerApp(archive, runName) {
+export async function runConsumerApp(archive: string, runName: string) {
   const appRoot = join(tempRoot, runName)
   await copyFixture(fixtureRoot, appRoot)
   await installPackedPackage(appRoot, archive)
@@ -115,7 +116,7 @@ export async function runConsumerApp(archive, runName) {
     await configureTwice(appRoot, environment)
     ace(appRoot, environment, 'schema:generate')
     ace(appRoot, environment, 'migration:run')
-    if (schema) await verifyPostgresMigration(client, schema)
+    if (schema && client) await verifyPostgresMigration(client, schema)
     await verifyGeneratedSchema(appRoot)
     run('pnpm', ['exec', 'tsc', '--noEmit'], appRoot, environment)
     ace(appRoot, environment, 'build')
