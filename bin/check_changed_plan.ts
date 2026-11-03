@@ -29,7 +29,7 @@ const LINT_CONFIG = new Set(['eslint.config.js', ...DEPENDENCIES])
 const TYPE_CONFIG = new Set(['tsconfig.json', ...DEPENDENCIES])
 /** Package source, shared test setup and tooling config: no dependency map, so run every spec. */
 const FULL_SUITE = [
-  /^(src|providers|tests\/fixtures|tests\/types)\//,
+  /^(src|providers|tests\/fixtures|tests\/helpers|tests\/types)\//,
   /^(index|configure)\.ts$/,
   /^tests\/helpers\.ts$/,
   /^bin\/test\.ts$/,
