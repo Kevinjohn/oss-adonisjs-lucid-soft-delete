@@ -8,7 +8,7 @@ import {
   normalizeWriteCount,
   executeWithReceipt,
 } from '../receipts.js'
-import { E_MODEL_SOFT_DELETE } from '../errors.js'
+import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
@@ -34,8 +34,8 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
   if (!query.model.$getColumn('deletedAt')) throw new E_MODEL_SOFT_DELETE(query.model.name)
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   if (type === 'manyToMany' || type === 'hasManyThrough') {
-    throw new Error(
-      'Bulk lifecycle writes do not support many-to-many or has-many-through builders; query the related model by its IDs instead'
+    throw new E_LIFECYCLE_WRITE_UNSUPPORTED(
+      'many-to-many or has-many-through builders; query the related model by its IDs instead'
     )
   }
 }

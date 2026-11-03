@@ -200,7 +200,7 @@ There is no dedicated `forceDeleteQuietly()` method; `deleteQuietly()` uses the 
 
 Builder lifecycle methods operate on matching database rows, not hydrated instances. They return affected counts where noted, never run model hooks, never update model `updatedAt`, and bypass custom column `prepare` functions. `softDelete()` formats its local Luxon timestamp for the query connection's dialect. Pass a caller-owned client with `User.query({ client: trx })` or attach it with `.useTransaction(trx)`; the package does not begin, commit, or roll back a transaction.
 
-The lifecycle macros require a model composed with `SoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through relation builders before writing: Lucid redirects many-to-many writes to the pivot table and builds has-many-through writes with a sub-query the database rejects. Select related IDs and use a normal related-model query instead. A builder that has already run keeps the soft-delete filter from that run, so a later `delete()` on the same builder removes only the rows that run's mode selected. Start a new query for a bulk write.
+The lifecycle macros require a model composed with `SoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`: Lucid redirects many-to-many writes to the pivot table and builds has-many-through writes with a sub-query the database rejects. Select related IDs and use a normal related-model query instead. A builder that has already run keeps the soft-delete filter from that run, so a later `delete()` on the same builder removes only the rows that run's mode selected. Start a new query for a bulk write.
 
 ### `softDelete()`
 
@@ -209,7 +209,7 @@ Sets the mapped deletion column for matching active rows.
 - **Eligible rows:** Active matches in default or `withTrashed()` mode. In `onlyTrashed()` mode the method returns `0` without writing. Already trashed rows are excluded in other modes too.
 - **Return/no-op:** `Promise<number>` affected count; zero when there are no active matches or mode is `onlyTrashed()`.
 - **Hooks/state:** No model hooks or instance state changes. Does not update `updatedAt`; custom column `prepare` is bypassed.
-- **Client/errors:** Uses the builder's client. Requires the mixin and mapped deletion column; rejects many-to-many and has-many-through relation builders before writing.
+- **Client/errors:** Uses the builder's client. Requires the mixin and mapped deletion column; rejects many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`.
 - **Receipt:** `softDelete({ receipt: true })` returns `SoftDeleteReceipt`; see [Receipts](#receipts).
 
 ```ts
@@ -223,7 +223,7 @@ Clears the mapped deletion column on matching trashed rows, regardless of the bu
 - **Eligible rows:** Matches whose deletion column is non-null; active matches remain unchanged.
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct bulk update. No model hooks or instance saves; `updatedAt` is unchanged and custom column `prepare` is bypassed.
-- **Client/errors:** Uses the builder's client. A model without the mixin or mapped column rejects with `E_MODEL_SOFT_DELETE`; query errors propagate. Rejects many-to-many and has-many-through relation builders before writing; use a normal related-model query by IDs for relation-target lifecycle writes.
+- **Client/errors:** Uses the builder's client. A model without the mixin or mapped column rejects with `E_MODEL_SOFT_DELETE`; query errors propagate. Rejects many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`; use a normal related-model query by IDs for relation-target lifecycle writes.
 - **Receipt:** `restore({ receipt: true })` returns `RestoreReceipt`; see [Receipts](#receipts).
 
 ```ts
@@ -237,7 +237,7 @@ Physically removes matching model rows.
 - **Eligible rows:** In `onlyTrashed()` mode, only trashed matches; in default and `withTrashed()` modes, both active and trashed matches.
 - **Return/no-op:** `Promise<number>` affected count, including `0` when nothing matched.
 - **Hooks/state:** Direct physical delete. No model hooks, model state updates, or `updatedAt` changes.
-- **Client/errors:** Uses the builder's client. Requires the mixin and mapped column; rejects many-to-many and has-many-through relation builders before writing. Database and foreign-key errors propagate.
+- **Client/errors:** Uses the builder's client. Requires the mixin and mapped column; rejects many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`. Database and foreign-key errors propagate.
 - **Receipt:** `forceDelete({ receipt: true })` returns `ForceDeleteReceipt`; see [Receipts](#receipts).
 
 ```ts
