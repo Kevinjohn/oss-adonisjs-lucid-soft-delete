@@ -138,7 +138,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 - **Decision:** Document manual alpha publication and leave the changelog release date for the owner.
 - **Reason:** The PRD reserves package publication and tagging to the owner after the release checks and merges.
-- **Evidence:** `docs/RELEASING.md` lists the manual checks and commands. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
+- **Evidence:** `docs/maintainers/releasing.md` lists the manual checks and commands. The packed tarball contains the licence, README, changelog and build output, with no tests or examples.
 
 ## 2026-10-25: Follow the specified CI legs and run the full peer/database combination locally
 
@@ -155,8 +155,8 @@ This log records implementation decisions made while delivering version 0.1.0-al
 ## 2026-10-26: Keep releases manual; add no release workflow
 
 - **Decision:** Align CI with the sibling AdonisJS packages (`checks.yml` job guard, conditional PostgreSQL service, `workflow_call` trigger, `codeql.yml`, `scorecard.yml`, `dependabot.yml`) but do not add their `release.yml`.
-- **Reason:** This package publishes to the `alpha` dist-tag by hand following `docs/RELEASING.md`. A release workflow would need publish credentials and a tag trigger that the alpha process does not define yet.
-- **Evidence:** `docs/RELEASING.md` states that publishing and tagging are manual owner actions. The sibling `release.yml` files call `checks.yml` through `workflow_call`, which this change adds so a later release workflow can reuse the checks unchanged.
+- **Reason:** This package publishes to the `alpha` dist-tag by hand following `docs/maintainers/releasing.md`. A release workflow would need publish credentials and a tag trigger that the alpha process does not define yet.
+- **Evidence:** `docs/maintainers/releasing.md` states that publishing and tagging are manual owner actions. The sibling `release.yml` files call `checks.yml` through `workflow_call`, which this change adds so a later release workflow can reuse the checks unchanged.
 
 ## 2026-10-26: Scope relation sub-queries by wrapping `applyWhere()`
 
@@ -188,7 +188,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 - **Decision:** Release the first prerelease of this continuation as `0.1.0-alpha`, tagged `v0.1.0-alpha`, with the `pnpm pack` tarball attached to a GitHub prerelease. Do not publish it to npm. This replaces the planned `3.0.0-alpha.1` npm alpha.
 - **Reason:** Owner decision (#84). The package has a new name, so its version line does not need to continue the prior 2.x numbering.
-- **Evidence:** `package.json`, `CHANGELOG.md`, `docs/RELEASING.md`, `SECURITY.md` and the README install instructions name `0.1.0-alpha` and the release tarball.
+- **Evidence:** `package.json`, `CHANGELOG.md`, `docs/maintainers/releasing.md`, `SECURITY.md` and the README install instructions name `0.1.0-alpha` and the release tarball.
 
 ## 2026-10-27: Opt-in bulk lifecycle receipts
 

@@ -96,11 +96,11 @@ export default class User extends compose(BaseModel, SoftDeletes) {
 ```
 
 The fixture uses the equivalent generated `UserSchema` in `examples/app/app/models/user.ts`. The
-reusable service is [`examples/app/app/services/recycle_bin.ts`](../examples/app/app/services/recycle_bin.ts),
-and [`examples/app/tests/recycle_bin.spec.ts`](../examples/app/tests/recycle_bin.spec.ts) exercises
+reusable service is [`examples/app/app/services/recycle_bin.ts`](../../examples/app/app/services/recycle_bin.ts),
+and [`examples/app/tests/recycle_bin.spec.ts`](../../examples/app/tests/recycle_bin.spec.ts) exercises
 the same exported functions:
 
-<!-- source: ../examples/app/app/services/recycle_bin.ts#tutorial -->
+<!-- source: ../../examples/app/app/services/recycle_bin.ts#tutorial -->
 
 ```ts
 import User from '#models/user'
@@ -178,5 +178,5 @@ This tutorial targets the `v0.1.2-alpha` tag selected above. Keep that revision 
 installs the release tarball instead; the README's install section gives its URL. GitHub releases are the package distribution source.
 
 The fixture establishes package behavior only. For installed-package checks, including the
-latest-compatible and minimum-peer packed-consumer runs, see [the example guide](../examples/README.md).
+latest-compatible and minimum-peer packed-consumer runs, see [the example guide](../../examples/README.md).
 Preserved transaction and lifecycle evidence, and its limitations, are also described there.

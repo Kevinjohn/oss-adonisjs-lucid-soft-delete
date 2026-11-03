@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.1.2-alpha`. Check the [README](../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.1.2-alpha`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
@@ -44,7 +44,7 @@ Receipts describe an uncommitted mutation and are not an audit log.
 
 ## SoftDeletes composition
 
-Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and TypeScript 5.9 or newer. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../README.md#install) for installation and migration setup, or the [tutorial](tutorial.md) for a complete project example.
+Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and TypeScript 5.9 or newer. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
 
 Compose `SoftDeletes` with `BaseModel`:
 
@@ -87,7 +87,7 @@ declare deletedAt: DateTime | null
 
 `serializeAs` controls only serialized output. The default serialized key is the model property name (`deletedAt`), even when `columnName` is `removed_at`. `trashed` is a computed getter and is not serialized as a column by default. A query projection that omits `deletedAt` must load it before `restore()`; see [restore](#restore).
 
-Redeclaring the `deletedAt` decorator, for example to add the [UTC ISO serialiser](cookbook.md#map-a-custom-deletion-column-and-serialize-utc-iso), replaces the whole column definition, so the column name and serialized key fall back to the naming strategy defaults. Repeat any `columnName` or `serializeAs` option from the original declaration in the new decorator.
+Redeclaring the `deletedAt` decorator, for example to add the [UTC ISO serialiser](../recipes/index.md#map-a-custom-deletion-column-and-serialize-utc-iso), replaces the whole column definition, so the column name and serialized key fall back to the naming strategy defaults. Repeat any `columnName` or `serializeAs` option from the original declaration in the new decorator.
 
 ### `trashed`
 
@@ -331,7 +331,7 @@ Lucid builder `delete()` and its alias `del()` are physical deletes. They are no
 await User.onlyTrashed().whereIn('id', ids).delete()
 ```
 
-The [operation chooser](#choose-an-operation) puts the warning beside common choices. See [troubleshooting](troubleshooting.md#builder-delete-or-del-removed-rows-physically) for a diagnostic and recovery path.
+The [operation chooser](#choose-an-operation) puts the warning beside common choices. See [troubleshooting](../guide/troubleshooting.md#builder-delete-or-del-removed-rows-physically) for a diagnostic and recovery path.
 
 ## Scope boundaries and query behavior
 
@@ -399,7 +399,7 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 | `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
 | Query/hook/database error             | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
 
-See [troubleshooting](troubleshooting.md) for recovery steps for projected models, uniqueness conflicts, transactions, and builder write surprises.
+See [troubleshooting](../guide/troubleshooting.md) for recovery steps for projected models, uniqueness conflicts, transactions, and builder write surprises.
 
 ## Non-goals
 

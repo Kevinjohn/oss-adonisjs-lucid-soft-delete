@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Use these checks when a query or lifecycle operation does not behave as expected. For setup and normal usage, see the [tutorial](tutorial.md), [cookbook](cookbook.md), and [API reference](api.md). See [Contributing](../CONTRIBUTING.md) for project development guidance.
+Use these checks when a query or lifecycle operation does not behave as expected. For setup and normal usage, see the [tutorial](getting-started.md), [cookbook](../recipes/index.md), and [API reference](../reference/). See [Contributing](../../CONTRIBUTING.md) for project development guidance.
 
 Examples below use `Record` for a model composed with `SoftDeletes`, and `db` for the configured Lucid database service. Code marked **Contextual fragment** assumes those names are already in scope. Database constraints and application policy remain the caller's responsibility.
 
@@ -34,7 +34,7 @@ Then restart the application so its provider boot sequence runs again. `withTras
 
 **Expected result:** A normal model query returns rows with `deleted_at IS NULL`; `Record.withTrashed()` includes both states, and `Record.onlyTrashed()` returns rows with a deletion timestamp.
 
-Source and tests: [provider](../providers/lucid_soft_deletes_provider.ts), [model builder bindings](../src/bindings/model_query_builder.ts), [model API tests](../tests/model.spec.ts), [builder guard tests](../tests/builder_guard.spec.ts).
+Source and tests: [provider](../../providers/lucid_soft_deletes_provider.ts), [model builder bindings](../../src/bindings/model_query_builder.ts), [model API tests](../../tests/model.spec.ts), [builder guard tests](../../tests/builder_guard.spec.ts).
 
 ## Queries fail because `deleted_at` is missing or uses the wrong column
 
@@ -64,7 +64,7 @@ Do not declare a second `deletedAt` property alongside the mixin's default prope
 
 **Expected result:** Active rows have `removed_at = NULL`; instance deletes set it, and restore clears it. Queries and builder lifecycle macros resolve the database column from the model mapping.
 
-Source and tests: [mixin column and query mapping](../src/mixin.ts), [scope column resolution](../src/scope.ts), [schema tests](../tests/schema.spec.ts), [renamed-column builder tests](../tests/builder_lifecycle.spec.ts).
+Source and tests: [mixin column and query mapping](../../src/mixin.ts), [scope column resolution](../../src/scope.ts), [schema tests](../../tests/schema.spec.ts), [renamed-column builder tests](../../tests/builder_lifecycle.spec.ts).
 
 ## Deleted rows appear in `pojo()`, raw queries, or joins
 
@@ -98,7 +98,7 @@ Use the actual table name or alias and the model's mapped column name. `withTras
 
 **Expected result:** Each table's deleted rows are included or excluded according to an explicit predicate, and outer-join results retain the parents your join is intended to keep.
 
-Source and tests: [scope hooks](../src/mixin.ts), [scope application](../src/scope.ts), [scope bypass tests](../tests/scope_bypass.spec.ts), [relation scope tests](../tests/scope_relations.spec.ts).
+Source and tests: [scope hooks](../../src/mixin.ts), [scope application](../../src/scope.ts), [scope bypass tests](../../tests/scope_bypass.spec.ts), [relation scope tests](../../tests/scope_relations.spec.ts).
 
 ## Root `withTrashed()` does not change a preload or aggregate
 
@@ -125,7 +125,7 @@ const usersWithDeletedPosts = await User.query().whereHas('posts', (posts) => po
 
 **Expected result:** Each root and relation query includes active rows by default, or uses the mode explicitly selected for that query.
 
-Source and tests: [query mode propagation](../src/propagation.ts), [relation subquery scope](../src/sub_query_scope.ts), [relation scope tests](../tests/scope_relations.spec.ts), [aggregate tests](../tests/scope_aggregates.spec.ts), [mode bypass tests](../tests/scope_bypass.spec.ts).
+Source and tests: [query mode propagation](../../src/propagation.ts), [relation subquery scope](../../src/sub_query_scope.ts), [relation scope tests](../../tests/scope_relations.spec.ts), [aggregate tests](../../tests/scope_aggregates.spec.ts), [mode bypass tests](../../tests/scope_bypass.spec.ts).
 
 ## Builder `delete()` or `del()` removed rows physically
 
@@ -152,7 +152,7 @@ Use builder `forceDelete()` only when physical removal is intended. Scope it wit
 
 **Expected result:** `softDelete()` updates the timestamp and leaves rows present. `forceDelete()` physically removes only the selected matches.
 
-Source and tests: [builder macros](../src/bindings/model_query_builder.ts), [scope bypass tests](../tests/scope_bypass.spec.ts), [builder lifecycle tests](../tests/builder_lifecycle.spec.ts).
+Source and tests: [builder macros](../../src/bindings/model_query_builder.ts), [scope bypass tests](../../tests/scope_bypass.spec.ts), [builder lifecycle tests](../../tests/builder_lifecycle.spec.ts).
 
 ## `restore()` rejects an unsaved, force-deleted, or projected model
 
@@ -176,7 +176,7 @@ If the instance was never saved, persist it before a lifecycle operation where t
 
 **Expected result:** A persisted trashed instance with `deletedAt` loaded restores and becomes active. Active instances return unchanged. Invalid states continue to reject instead of guessing.
 
-Source and tests: [restore guards and refresh behavior](../src/mixin.ts), [error definitions](../src/errors.ts), [lifecycle guard tests](../tests/lifecycle.spec.ts), [refresh scope tests](../tests/scope.spec.ts).
+Source and tests: [restore guards and refresh behavior](../../src/mixin.ts), [error definitions](../../src/errors.ts), [lifecycle guard tests](../../tests/lifecycle.spec.ts), [refresh scope tests](../../tests/scope.spec.ts).
 
 ## Restore fails on a unique value; a PostgreSQL transaction stays aborted
 
@@ -206,7 +206,7 @@ Run the retry only after the conflict has been handled; automatically retrying t
 
 **Expected result:** A conflicting restore remains rejected and the trashed row stays trashed. After the conflict is resolved, a fresh transaction can restore it successfully.
 
-Source and tests: [instance restore](../src/mixin.ts), [PostgreSQL uniqueness and aborted-transaction tests](../tests/uniqueness.spec.ts).
+Source and tests: [instance restore](../../src/mixin.ts), [PostgreSQL uniqueness and aborted-transaction tests](../../tests/uniqueness.spec.ts).
 
 ## A rollback changed the database but my retained model still looks changed
 
@@ -225,7 +225,7 @@ For a rolled-back force delete, query again by a stable key instead of calling `
 
 **Expected result:** The new instance reflects committed database state. The previous object remains stale and should not be reused for writes.
 
-Source and tests: [transaction state tests](../tests/transactions.spec.ts), [instance persistence and force-delete state](../src/mixin.ts).
+Source and tests: [transaction state tests](../../tests/transactions.spec.ts), [instance persistence and force-delete state](../../src/mixin.ts).
 
 ## A many-to-many or has-many-through bulk lifecycle write is rejected
 
@@ -249,7 +249,7 @@ This marks the selected active related rows as trashed and leaves pivot rows int
 
 **Expected result:** The lifecycle macro operates on related model rows selected through the parent relation; the pivot table is not mistaken for the model table, and its foreign-key references are preserved.
 
-Source and tests: [relation lifecycle guard](../src/bindings/model_query_builder.ts), [builder lifecycle relation tests](../tests/builder_lifecycle.spec.ts).
+Source and tests: [relation lifecycle guard](../../src/bindings/model_query_builder.ts), [builder lifecycle relation tests](../../tests/builder_lifecycle.spec.ts).
 
 ## A receipt call is rejected or throws E_BULK_RECEIPT_DIVERGED
 
@@ -287,4 +287,4 @@ declare deletedAt: DateTime | null
 
 **Expected result:** Instance saves run the normal Lucid model lifecycle. Builder macros make direct bulk changes without instance hooks, automatic `updatedAt`, or custom `prepare`; serialization changes affect only serialized representations.
 
-Source and tests: [instance persistence](../src/mixin.ts), [builder macros](../src/bindings/model_query_builder.ts), [builder lifecycle tests](../tests/builder_lifecycle.spec.ts), [serialization tests](../tests/serialisation.spec.ts).
+Source and tests: [instance persistence](../../src/mixin.ts), [builder macros](../../src/bindings/model_query_builder.ts), [builder lifecycle tests](../../tests/builder_lifecycle.spec.ts), [serialization tests](../../tests/serialisation.spec.ts).
