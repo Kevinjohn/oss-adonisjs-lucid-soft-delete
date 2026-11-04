@@ -11,6 +11,11 @@ export default defineConfig({
   srcExclude: ['maintainers/**'],
   rewrites: { 'README.md': 'index.md', 'reference/README.md': 'reference/index.md' },
   markdown: { config: githubLinks },
+  transformPageData(pageData) {
+    if (pageData.relativePath.startsWith('reference/api/')) {
+      pageData.frontmatter.editLink = false
+    }
+  },
   themeConfig: {
     search: { provider: 'local' },
     socialLinks: [{ icon: 'github', link: repository }],
