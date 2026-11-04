@@ -2,6 +2,45 @@
 
 These notes are for contributors. They name the Lucid 22 internals the scope relies on, where each lives, and which tests cover it. Update the file references when the Lucid pin changes.
 
+## Public entry points and reference coverage
+
+The `exports` map in [package.json](../../package.json) defines supported imports. Generated API
+routes below are relative to the documentation site's base; run `pnpm docs:api` to regenerate
+their Markdown sources under `docs/reference/api/`.
+
+| Public subpath                 | Source                                    | Reference coverage                                                                                                                                |
+| ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| package root                   | `index.ts`                                | `reference/api/index/index`: mixin, capability guard, error aliases and receipt types through root reexports                                      |
+| `./types`                      | `src/types/index.ts`                      | Type barrel; its receipt and mixin types are documented through root reexports; no separate TypeDoc entry is needed                               |
+| `./types/*`                    | `src/types/*.ts`                          | Current files are `index` (the same barrel) and `querybuilder`; Lucid declaration augmentation is at `reference/api/src/types/querybuilder/index` |
+| `./bindings`                   | `src/bindings/model_query_builder.ts`     | `reference/api/src/bindings/model_query_builder/index`                                                                                            |
+| `./lucid_soft_delete_provider` | `providers/lucid_soft_delete_provider.ts` | `reference/api/providers/lucid_soft_delete_provider/index`                                                                                        |
+
+`configure.ts` also has a generated page at `reference/api/configure/index` and is reexported
+from the root. It is not a separate declared package subpath. Use the authored
+[scope contract](../reference/scope-contract.md) for supported query behavior and boundaries.
+
+TypeDoc fails on warnings and validates export reachability, links, rewritten links and merge
+annotations. `validation.notDocumented` is disabled; the configured reflection-kind list does
+not turn missing comments into an error. Keep this local policy explicit when comparing it
+with the stricter Account Kit policy. Comments should explain mutation scope, transaction
+ownership, hooks and compatibility where those contracts need explanation. Generated API pages
+suppress source edit links; authored guides retain them.
+
+## Deliberate compatibility differences
+
+The root exports descriptive lifecycle exceptions, their existing `E_*` aliases and the
+`errors` namespace. Keep those imports stable. Masquerade's request-error union serves a
+different domain; it is not a naming template for model lifecycle failures. This package has
+no separate `./errors` export; callers use the root exports. Its `./types/*` wildcard remains a
+supported declaration entry point. Add an alias only for a concrete compatibility need.
+
+Preserve public error message wording and punctuation when making style changes. Preserve
+upstream credit, per-file copyright notices and license text; inherited header phrasing does
+not justify rewriting legal attribution.
+
+## Query implementation
+
 Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
 `applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
 The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
