@@ -20,7 +20,9 @@ The same rules as `CONTRIBUTING.md`; every change follows them.
 
 ## Checks
 
-- `pnpm check` runs the quick profile (`--full` adds the rest).
+- `pnpm check` runs formatting, lint, local docs checks, types, SQLite tests, build and built exports.
+- `pnpm check --full` appends PostgreSQL, coverage, MySQL and the default installed consumer.
+  This repository deliberately runs `pnpm docs:build` separately; full does not include it.
 - `pnpm format:check` checks formatting on tracked files.
 - `pnpm lint` runs ESLint with the AdonisJS config.
 - `pnpm docs:check` checks local Markdown links, headings and source markers.
@@ -76,8 +78,13 @@ tests/fixtures/              static fixtures
 tests/tooling/               specs for bin/
 tests/types/                 type-level tests (.ts), where they exist
 examples/                    example apps
-docs/                        see WP-7
+docs/                        guides, recipes, reference and maintainer records
 ```
+
+The shared database and model fixtures live in `tests/helpers.ts`; there is no `tests/helpers/`
+directory yet. Keep them in that file unless a concrete responsibility seam justifies a
+directory. Documentation ownership is
+described in [the maintainer guide](docs/maintainers/README.md).
 
 1. A top-level folder exists only for an exported subpath. Anything else goes in `src/`.
 2. Scripts are `.ts` under `bin/`, run with `node --import=@poppinss/ts-exec`. Use `.mjs` only

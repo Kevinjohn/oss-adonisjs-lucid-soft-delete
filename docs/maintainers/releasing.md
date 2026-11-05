@@ -1,5 +1,9 @@
 # Releasing
 
+Use `Added`, `Changed`, `Fixed` and `Removed` sections as applicable for new entries, with
+breaking changes identified explicitly under `Changed`. Preserve published release wording;
+apply this format prospectively rather than rewriting history for style.
+
 1. On a branch, bump `version` in `package.json` and turn `## Unreleased` into
    `## <version> - <YYYY-MM-DD>` (add a new empty `## Unreleased` above it).
 2. In the same branch, replace the previous version in the install commands in `README.md` and

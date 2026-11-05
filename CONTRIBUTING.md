@@ -35,7 +35,10 @@ pnpm quick:test
 
 ## Checks
 
-`pnpm check` runs the quick profile (`--full` adds the rest).
+`pnpm check` runs formatting, lint, local docs checks, types, SQLite tests, build and built exports.
+`pnpm check --full` appends PostgreSQL, coverage, MySQL and the default installed consumer. The
+documentation site build is a deliberate separate gate: run `pnpm docs:build` when its sources
+change. Full does not include that build or the separate minimum-compatibility consumer mode.
 
 Run the repository scripts, not the bare tools:
 

@@ -19,6 +19,21 @@ pnpm test:consumer --compatibility=minimum
 
 The default test database is SQLite. CI also runs PostgreSQL 16 and MySQL 8.4.
 
+## Documentation links and release history
+
+The default `pnpm docs:check` selection excludes `CHANGELOG.md`: historical relative paths can
+age out when documentation moves. Preserve dated release prose and external artifact URLs.
+When editing current-relative changelog links, check that file explicitly:
+
+```sh
+pnpm docs:check CHANGELOG.md
+```
+
+Correct a proven broken current-relative destination, or use an immutable historical source
+when the original artifact was intentionally removed. The checker validates local paths,
+heading anchors and maintained source examples; it does not fetch external URLs. A successful
+default check does not establish that the excluded changelog or remote release links work.
+
 ## PostgreSQL 16
 
 On macOS, `pnpm test:pg` starts a managed PostgreSQL 16 cluster with the `package_test`
