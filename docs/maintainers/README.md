@@ -11,6 +11,7 @@ kept in the repository and are not published in the user documentation site.
 
 ## Monthly
 
-- Review the weekly Dependabot pull request for GitHub Actions. Every `uses:` in
-  `.github/workflows/*.yml` is pinned to a commit SHA with the release tag in a trailing comment.
+- Check each `uses:` in `.github/workflows/*.yml` for a newer release. Each is pinned to a commit
+  SHA with its release tag in a trailing comment: resolve the new tag to its SHA, update both,
+  and bump them in one PR.
 - Check open Dependabot alerts (Security tab).
