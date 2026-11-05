@@ -104,8 +104,8 @@ function checkTypes(user: User, extended: ExtendedUser, related: RelatedUser) {
     const builderRole: string = fromBuilder.role
     void role
     void builderRole
-    const n: number = await User.query().softDelete()
-    void n
+    const affectedRows: number = await User.query().softDelete()
+    void affectedRows
   }
 
   related.related('posts').query().withTrashed().groupLimit(1)

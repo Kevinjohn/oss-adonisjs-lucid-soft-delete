@@ -18,7 +18,9 @@ import {
   restoreUser,
 } from '#services/recycle_bin'
 
-test('recycle bin create, hide, list, restore, and confirmed purge journey', async ({ assert }) => {
+test('recycle bin create, hide, list, restore, and permanent deletion by ID', async ({
+  assert,
+}) => {
   const suffix = `${Date.now()}-${Math.random()}`
   const user = await createUser(`tutorial-${suffix}@example.test`, 'tutorial-user')
 
