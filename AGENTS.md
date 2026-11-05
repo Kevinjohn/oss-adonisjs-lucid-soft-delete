@@ -81,9 +81,9 @@ examples/                    example apps
 docs/                        guides, recipes, reference and maintainer records
 ```
 
-The shared database and model fixtures remain in `tests/helpers.ts`. The `tests/helpers/`
-directory holds other focused helpers. This file-versus-directory exception is intentional;
-preserve it unless a concrete responsibility seam justifies a move. Documentation ownership is
+The shared database and model fixtures live in `tests/helpers.ts`; there is no `tests/helpers/`
+directory yet. Keep them in that file unless a concrete responsibility seam justifies a
+directory. Documentation ownership is
 described in [the maintainer guide](docs/maintainers/README.md).
 
 1. A top-level folder exists only for an exported subpath. Anything else goes in `src/`.
