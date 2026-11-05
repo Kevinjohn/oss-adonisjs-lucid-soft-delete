@@ -1,5 +1,5 @@
-# Dependabot opens one pull request a week with patch updates to npm packages.
-# Minor and major updates, and GitHub Actions versions, are updated by hand (see
+# Dependabot opens one pull request a week with patch updates to npm packages, and one with
+# updates to the SHA-pinned GitHub Actions. Minor and major npm updates are made by hand (see
 # docs/maintainers/README.md, "Monthly").
 version: 2
 updates:
@@ -14,3 +14,10 @@ updates:
       - dependency-name: '*'
         update-types: ['version-update:semver-major', 'version-update:semver-minor']
     open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

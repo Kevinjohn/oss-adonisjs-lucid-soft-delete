@@ -31,7 +31,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint --max-warnings 0 .",
     "format": "prettier --write .",
     "format:check": "git ls-files -z | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
@@ -60,7 +60,15 @@
     ],
     "exclude": [
       "tests/**",
-      "bin/**"
+      "bin/**",
+      "src/types/index.ts"
+    ],
+    "all": true,
+    "include": [
+      "index.ts",
+      "configure.ts",
+      "providers/**/*.ts",
+      "src/**/*.ts"
     ],
     "check-coverage": true,
     "statements": 100,

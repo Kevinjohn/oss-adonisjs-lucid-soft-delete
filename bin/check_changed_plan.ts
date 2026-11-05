@@ -39,6 +39,14 @@ const FULL_SUITE = [
 const PLAN_SPEC = 'tests/tooling/check_changed_plan.spec.ts'
 const RUNNER_SPEC = 'tests/tooling/check_changed_runner.spec.ts'
 const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
+/** Specs that read one tooling or workflow file and have no import path to follow. */
+const SPEC_BY_INPUT: [RegExp, string[]][] = [
+  [/^bin\/release_check\.sh$/, ['tests/tooling/release_check.spec.ts']],
+  [/^bin\/check_profiles\.ts$/, ['tests/tooling/check_profiles.spec.ts']],
+  [/^bin\/helpers\/consumer\/fixture\.ts$/, ['tests/tooling/consumer_fixture.spec.ts']],
+  [/^\.github\/workflows\/(checks|compat|docs)\.yml$/, ['tests/tooling/check_profiles.spec.ts']],
+  [/^\.github\/workflows\/docs\.yml$/, ['tests/docs_workflow.spec.ts']],
+]
 /** The consumer gate, its fixture, and every source/configuration input it packs. */
 const CONSUMER =
   /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.ts$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
@@ -80,6 +88,10 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
       tests.add(PLAN_SPEC)
       tests.add(RUNNER_SPEC)
     } else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
+
+    for (const [pattern, specs] of SPEC_BY_INPUT) {
+      if (pattern.test(path)) for (const spec of specs) tests.add(spec)
+    }
   }
 
   plan.lint = lintAll ? 'all' : [...lint].sort()
