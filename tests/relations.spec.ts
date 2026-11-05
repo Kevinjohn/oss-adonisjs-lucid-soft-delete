@@ -53,8 +53,6 @@ test.group('Relations', () => {
     }
     Industry.boot()
 
-    await Industry.query()
-
     const user = new User()
     user.fill({ username: 'Taylor', email: 'taylor@example.test', isAdmin: 1, companyId: 1 })
     await user.save()

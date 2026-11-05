@@ -17,8 +17,6 @@ test.group('BaseModelWithSoftDeletes', (group) => {
 
     assert.isFunction(TestModel.withTrashed)
     assert.isFunction(TestModel.onlyTrashed)
-    // assert.instanceOf(TestModel.withTrashed(), ModelQueryBuilder)
-    // assert.instanceOf(TestModel.onlyTrashed(), ModelQueryBuilder)
   })
 
   test('not exists methods `withTrashed` and `onlyTrashed` of model without SoftDeletes', ({
@@ -29,8 +27,6 @@ test.group('BaseModelWithSoftDeletes', (group) => {
 
     assert.notProperty(TestModel, 'withTrashed')
     assert.notProperty(TestModel, 'onlyTrashed')
-    // assert.fail(TestModel.query().withTrashed)
-    // assert.fail(TestModel.query().onlyTrashed)
   })
 
   test('exists methods `restore` and `forceDelete` of model instance', ({ assert }) => {
