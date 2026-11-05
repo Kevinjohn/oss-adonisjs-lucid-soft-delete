@@ -44,7 +44,7 @@ Receipts describe an uncommitted mutation and are not an audit log.
 
 ## SoftDeletes composition
 
-Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and TypeScript 5.9 or newer. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
+Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and TypeScript 5.9.3 or newer. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
 
 Compose `SoftDeletes` with `BaseModel`:
 
@@ -363,6 +363,7 @@ The package root exports:
 
 | Export                                                                                                              | Purpose                                                                                                                       |
 | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                    |
 | `configure`                                                                                                         | Registers the provider in an AdonisJS application.                                                                            |
 | `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                  |
 | `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                           |
@@ -371,6 +372,8 @@ The package root exports:
 | `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                 |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                   |
 | `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                   |
+
+The package also exports `./types` and `./types/*` (receipt and query-builder types), `./bindings` (`extendModelQueryBuilder`, used by the provider) and `./lucid_soft_delete_provider`.
 
 The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`; lifecycle methods include `{ receipt: true }` overloads. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
 
@@ -395,7 +398,8 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 | `E_MODEL_NOT_PERSISTED`               | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
 | `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
 | `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
-| `E_LIFECYCLE_WRITE_UNSUPPORTED`       | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder.                                                                                                                              |
+| `E_LIFECYCLE_WRITE_UNSUPPORTED`       | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder, or without receipt mode on a builder with `limit`, `offset` or `groupLimit`.                                                 |
+| `InvalidArgumentsException`           | A bulk lifecycle method receives a non-object option, an unknown key, or a non-boolean `receipt`; only `undefined`, `{}` and `{ receipt: boolean }` are accepted. It comes from `@adonisjs/core/exceptions`.          |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
 | `E_BULK_RECEIPT_UNSUPPORTED`          | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
 | `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |

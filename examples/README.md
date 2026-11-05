@@ -1,12 +1,12 @@
 # Examples: soft-deleted users in an AdonisJS 7 app
 
-Follow the complete [recycle-bin tutorial](../docs/guide/getting-started.md) to install the package from this
+Follow the complete [recycle-bin getting-started guide](../docs/guide/getting-started.md) to install the package from this
 source checkout, configure a fixture app, migrate its database, and exercise create, hide, list,
 restore, and permanent purge. It uses the installed-consumer app under `examples/app/`, which also
 serves as the packed-package test fixture for `pnpm test:consumer`.
 
 This page keeps focused examples of the public methods for reference. It is not a complete method
-catalog; the package README describes the full lifecycle contract.
+catalog; the [API reference](../docs/reference/README.md) describes the full lifecycle contract.
 
 ## 1. Migration
 
@@ -184,13 +184,13 @@ suite, including `examples/app/tests/lifecycle.spec.ts`.
 
 ## Application-owned recovery groups
 
-The [group recovery cookbook recipe](../docs/recipes/index.md#recover-an-application-owned-deletion-group)
+The [group recovery recipe](../docs/recipes/index.md#recover-an-application-owned-deletion-group)
 composes the existing count-returning mutation APIs into a one-use recovery lifecycle. The
 maintained service, generic fixture migration and installed-consumer tests live in this example
 app; group validity, tenant authorization, cleanup eligibility and the transaction boundary belong
-to the application. It does not require a richer bulk-result API or a package-owned undo framework.
+to the application. It needs no package-owned undo framework.
 
 The recipe keeps a fresh group identity and a current deletion association separately from the
 soft-delete timestamp. This prevents an earlier group from restoring or purging a later deletion,
 even if their deletion timestamps happen to be equal. Both installed-consumer commands above run
-the same service functions shown in the cookbook.
+the same service functions shown in the recipe.

@@ -15,7 +15,7 @@ import { DateTime as LuxonDateTime } from 'luxon'
 import { SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationUser } from './fixtures/models.js'
+import { RelationPost, RelationUser } from './fixtures/models.js'
 
 class CustomPost extends compose(BaseModel, SoftDeletes) {
   static table = 'posts'
@@ -153,5 +153,61 @@ test.group('Builder restore', (group) => {
 
     const bystanderRow = await db.from('users').where('id', bystander.id).firstOrFail()
     assert.isNotNull(bystanderRow.deleted_at)
+  })
+
+  test('count mode rejects limit and offset instead of widening the write', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    await createUser('one')
+    await createUser('two')
+
+    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+      for (const shape of ['limit', 'offset'] as const) {
+        const query = RelationUser.query().withTrashed()[shape](1) as unknown as Record<
+          string,
+          () => Promise<number>
+        >
+        await assert.rejects(
+          () => query[action](),
+          'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+        )
+      }
+    }
+    assert.lengthOf(await RelationUser.all(), 2)
+  })
+
+  test('count mode rejects groupLimit on a has-many builder', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    for (const title of ['a', 'b', 'c']) await RelationPost.create({ userId: user.id, title })
+
+    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+      const query = user.related('posts').query().groupLimit(1) as unknown as Record<
+        string,
+        () => Promise<number>
+      >
+      await assert.rejects(
+        () => query[action](),
+        'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+      )
+    }
+    assert.lengthOf(await RelationPost.all(), 3)
+  })
+
+  test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    const post = await RelationPost.create({ userId: user.id, title: 'a' })
+
+    const query = post.related('user').query()
+    query.toSQL()
+
+    assert.equal(await query.softDelete(), 1)
+    const trashed = await RelationUser.withTrashed().where('id', user.id).firstOrFail()
+    assert.isTrue(trashed.trashed)
   })
 })

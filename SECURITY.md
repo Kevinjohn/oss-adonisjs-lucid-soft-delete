@@ -15,7 +15,7 @@ not include production data or credentials.
 
 ## Verifying a release
 
-Check a downloaded archive against the SHA-256 in the GitHub release notes:
+The release notes carry a SHA-256 of the archive. It detects a corrupted download; the notes and the archive are published together, so it does not prove who built the archive. Check a downloaded archive against it:
 
 ```sh
 shasum -a 256 <tarball>.tgz

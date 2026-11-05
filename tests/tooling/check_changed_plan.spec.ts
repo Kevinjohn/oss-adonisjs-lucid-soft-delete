@@ -134,6 +134,32 @@ test.group('check:changed plan', () => {
     ])
   })
 
+  test('tooling and workflow inputs select the specs that read them', ({ assert }) => {
+    const cases: [string, string[]][] = [
+      ['bin/release_check.sh', ['tests/tooling/release_check.spec.ts']],
+      ['bin/pg.sh', ['tests/tooling/pg_lock.spec.ts']],
+      ['bin/check_profiles.ts', ['tests/tooling/check_profiles.spec.ts']],
+      ['bin/helpers/consumer/fixture.ts', ['tests/tooling/consumer_fixture.spec.ts']],
+      ['.github/workflows/checks.yml', ['tests/tooling/check_profiles.spec.ts']],
+      ['.github/workflows/compat.yml', ['tests/tooling/check_profiles.spec.ts']],
+      [
+        '.github/workflows/docs.yml',
+        ['tests/docs_workflow.spec.ts', 'tests/tooling/check_profiles.spec.ts'],
+      ],
+    ]
+    for (const [path, specs] of cases) {
+      assert.deepEqual(planChecks(changed(path)).tests, specs, path)
+    }
+  })
+
+  test('a deleted spec is not selected by the input it read', ({ assert }) => {
+    const plan = planChecks([
+      { path: 'bin/release_check.sh', deleted: false },
+      { path: 'tests/tooling/release_check.spec.ts', deleted: true },
+    ])
+    assert.deepEqual(plan.tests, [])
+  })
+
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
       'tests/tooling/check_changed_plan.spec.ts',

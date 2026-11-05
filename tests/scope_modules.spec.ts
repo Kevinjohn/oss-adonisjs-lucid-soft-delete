@@ -51,6 +51,8 @@ test.group('scope modules', (group) => {
     assert.isUndefined(aliasFromTable({ p: 1 }))
     assert.isUndefined(aliasFromTable(['posts']))
     assert.isUndefined(aliasFromTable(undefined))
+    assert.isUndefined(aliasFromTable('posts as   '))
+    assert.isUndefined(aliasFromTable({ '  ': 'posts' }))
   })
 
   test('table reference: prefers tableAlias, then the from alias, then the model table', async ({

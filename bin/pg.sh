@@ -135,7 +135,18 @@ cleanup() {
 }
 if [ "$COMMAND" != status ]; then
   mkdir -p "$ROOT/tmp"
-  if mkdir "$LOCK"; then locked=1; else fail "cluster lock busy: $LOCK"; fi
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    # A killed run leaves its lock behind; take it over only when the recorded owner is gone.
+    owner="$(cat "$LOCK/owner" 2>/dev/null || true)"
+    if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+      # Rename first: only one taker can move the stale directory, so none can slip in between
+      # removing the owner file and recreating the lock.
+      stale="$LOCK.stale.$$"
+      mv "$LOCK" "$stale" 2>/dev/null && mkdir "$LOCK" || { rm -rf "$stale"; fail "cluster lock busy: $LOCK"; }
+      rm -rf "$stale"
+    else fail "cluster lock busy: $LOCK"; fi
+  fi
+  locked=1
   trap cleanup EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
