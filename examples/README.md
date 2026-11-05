@@ -180,7 +180,7 @@ suite, including `examples/app/tests/lifecycle.spec.ts`.
 - The package owns deletion timestamps, lifecycle methods, read scopes, and use of the supplied client.
 - The application owns tenant predicates, authorization, archive state, bookkeeping, and transaction boundaries.
 - `withTrashed()` on a root query does not change related queries. Choose it separately for each preload or aggregate callback that needs deleted rows.
-- These fictional fixture tables establish package behavior only. CapacityLens integration evidence remains outstanding in [capacitylens#1640](https://github.com/Kevinjohn/capacitylens/issues/1640); this repository does not test or claim its service paths, policies, or migration status.
+- These fictional fixture tables establish package behavior only. They do not establish an application's service integration, policies, or migration status.
 
 ## Application-owned recovery groups
 
