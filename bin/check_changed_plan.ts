@@ -70,6 +70,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
   }
   const lint = new Set<string>()
   const tests = new Set<string>()
+  const removed = new Set(changes.filter((change) => change.deleted).map((change) => change.path))
   let lintAll = false
   let testAll = false
 
@@ -91,7 +92,7 @@ export function planChecks(changes: Change[], staticOnly = false): Plan {
     } else if (/^bin\/docs_check/.test(path)) tests.add(DOCS_CHECK_SPEC)
 
     for (const [pattern, specs] of SPEC_BY_INPUT) {
-      if (pattern.test(path)) for (const spec of specs) tests.add(spec)
+      if (pattern.test(path)) for (const spec of specs) if (!removed.has(spec)) tests.add(spec)
     }
   }
 

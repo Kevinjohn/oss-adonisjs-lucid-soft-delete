@@ -194,4 +194,20 @@ test.group('Builder restore', (group) => {
     }
     assert.lengthOf(await RelationPost.all(), 3)
   })
+
+  test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    const post = await RelationPost.create({ userId: user.id, title: 'a' })
+
+    const query = post.related('user').query()
+    query.toSQL()
+
+    assert.equal(await query.softDelete(), 1)
+    const trashed = await RelationUser.withTrashed().where('id', user.id).firstOrFail()
+    assert.isTrue(trashed.trashed)
+  })
 })

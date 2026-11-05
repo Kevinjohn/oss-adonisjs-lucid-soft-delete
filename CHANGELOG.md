@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Breaking: builder `softDelete()`, `restore()` and `forceDelete()` without `{ receipt: true }` reject `limit`, `offset` and has-many `groupLimit` with `E_LIFECYCLE_WRITE_UNSUPPORTED`. PostgreSQL and SQLite ignored them and wrote every matching row.
+- Breaking: builder `softDelete()`, `restore()` and `forceDelete()` without `{ receipt: true }` reject `limit`, `offset` and has-many `groupLimit` with `E_LIFECYCLE_WRITE_UNSUPPORTED`. PostgreSQL and SQLite ignored them and wrote every matching row. The single-row limit Lucid itself leaves on a has-one or belongs-to builder is still accepted.
 
 ## 0.1.3 - 2026-11-03
 

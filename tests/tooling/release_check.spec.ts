@@ -85,11 +85,18 @@ test.group('release check', () => {
     assert.include(result.stderr, `CHANGELOG.md has no '## ${version} - YYYY-MM-DD' heading`)
   })
 
-  test('rejects entries under a bracketed or padded Unreleased heading', async ({
+  test('rejects entries under a bracketed, padded, dated or lowercase Unreleased heading', async ({
     assert,
     cleanup,
   }) => {
-    for (const heading of ['## [Unreleased]', '## Unreleased  ', '## Unreleased\r']) {
+    const headings = [
+      '## [Unreleased]',
+      '## Unreleased  ',
+      '## Unreleased\r',
+      '## Unreleased - 2026-11-05',
+      '## unreleased',
+    ]
+    for (const heading of headings) {
       const root = await packingFixture(
         cleanup,
         `# Changelog\n\n${heading}\n\n- Pending.\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`

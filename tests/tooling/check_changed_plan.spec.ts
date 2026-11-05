@@ -152,6 +152,14 @@ test.group('check:changed plan', () => {
     }
   })
 
+  test('a deleted spec is not selected by the input it read', ({ assert }) => {
+    const plan = planChecks([
+      { path: 'bin/release_check.sh', deleted: false },
+      { path: 'tests/tooling/release_check.spec.ts', deleted: true },
+    ])
+    assert.deepEqual(plan.tests, [])
+  })
+
   test('the check itself runs its own spec', ({ assert }) => {
     assert.deepEqual(planChecks(changed('bin/check_changed.ts')).tests, [
       'tests/tooling/check_changed_plan.spec.ts',

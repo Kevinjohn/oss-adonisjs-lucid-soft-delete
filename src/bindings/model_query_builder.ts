@@ -44,14 +44,21 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
  * Count mode compiles an update or delete, which PostgreSQL and SQLite run without the limit or
  * offset and MySQL honours. Reject them so the affected rows never depend on the dialect. A
  * has-many builder's `groupLimit()` becomes a plain limit only inside Lucid's `exec()`, so it is
- * read from `groupConstraints` here.
+ * read from `groupConstraints` here. A has-one or belongs-to builder rendered with `toSQL()` first
+ * keeps Lucid's own `limit(1)`; that selects the single related row, so it is allowed.
  */
 function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   const single = (query.knexQuery as unknown as { _single: { limit?: unknown; offset?: unknown } })
     ._single
   const groupLimit = (query as unknown as { groupConstraints?: { limit?: unknown } })
     .groupConstraints?.limit
-  if (single.limit !== undefined || single.offset !== undefined || groupLimit !== undefined) {
+  const type = (query as unknown as { relation?: { type?: string } }).relation?.type
+  const singleRow = (type === 'hasOne' || type === 'belongsTo') && single.limit === 1
+  if (
+    (single.limit !== undefined && !singleRow) ||
+    single.offset !== undefined ||
+    groupLimit !== undefined
+  ) {
     throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
   }
 }
