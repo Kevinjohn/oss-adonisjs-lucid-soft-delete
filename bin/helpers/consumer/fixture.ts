@@ -10,7 +10,7 @@
 import { cp, mkdir } from 'node:fs/promises'
 import { relative, sep } from 'node:path'
 
-/** Copy only committed fixture inputs into a fresh application directory. */
+/** Copy filtered filesystem inputs, including untracked files, into a fresh application. */
 export async function copyFixture(source: string, destination: string) {
   const omitted = new Set(['node_modules', 'tmp', 'build', '.adonisjs', '.git'])
   await cp(source, destination, {
