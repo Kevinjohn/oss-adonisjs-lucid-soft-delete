@@ -4,6 +4,7 @@
  * (c) 2026 Kevinjohn Gallagher
  */
 
+import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
@@ -485,8 +486,9 @@ test.group('Application-owned group recovery', (group) => {
   test('refuses to restore a group without associations or one whose rows were restored elsewhere', async ({
     assert,
   }) => {
+    const emptyGroup = randomUUID()
     await db.table('recovery_groups').insert({
-      id: 'empty-group',
+      id: emptyGroup,
       tenant_id: 62,
       label: 'empty',
       status: 'usable',
@@ -500,7 +502,7 @@ test.group('Application-owned group recovery', (group) => {
     await (await TestRecord.withTrashed().where('id', row.id).firstOrFail()).restore()
 
     await assert.rejects(
-      () => db.transaction((trx) => restoreGroup(trx, { tenantId: 62, groupId: 'empty-group' })),
+      () => db.transaction((trx) => restoreGroup(trx, { tenantId: 62, groupId: emptyGroup })),
       'Recovery group has no current row associations'
     )
     await assert.rejects(
