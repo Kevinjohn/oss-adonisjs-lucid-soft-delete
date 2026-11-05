@@ -1,4 +1,4 @@
-# Soft-delete cookbook
+# Soft-delete recipes
 
 Use these recipes for common application tasks. They use the fixture models and tables described
 below so each snippet has a concrete schema and imports. Replace the fixture table and tenant
@@ -541,8 +541,8 @@ change the database timezone or the value held by the model.
 
 ## Recover an application-owned deletion group
 
-An application can recover the rows actually deleted by one operation using the existing
-count-returning APIs. Keep recovery groups and each row's current deletion owner in application
+An application can recover the rows actually deleted by one operation using the package's
+lifecycle APIs. Keep recovery groups and each row's current deletion owner in application
 storage. A deletion timestamp is useful state, but it is not a unique deletion-generation ID:
 two delete operations can write the same timestamp.
 
@@ -565,7 +565,7 @@ with the existing application migrations before invoking the service. It adds on
   not an immutable history table. A new deletion replaces an earlier association for the same row.
 
 The fixture migrations run automatically in both installed-consumer gates. No new package
-configuration or installation command is needed; follow the [tutorial setup](../guide/getting-started.md#prerequisites-and-source-checkout)
+configuration or installation command is needed; follow the [getting started setup](../guide/getting-started.md#prerequisites-and-source-checkout)
 for an installed app. The service imports only public packed package exports:
 
 <!-- source: ../../examples/app/app/services/group_recovery.ts#GROUP_RECOVERY_SETUP -->
@@ -944,7 +944,7 @@ The installed-consumer
 operations and compares persisted row, group and association state across success, stale cleanup
 and rollback. Run `pnpm docs:check`, `pnpm test:consumer` and
 `pnpm test:consumer --compatibility=minimum` from the repository root with Node 24 and pnpm 11.
-This recipe composes existing APIs and does not depend on a future rich bulk-result API.
+This recipe composes the package's lifecycle APIs; use `{ receipt: true }` when a batch must record the exact rows it changed.
 
 ## Choose a unique index that allows reuse
 

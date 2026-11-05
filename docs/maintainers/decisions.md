@@ -28,11 +28,15 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 ## 2026-10-25: Build before the WP2 runtime suite
 
+> Superseded: `pretest` now runs `pnpm lint`; `test:built-exports` builds first.
+
 - **Decision:** Run `pnpm build` from the `pretest` script once emitted-declaration tests are part of the runtime suite.
 - **Reason:** The WP2 test reads `build/*.d.ts`, while the package must pass `pnpm test` from a clean clone. Building first also prevents a stale declaration from producing a false pass. `pnpm build` already runs lint through `precompile`.
 - **Evidence:** The declaration test failed against the WP1 build, then passed after the root import change. After deleting `build`, `pnpm test` rebuilt it and passed 21/21 tests on SQLite; the same full suite passed on PostgreSQL.
 
 ## 2026-10-25: Remove legacy provider entries from nested syntax trees in reverse order
+
+> Superseded: `configure` only adds the provider; the README tells users to remove an old entry by hand.
 
 - **Decision:** In `configure`, inspect array literals from the deepest descendant back to the outermost when removing the legacy provider entry.
 - **Reason:** A provider object with an `environment` array invalidates the inner syntax-tree node when the outer provider element is removed first.
@@ -153,6 +157,8 @@ This log records implementation decisions made while delivering version 0.1.0-al
 - **Evidence:** PRs #2–#8 remain open. The check annotations report an account payment or spending-limit restriction; the complete local suites and packed consumer modes passed.
 
 ## 2026-10-26: Keep releases manual; add no release workflow
+
+> Superseded: `release.yml` exists and publishes a GitHub prerelease; see `releasing.md`.
 
 - **Decision:** Align CI with the sibling AdonisJS packages (`checks.yml` job guard, conditional PostgreSQL service, `workflow_call` trigger, `codeql.yml`, `scorecard.yml`, `dependabot.yml`) but do not add their `release.yml`.
 - **Reason:** This package publishes to the `alpha` dist-tag by hand following `docs/maintainers/releasing.md`. A release workflow would need publish credentials and a tag trigger that the alpha process does not define yet.

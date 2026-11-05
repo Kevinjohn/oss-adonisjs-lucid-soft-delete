@@ -15,8 +15,9 @@ Use peer dependencies `@adonisjs/core` 7, `@adonisjs/lucid` 22 and `luxon` 3.4.4
 ```sh
 pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.3/kevinjohn-adonisjs-lucid-soft-delete-0.1.3.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
-node ace migration:run
 ```
+
+The package ships no migration. Add a nullable `deleted_at` timestamp column to each soft-deleted table in a migration of your own, then run `node ace migration:run`.
 
 ## Capabilities
 
@@ -51,6 +52,6 @@ Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-luc
 | Node.js                 | 24                 | 24                                      |
 | AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
 | Lucid                   | locked version     | lowest supported and latest 22.x        |
-| SQLite (better-sqlite3) | yes                | yes                                     |
-| PostgreSQL 16           | yes                | yes                                     |
-| MySQL 8.4               | yes                | yes                                     |
+| SQLite (better-sqlite3) | yes                | before each release only                |
+| PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
+| MySQL 8.4               | yes                | yes, with the locked peers              |

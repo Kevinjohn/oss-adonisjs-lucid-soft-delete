@@ -173,7 +173,7 @@ confirmation UI.
 
 ## Release boundary and further evidence
 
-This tutorial targets the `v0.1.3` tag selected above. Keep that revision when reproducing its results; use the documentation of the release you install when adapting it to an application. The fixture's
+This guide targets the `v0.1.3` tag selected above. Keep that revision when reproducing its results; use the documentation of the release you install when adapting it to an application. The fixture's
 `file:../../` dependency and `pnpm build` install the package from the checkout. An application
 installs the release tarball instead; the README's install section gives its URL. GitHub releases are the package distribution source.
 

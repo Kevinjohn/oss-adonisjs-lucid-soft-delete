@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Use these checks when a query or lifecycle operation does not behave as expected. For setup and normal usage, see the [tutorial](getting-started.md), [cookbook](../recipes/index.md), and [API reference](../reference/). See [Contributing](../../CONTRIBUTING.md) for project development guidance.
+Use these checks when a query or lifecycle operation does not behave as expected. For setup and normal usage, see the [getting started](getting-started.md), [recipes](../recipes/index.md), and [API reference](../reference/). See [Contributing](../../CONTRIBUTING.md) for project development guidance.
 
 Examples below use `Record` for a model composed with `SoftDeletes`, and `db` for the configured Lucid database service. Code marked **Contextual fragment** assumes those names are already in scope. Database constraints and application policy remain the caller's responsibility.
 

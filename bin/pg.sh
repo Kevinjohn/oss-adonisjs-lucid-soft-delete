@@ -135,7 +135,14 @@ cleanup() {
 }
 if [ "$COMMAND" != status ]; then
   mkdir -p "$ROOT/tmp"
-  if mkdir "$LOCK"; then locked=1; else fail "cluster lock busy: $LOCK"; fi
+  if ! mkdir "$LOCK" 2>/dev/null; then
+    # A killed run leaves its lock behind; take it over only when the recorded owner is gone.
+    owner="$(cat "$LOCK/owner" 2>/dev/null || true)"
+    if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+      rm -f "$LOCK/owner" && rmdir "$LOCK" && mkdir "$LOCK" || fail "cluster lock busy: $LOCK"
+    else fail "cluster lock busy: $LOCK"; fi
+  fi
+  locked=1
   trap cleanup EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM

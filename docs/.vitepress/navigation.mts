@@ -1,6 +1,7 @@
 export const nav = [
   { text: 'Get started', link: '/guide/getting-started' },
   { text: 'Recipes', link: '/recipes/' },
+  { text: 'Reference', link: '/reference/' },
   { text: 'API', link: '/reference/api/' },
   { text: 'Troubleshooting', link: '/guide/troubleshooting' },
 ]
@@ -20,6 +21,7 @@ export const sidebar = [
   {
     text: 'Reference',
     items: [
+      { text: 'Lifecycle and receipts', link: '/reference/' },
       { text: 'API', link: '/reference/api/' },
       { text: 'Scope contract', link: '/reference/scope-contract' },
     ],

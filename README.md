@@ -19,7 +19,7 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 
 ## Install
 
-Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9+.
+Requires Node.js 24+, AdonisJS 7, Lucid 22, Luxon 3.4.4+ (3.x) and TypeScript 5.9.3+.
 
 ```sh
 pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.3/kevinjohn-adonisjs-lucid-soft-delete-0.1.3.tgz luxon
@@ -27,7 +27,7 @@ node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
 Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
-[tutorial](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
+[getting started guide](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 
 ## Quick example
 
@@ -73,7 +73,7 @@ export async function demonstrateRecovery(email: string) {
 
 Calling `await demonstrateRecovery('alex@example.test')` with an unused email returns
 `{ id: <created id>, hidden: true, inRecycleBin: true, visibleAgain: true }`. The row remains in the
-database. The [tutorial](docs/guide/getting-started.md) gives the full setup and also shows how to
+database. The [getting started guide](docs/guide/getting-started.md) gives the full setup and also shows how to
 purge a row deliberately.
 
 ## Tested against
@@ -83,9 +83,9 @@ purge a row deliberately.
 | Node.js                 | 24                 | 24                                      |
 | AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
 | Lucid                   | locked version     | lowest supported and latest 22.x        |
-| SQLite (better-sqlite3) | yes                | yes                                     |
-| PostgreSQL 16           | yes                | yes                                     |
-| MySQL 8.4               | yes                | yes                                     |
+| SQLite (better-sqlite3) | yes                | before each release only                |
+| PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
+| MySQL 8.4               | yes                | yes, with the locked peers              |
 
 ## Documentation
 

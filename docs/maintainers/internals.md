@@ -55,15 +55,16 @@ cover the second.
 
 The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
 into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
-`applyWhere()` empties `whereStack` when it holds several groups
+`applyWhere()` shifts the first predicate off every group when it holds several groups
 (`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
 builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
 change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
 `tests/scope.spec.ts` and `tests/builder_restore.spec.ts` cover it.
 
 For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
-`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js` and
-`orm/relations/many_to_many/query_builder.js`). The soft-delete filter must be added to the inner
+`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js`,
+`orm/relations/many_to_many/query_builder.js` and `orm/relations/has_many_through/query_builder.js`;
+the has-many-through path is not covered by a test). The soft-delete filter must be added to the inner
 Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
 The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
 for group-limited execution. Its table alias is also read from that inner builder when qualifying
@@ -88,7 +89,7 @@ scope nodes while preserving caller predicates. `forceDelete()` groups the calle
 default/with mode and replaces the earlier scope with `whereNotNull` in only mode. Any builder the
 package has grouped is regrouped on every `applyWhere()`.
 
-Lucid's `returning()` is gated by `dialect.supportsReturningStatement` (PostgreSQL only). Knex 3.3.0 compiles `RETURNING` for SQLite `UPDATE` but not `DELETE`, so SQLite uses the select-then-write path. The preselect sets `knexQuery._method = 'select'` and calls `pojo()` on a clone. `knexQuery.client.transacting` is the same transaction test that `QueryRunner.isInTransaction()` uses. mysql2's default `FOUND_ROWS` flag makes `affectedRows` a matched-row count, which equals the changed-row count only because the lifecycle filter guarantees a value change.
+Lucid's `returning()` is gated by `dialect.supportsReturningStatement` (true for `pg`, `oracle`, `mssql` and `red_shift` dialects; this package branches on `dialect === 'postgres'`). Knex 3.3.0 compiles `RETURNING` for SQLite `UPDATE` but not `DELETE`, so SQLite uses the select-then-write path. The preselect sets `knexQuery._method = 'select'` and calls `pojo()` on a clone. `knexQuery.client.transacting` is the same transaction test that `QueryRunner.isInTransaction()` uses. mysql2's default `FOUND_ROWS` flag makes `affectedRows` a matched-row count, which equals the changed-row count only because the lifecycle filter guarantees a value change.
 
 Receipt validation also checks Lucid's deferred `groupConstraints` before cloning. Has-many
 `groupLimit()` and `groupOrderBy()` do not populate the Knex limit/ordering fields until execution,
