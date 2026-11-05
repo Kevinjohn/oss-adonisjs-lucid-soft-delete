@@ -15,7 +15,7 @@ import { DateTime as LuxonDateTime } from 'luxon'
 import { SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationUser } from './fixtures/models.js'
+import { RelationPost, RelationUser } from './fixtures/models.js'
 
 class CustomPost extends compose(BaseModel, SoftDeletes) {
   static table = 'posts'
@@ -169,10 +169,29 @@ test.group('Builder restore', (group) => {
         >
         await assert.rejects(
           () => query[action](),
-          'Bulk lifecycle writes do not support limit or offset clauses'
+          'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
         )
       }
     }
     assert.lengthOf(await RelationUser.all(), 2)
+  })
+
+  test('count mode rejects groupLimit on a has-many builder', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    for (const title of ['a', 'b', 'c']) await RelationPost.create({ userId: user.id, title })
+
+    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+      const query = user.related('posts').query().groupLimit(1) as unknown as Record<
+        string,
+        () => Promise<number>
+      >
+      await assert.rejects(
+        () => query[action](),
+        'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+      )
+    }
+    assert.lengthOf(await RelationPost.all(), 3)
   })
 })

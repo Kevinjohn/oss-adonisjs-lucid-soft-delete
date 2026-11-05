@@ -16,11 +16,13 @@ test.group('Provider', () => {
   test('boot installs the lifecycle macros on the Lucid model query builder', async ({
     assert,
   }) => {
+    // A fresh subclass: other specs already install the macros on the shared prototype.
+    class Builder extends ModelQueryBuilder {}
     const requested: string[] = []
     const app = {
       import: async (specifier: string) => {
         requested.push(specifier)
-        return { ModelQueryBuilder }
+        return { ModelQueryBuilder: Builder }
       },
     } as unknown as ApplicationService
 
@@ -28,7 +30,7 @@ test.group('Provider', () => {
 
     assert.deepEqual(requested, ['@adonisjs/lucid/orm'])
     for (const name of ['restore', 'softDelete', 'forceDelete', 'withTrashed', 'onlyTrashed']) {
-      assert.isFunction((ModelQueryBuilder.prototype as unknown as Record<string, unknown>)[name])
+      assert.isTrue(Object.hasOwn(Builder.prototype, name), name)
     }
   })
 })

@@ -28,7 +28,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 ## 2026-10-25: Build before the WP2 runtime suite
 
-> Superseded: `pretest` now runs `pnpm lint`; `test:built-exports` builds first.
+> Superseded: `pretest` now runs `pnpm lint`; `pnpm check` and `check:changed` build before `test:built-exports`.
 
 - **Decision:** Run `pnpm build` from the `pretest` script once emitted-declaration tests are part of the runtime suite.
 - **Reason:** The WP2 test reads `build/*.d.ts`, while the package must pass `pnpm test` from a clean clone. Building first also prevents a stale declaration from producing a false pass. `pnpm build` already runs lint through `precompile`.

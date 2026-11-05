@@ -36,7 +36,7 @@ The same rules as `CONTRIBUTING.md`; every change follows them.
 - `pnpm test:consumer` installs the packed package into the example application.
 - `pnpm check:changed [--static] [base]` runs checks selected for files changed since `base`;
   `--static` leaves out the full test suite and the consumer gate.
-- `pnpm format` writes formatting; `pnpm compile` builds without the lint step.
+- `pnpm format` writes formatting.
 - `pnpm pg:start` and `pnpm pg:stop` manage the local PostgreSQL 16 cluster.
 - `pnpm docs:api`, `pnpm docs:dev` and `pnpm docs:build` generate the API reference and run the docs site.
 

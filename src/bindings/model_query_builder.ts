@@ -42,13 +42,17 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
 
 /**
  * Count mode compiles an update or delete, which PostgreSQL and SQLite run without the limit or
- * offset and MySQL may honour. Reject them so the affected rows never depend on the dialect.
+ * offset and MySQL honours. Reject them so the affected rows never depend on the dialect. A
+ * has-many builder's `groupLimit()` becomes a plain limit only inside Lucid's `exec()`, so it is
+ * read from `groupConstraints` here.
  */
 function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   const single = (query.knexQuery as unknown as { _single: { limit?: unknown; offset?: unknown } })
     ._single
-  if (single.limit !== undefined || single.offset !== undefined) {
-    throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit or offset clauses')
+  const groupLimit = (query as unknown as { groupConstraints?: { limit?: unknown } })
+    .groupConstraints?.limit
+  if (single.limit !== undefined || single.offset !== undefined || groupLimit !== undefined) {
+    throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
   }
 }
 
