@@ -32,3 +32,8 @@ for the query paths that receive the soft-delete filter and those that do not.
 ## Independent review
 
 None yet.
+
+## Dependency assessment
+
+See the dated [dependency audit assessment](docs/maintainers/verification.md#dependency-audit-assessment--2026-11-05)
+for graph scope, retained advisories and follow-up boundaries.
