@@ -464,4 +464,62 @@ test.group('Application-owned group recovery', (group) => {
     )
     assert.deepEqual(await db.from('recovery_groups').where('id', groupId), beforeGroup)
   })
+
+  test('rejects a group with no row IDs or no active rows', async ({ assert }) => {
+    const trashed = await seed(61, 'trashed', DateTime.fromISO('2026-01-03T00:00:00.000Z'))
+
+    await assert.rejects(
+      () => db.transaction((trx) => deleteGroup(trx, { tenantId: 61, ids: [], label: 'none' })),
+      'A recovery group requires at least one row ID'
+    )
+    await assert.rejects(
+      () =>
+        db.transaction((trx) =>
+          deleteGroup(trx, { tenantId: 61, ids: [trashed.id, 0], label: 'none' })
+        ),
+      'No active rows were deleted for this recovery group'
+    )
+    assert.isEmpty(await db.from('recovery_groups').where('tenant_id', 61))
+  })
+
+  test('refuses to restore a group without associations or one whose rows were restored elsewhere', async ({
+    assert,
+  }) => {
+    await db.table('recovery_groups').insert({
+      id: 'empty-group',
+      tenant_id: 62,
+      label: 'empty',
+      status: 'usable',
+      created_at: new Date(),
+    })
+    const row = await seed(62, 'restored elsewhere')
+    let groupId = ''
+    await db.transaction(async (trx) => {
+      groupId = await deleteGroup(trx, { tenantId: 62, ids: [row.id], label: 'group' })
+    })
+    await (await TestRecord.withTrashed().where('id', row.id).firstOrFail()).restore()
+
+    await assert.rejects(
+      () => db.transaction((trx) => restoreGroup(trx, { tenantId: 62, groupId: 'empty-group' })),
+      'Recovery group has no current row associations'
+    )
+    await assert.rejects(
+      () => db.transaction((trx) => restoreGroup(trx, { tenantId: 62, groupId })),
+      'Recovery group no longer owns every selected trashed row'
+    )
+  })
+
+  test('refuses to purge without row IDs', async ({ assert }) => {
+    const row = await seed(63, 'purge')
+    let groupId = ''
+    await db.transaction(async (trx) => {
+      groupId = await deleteGroup(trx, { tenantId: 63, ids: [row.id], label: 'group' })
+      await invalidateGroup(trx, { tenantId: 63, groupId })
+    })
+
+    await assert.rejects(
+      () => db.transaction((trx) => purgeGroup(trx, { tenantId: 63, groupId, ids: [] })),
+      'Purge requires at least one selected row ID'
+    )
+  })
 })
