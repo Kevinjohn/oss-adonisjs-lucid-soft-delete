@@ -41,6 +41,18 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
 }
 
 /**
+ * Count mode compiles an update or delete, which PostgreSQL and SQLite run without the limit or
+ * offset and MySQL may honour. Reject them so the affected rows never depend on the dialect.
+ */
+function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
+  const single = (query.knexQuery as unknown as { _single: { limit?: unknown; offset?: unknown } })
+    ._single
+  if (single.limit !== undefined || single.offset !== undefined) {
+    throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit or offset clauses')
+  }
+}
+
+/**
  * Define SoftDeletes binding to ModelQueryBuilder
  */
 export function extendModelQueryBuilder(builder: any) {
@@ -53,6 +65,7 @@ export function extendModelQueryBuilder(builder: any) {
       const receipt = parseReceiptOptions(options)
       ensureLifecycleWrite(this)
       if (receipt) ensureReceiptSupport(this)
+      else ensureNoRowWindow(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
       addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
       const write = (target: ModelQueryBuilderContract<LucidModel>) =>
@@ -68,6 +81,7 @@ export function extendModelQueryBuilder(builder: any) {
       const receipt = parseReceiptOptions(options)
       ensureLifecycleWrite(this)
       if (receipt) ensureReceiptSupport(this)
+      else ensureNoRowWindow(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only')
         return receipt ? { count: 0, ids: [], deletedAt: null } : 0
@@ -87,6 +101,7 @@ export function extendModelQueryBuilder(builder: any) {
       const receipt = parseReceiptOptions(options)
       ensureLifecycleWrite(this)
       if (receipt) ensureReceiptSupport(this)
+      else ensureNoRowWindow(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only') {
         addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))

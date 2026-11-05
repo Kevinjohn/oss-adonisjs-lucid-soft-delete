@@ -416,6 +416,35 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.isTrue(record.$isDeleted)
   })
 
+  test('a repeated deleteQuietly on a persisted trashed model does no work', async ({ assert }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const record = await seedRecord()
+    await record.deleteQuietly()
+    statements.length = 0
+
+    await record.deleteQuietly()
+
+    assert.deepEqual(statements, [])
+  })
+
+  test('delete on a trashed model with an edited deletedAt writes a fresh timestamp', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const record = await seedRecord()
+    await record.delete()
+    const edited = DateTime.local().minus({ days: 3 }).startOf('second')
+
+    record.deletedAt = edited
+    await record.delete()
+
+    assert.isTrue(record.deletedAt!.toMillis() > edited.toMillis())
+    assert.isFalse(record.$isDirty)
+  })
+
   test('deleteQuietly soft-deletes without hooks and remains restorable', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)

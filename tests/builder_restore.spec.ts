@@ -154,4 +154,25 @@ test.group('Builder restore', (group) => {
     const bystanderRow = await db.from('users').where('id', bystander.id).firstOrFail()
     assert.isNotNull(bystanderRow.deleted_at)
   })
+
+  test('count mode rejects limit and offset instead of widening the write', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    await createUser('one')
+    await createUser('two')
+
+    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+      for (const shape of ['limit', 'offset'] as const) {
+        const query = RelationUser.query().withTrashed()[shape](1) as unknown as Record<
+          string,
+          () => Promise<number>
+        >
+        await assert.rejects(
+          () => query[action](),
+          'Bulk lifecycle writes do not support limit or offset clauses'
+        )
+      }
+    }
+    assert.lengthOf(await RelationUser.all(), 2)
+  })
 })
