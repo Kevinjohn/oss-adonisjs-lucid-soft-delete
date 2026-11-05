@@ -193,11 +193,14 @@ This log records implementation decisions made while delivering version 0.1.0-al
 ## 2026-10-27: Opt-in bulk lifecycle receipts
 
 - **Decision:** Add `{ receipt: true }` overloads with dialect-specific mutation-key retrieval, require a caller-owned transaction on every supported dialect, return `null` timestamps for zero changed rows, leave receipt IDs unordered, and reject unsupported dialects, relations, and query shapes.
-- **Reason:** PostgreSQL `RETURNING` provides keys in one statement; Knex 3.3.0 lacks SQLite `DELETE RETURNING`, so SQLite uses select-then-write.
-- **Reason:** A uniform caller-owned transaction keeps receipt persistence and the caller's bookkeeping under one explicit transaction boundary on every dialect.
-- **Reason:** A zero-row soft delete changed no row, so its receipt has no written timestamp and returns `deletedAt: null`.
-- **Reason:** Primary-key results use set semantics, so their order is not part of the API contract.
-- **Reason:** Unsupported dialects, relations, and query shapes cannot guarantee that the receipt describes the intended target-table mutation.
-- **Reason:** Relation `groupLimit()` and `groupOrderBy()` are rejected from their deferred Lucid state before cloning because relation clones drop those constraints.
-- **Reason:** The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
+- **Reasons:**
+
+  - PostgreSQL `RETURNING` provides keys in one statement; Knex 3.3.0 lacks SQLite `DELETE RETURNING`, so SQLite uses select-then-write.
+  - A uniform caller-owned transaction keeps receipt persistence and the caller's bookkeeping under one explicit transaction boundary on every dialect.
+  - A zero-row soft delete changed no row, so its receipt has no written timestamp and returns `deletedAt: null`.
+  - Primary-key results use set semantics, so their order is not part of the API contract.
+  - Unsupported dialects, relations, and query shapes cannot guarantee that the receipt describes the intended target-table mutation.
+  - Relation `groupLimit()` and `groupOrderBy()` are rejected from their deferred Lucid state before cloning because relation clones drop those constraints.
+  - The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
+
 - **Evidence:** `tests/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.
