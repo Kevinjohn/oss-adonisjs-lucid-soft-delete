@@ -43,4 +43,12 @@ test.group('Soft-delete capability guard', () => {
     assert.isFalse(hasSoftDeletes('model'))
     assert.isFalse(hasSoftDeletes({ deletedAt: true }))
   })
+
+  test('requires the marker to be exactly true', ({ assert }) => {
+    const marker = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete')
+
+    assert.isFalse(hasSoftDeletes({ [marker]: 1 }))
+    assert.isFalse(hasSoftDeletes({ [marker]: 'true' }))
+    assert.isTrue(hasSoftDeletes({ [marker]: true }))
+  })
 })
