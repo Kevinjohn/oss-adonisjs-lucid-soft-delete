@@ -137,6 +137,7 @@ test.group('check:changed plan', () => {
   test('tooling and workflow inputs select the specs that read them', ({ assert }) => {
     const cases: [string, string[]][] = [
       ['bin/release_check.sh', ['tests/tooling/release_check.spec.ts']],
+      ['bin/pg.sh', ['tests/tooling/pg_lock.spec.ts']],
       ['bin/check_profiles.ts', ['tests/tooling/check_profiles.spec.ts']],
       ['bin/helpers/consumer/fixture.ts', ['tests/tooling/consumer_fixture.spec.ts']],
       ['.github/workflows/checks.yml', ['tests/tooling/check_profiles.spec.ts']],

@@ -42,6 +42,7 @@ const DOCS_CHECK_SPEC = 'tests/tooling/docs_check.spec.ts'
 /** Specs that read one tooling or workflow file and have no import path to follow. */
 const SPEC_BY_INPUT: [RegExp, string[]][] = [
   [/^bin\/release_check\.sh$/, ['tests/tooling/release_check.spec.ts']],
+  [/^bin\/pg\.sh$/, ['tests/tooling/pg_lock.spec.ts']],
   [/^bin\/check_profiles\.ts$/, ['tests/tooling/check_profiles.spec.ts']],
   [/^bin\/helpers\/consumer\/fixture\.ts$/, ['tests/tooling/consumer_fixture.spec.ts']],
   [/^\.github\/workflows\/(checks|compat|docs)\.yml$/, ['tests/tooling/check_profiles.spec.ts']],

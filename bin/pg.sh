@@ -139,7 +139,11 @@ if [ "$COMMAND" != status ]; then
     # A killed run leaves its lock behind; take it over only when the recorded owner is gone.
     owner="$(cat "$LOCK/owner" 2>/dev/null || true)"
     if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
-      rm -f "$LOCK/owner" && rmdir "$LOCK" && mkdir "$LOCK" || fail "cluster lock busy: $LOCK"
+      # Rename first: only one taker can move the stale directory, so none can slip in between
+      # removing the owner file and recreating the lock.
+      stale="$LOCK.stale.$$"
+      mv "$LOCK" "$stale" 2>/dev/null && mkdir "$LOCK" || { rm -rf "$stale"; fail "cluster lock busy: $LOCK"; }
+      rm -rf "$stale"
     else fail "cluster lock busy: $LOCK"; fi
   fi
   locked=1
