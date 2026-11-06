@@ -50,21 +50,22 @@ test.group('release workflow', () => {
     assert,
   }) => {
     const workflow = await readFile(workflowPath, 'utf8')
-    assert.match(workflow, /^permissions:\n {2}contents: read$/m)
+    // The top-level grant is read-only and has no other keys.
+    assert.match(workflow, /^permissions:\n {2}contents: read\n(?! )/m)
+    // A job writes if its `permissions` key holds `write` inline or on any nested line.
     const writers = [...jobs(workflow)].filter(([, job]) =>
-      /^ {4}permissions:\n(?: {6}.*\n)*? {6}contents: write$/m.test(job.block)
+      /^ {4}permissions:(?:.*write|\n(?: {6}.*\n)*? {6}\S+: write)/m.test(job.block)
     )
     assert.lengthOf(writers, 1)
     const [, release] = writers[0]
-    const steps = [...release.block.matchAll(/^ {6}- (?:uses|run): (.+)$/gm)].map(
-      ([, step]) => step
-    )
-    assert.lengthOf(steps, 1)
-    assert.match(steps[0], /^actions\/download-artifact@/)
-    const runs = [...release.block.matchAll(/^ {8}run: (.+)$/gm)].map(([, run]) => run)
+    // Two steps only: the artifact download and the release command. Named steps put `uses`
+    // and `run` on the line after the dash, so both forms count.
+    assert.lengthOf(release.block.match(/^ {6}- /gm) ?? [], 2)
+    const uses = [...release.block.matchAll(/^(?: {6}- | {8})uses: (.+)$/gm)].map(([, u]) => u)
+    assert.lengthOf(uses, 1)
+    assert.match(uses[0], /^actions\/download-artifact@/)
+    const runs = [...release.block.matchAll(/^(?: {6}- | {8})run: (.+)$/gm)].map(([, r]) => r)
     assert.lengthOf(runs, 1)
     assert.match(runs[0], /^gh release create /)
-    assert.notInclude(release.block, 'actions/checkout')
-    assert.notInclude(release.block, 'pnpm')
   })
 })
