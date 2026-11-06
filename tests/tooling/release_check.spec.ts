@@ -47,7 +47,7 @@ function runReleaseCheck(root: string) {
       ...process.env,
       PATH: `${join(root, 'fake-bin')}:${process.env.PATH}`,
       GITHUB_REPOSITORY: 'example/release-check-fixture',
-      GITHUB_ENV: join(root, 'github-env'),
+      GITHUB_OUTPUT: join(root, 'github-output'),
     },
   })
 }
@@ -169,7 +169,7 @@ test.group('release check', () => {
     assert.notInclude(notes, '- Other')
   })
 
-  test('packs the release, writes install notes and exports its workflow values', async ({
+  test('packs the release, writes install notes and gives the release job its outputs', async ({
     assert,
     cleanup,
   }) => {
@@ -192,8 +192,8 @@ test.group('release check', () => {
     )
     assert.match(notes, /SHA-256: `[a-f0-9]{64}`/)
     assert.deepEqual(
-      await readFile(join(root, 'github-env'), 'utf8'),
-      `VERSION=${version}\nTARBALL=tmp/release/release-check.tgz\n`
+      await readFile(join(root, 'github-output'), 'utf8'),
+      `version=${version}\ntarball=release-check.tgz\n`
     )
   })
 })
