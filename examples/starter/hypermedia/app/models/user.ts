@@ -2,13 +2,14 @@ import { UserSchema } from '#database/schema'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
+import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 /**
  * User model represents a user in the application.
  * It extends UserSchema and includes authentication capabilities
  * through the withAuthFinder mixin.
  */
-export default class User extends compose(UserSchema, withAuthFinder(hash)) {
+export default class User extends compose(UserSchema, withAuthFinder(hash), SoftDeletes) {
   /**
    * Get the user's initials from their full name or email.
    * Returns the first letter of first and last name if available,
