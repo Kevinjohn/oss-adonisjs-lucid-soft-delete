@@ -8,12 +8,13 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node bin/server.js",
     "build": "node ace build",
     "dev": "node ace serve --hmr",
-    "test": "node ace test",
-    "lint": "eslint .",
     "format": "prettier --write .",
+    "kit:pack": "pnpm --dir ../../.. build && pnpm --dir ../../.. pack --out examples/starter/inertia_react/vendor/kevinjohn-adonisjs-lucid-soft-delete.tgz",
+    "lint": "eslint .",
+    "start": "node bin/server.js",
+    "test": "node ace test",
     "typecheck": "tsc --noEmit && tsc --noEmit --project inertia/tsconfig.json"
   },
   "imports": {
@@ -73,6 +74,7 @@
     "@adonisjs/vite": "^6.0.2",
     "@inertiajs/core": "^3.7.1",
     "@inertiajs/react": "^3.7.1",
+    "@kevinjohn/adonisjs-lucid-soft-delete": "file:vendor/kevinjohn-adonisjs-lucid-soft-delete.tgz",
     "@tuyau/core": "^1.2.2",
     "@vinejs/vine": "^4.4.0",
     "better-sqlite3": "^13.0.3",
