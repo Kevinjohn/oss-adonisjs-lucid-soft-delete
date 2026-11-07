@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Examples: the `vendor` comment in the API and Inertia React `.gitignore` names any packed
+  package, as Account Kit's examples do, so the starter examples sandbox merges the two without a
+  conflict.
+
 ## 0.1.5 - 2026-11-07
 
 ### Added
