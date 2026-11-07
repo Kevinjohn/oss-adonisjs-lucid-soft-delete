@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Examples: the official AdonisJS API, Hypermedia and Inertia React starters with Lucid Soft
+  Delete added, in `examples/starter/`. An account deletes itself, cannot sign in afterwards, and
+  an administrator from `SOFT_DELETE_ADMIN_EMAILS` lists and restores it. They feed the
+  [starter examples sandbox](https://github.com/Kevinjohn/oss-adonisjs-starter-examples).
+
 ## 0.1.4 - 2026-11-06
 
 ### Changed

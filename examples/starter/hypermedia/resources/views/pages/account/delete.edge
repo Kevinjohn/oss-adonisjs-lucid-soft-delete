@@ -1,0 +1,9 @@
+@layouts.app({ title: 'Delete account' })
+  @page()
+    <h1>Delete your account</h1>
+    <p>Your account is hidden at once and you are signed out. An administrator can restore it.</p>
+    @form({ route: 'account_deletion.destroy', method: 'POST', class: 'auth__form' })
+      @!button({ text: 'Delete my account', type: 'submit' })
+    @end
+  @end
+@end

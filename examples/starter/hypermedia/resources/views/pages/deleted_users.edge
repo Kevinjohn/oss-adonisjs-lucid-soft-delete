@@ -1,0 +1,27 @@
+@layouts.app({ title: 'Deleted accounts' })
+  @page()
+    <h1>Deleted accounts</h1>
+    @if(users.length === 0)
+      <p>No account is deleted.</p>
+    @else
+      <ul>
+        @each(user in users)
+          <li>
+            {{ user.email }}
+            
+            , deleted
+
+            {{ user.deletedAt }}
+            @form({
+              route: 'deleted_users.restore',
+              routeParams: { id: user.id },
+              method: 'POST',
+            })
+              @!button({ text: `Restore ${user.email}`, type: 'submit' })
+            @end
+          </li>
+        @end
+      </ul>
+    @end
+  @end
+@end

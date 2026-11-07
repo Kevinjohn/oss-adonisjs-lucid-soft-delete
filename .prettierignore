@@ -2,3 +2,5 @@ build/
 coverage/
 pnpm-lock.yaml
 docs/reference/api/
+# The starter examples format with their own Prettier config (`pnpm format` in each example)
+examples/starter/
