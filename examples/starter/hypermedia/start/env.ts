@@ -24,4 +24,8 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
+
+  // Soft Delete: comma-separated emails that may list and restore deleted accounts.
+  // Missing means nobody.
+  SOFT_DELETE_ADMIN_EMAILS: Env.schema.string.optional(),
 })

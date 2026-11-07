@@ -4,6 +4,8 @@
  */
 
 export const controllers = {
+  AccountDeletion: () => import('#controllers/account_deletion_controller'),
+  DeletedUsers: () => import('#controllers/deleted_users_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   Session: () => import('#controllers/session_controller'),
 }
