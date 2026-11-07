@@ -65,4 +65,10 @@ test.group('soft delete', (group) => {
     const guestDelete = await client.delete('/api/v1/account')
     guestDelete.assertStatus(401)
   })
+
+  test('an address differing only in case is not an administrator', async ({ client }) => {
+    const lookalike = await User.create({ email: 'Admin@example.test', password })
+    const listed = await client.get('/api/v1/admin/deleted-users').loginAs(lookalike)
+    listed.assertStatus(403)
+  })
 })

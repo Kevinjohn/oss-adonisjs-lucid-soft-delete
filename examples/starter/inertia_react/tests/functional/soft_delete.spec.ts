@@ -64,4 +64,12 @@ test.group('soft delete', (group) => {
     assert.equal(guestRestore.headers.get('location'), '/login')
     assert.isNull(await User.find(deleted.id))
   })
+
+  test('an address differing only in case is not an administrator', async ({ assert }) => {
+    await User.create({ email: 'Admin@example.test', password })
+    const lookalike = new InertiaSession()
+    await lookalike.login('Admin@example.test', password)
+    const listed = await lookalike.request('/admin/deleted-users')
+    assert.equal(listed.status, 403)
+  })
 })

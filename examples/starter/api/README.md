@@ -19,7 +19,8 @@ with the other packages' examples.
 | `app/controllers/deleted_users_controller.ts`, `start/routes.ts`     | `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore` |
 
 A deleted account's access tokens stop authenticating and it cannot log in, because the auth
-guard and `verifyCredentials` query through the model, which leaves deleted rows out.
+guard and `verifyCredentials` query through the model, which leaves deleted rows out. Its tokens are
+not revoked, so a restored account's earlier tokens work again.
 
 ## Install and run
 
