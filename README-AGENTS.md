@@ -13,7 +13,7 @@ Use peer dependencies `@adonisjs/core` 7, `@adonisjs/lucid` 22 and `luxon` 3.4.4
 ## Install
 
 ```sh
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.5/kevinjohn-adonisjs-lucid-soft-delete-0.1.5.tgz luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.1.6/kevinjohn-adonisjs-lucid-soft-delete-0.1.6.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 

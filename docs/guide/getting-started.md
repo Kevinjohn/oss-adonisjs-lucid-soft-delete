@@ -8,14 +8,14 @@ through create, hide, list, restore, and permanent purge. No installed release i
 
 Use Git, Node.js 24, pnpm 11, and a C/C++ toolchain supported by `better-sqlite3`. Work in a
 disposable directory: the walkthrough writes an `.env` file and SQLite database under the checkout.
-Run this block from that empty directory. It checks out the [`v0.1.5` release tag](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/tree/v0.1.5), so the source, service, migrations and companion tests match that release:
+Run this block from that empty directory. It checks out the [`v0.1.6` release tag](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/tree/v0.1.6), so the source, service, migrations and companion tests match that release:
 
 <!-- setup: tutorial -->
 
 ```sh
 git clone --no-checkout https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete.git lucid-soft-delete
 cd lucid-soft-delete
-git checkout --detach v0.1.5
+git checkout --detach v0.1.6
 pnpm install --frozen-lockfile
 pnpm build
 pnpm --dir examples/app install
@@ -173,7 +173,7 @@ confirmation UI.
 
 ## Release boundary and further evidence
 
-This guide targets the `v0.1.5` tag selected above. Keep that revision when reproducing its results; use the documentation of the release you install when adapting it to an application. The fixture's
+This guide targets the `v0.1.6` tag selected above. Keep that revision when reproducing its results; use the documentation of the release you install when adapting it to an application. The fixture's
 `file:../../` dependency and `pnpm build` install the package from the checkout. An application
 installs the release tarball instead; the README's install section gives its URL. GitHub releases are the package distribution source.
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.6 - 2026-11-07
+
 ### Fixed
 
 - Examples: the `vendor` comment in the API and Inertia React `.gitignore` names any packed
