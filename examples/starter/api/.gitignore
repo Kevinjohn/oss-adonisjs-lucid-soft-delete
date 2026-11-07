@@ -6,12 +6,15 @@ tmp/*
 
 # Secrets
 .env
-.env.local
-.env.production.local
-.env.development.local
+.env.*
+!.env.example
 
 # Frontend assets compiled code
 public/assets
+
+# Packed Account Kit build, see README. The lockfile records the archive contents.
+vendor
+.adonisjs
 
 # Build tools specific
 npm-debug.log

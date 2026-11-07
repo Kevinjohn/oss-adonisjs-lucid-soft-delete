@@ -24,3 +24,7 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
+
+# Packed Account Kit build, see README. The lockfile records the archive contents.
+vendor
+.adonisjs
