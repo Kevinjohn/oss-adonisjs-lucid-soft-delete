@@ -1,224 +1,55 @@
-<div align="center">
+# Lucid Soft Delete: API starter example
 
-  <h1>API Starter Kit</h1>
+This app is the official AdonisJS API starter at
+[`adonisjs/starter-kits` revision `46d235932e3eb6472a16b740fa0b47b5f69fc6fc`](https://github.com/adonisjs/starter-kits/tree/46d235932e3eb6472a16b740fa0b47b5f69fc6fc/api),
+with Lucid Soft Delete added. An account can delete itself; the row stays, normal queries stop
+finding it, and an administrator lists deleted accounts and restores one. The
+[starter examples sandbox](https://github.com/Kevinjohn/oss-adonisjs-starter-examples) combines it
+with the other packages' examples.
 
-  <p>
-    <strong>A batteries-included AdonisJS starter kit for building modern, type-safe APIs.</strong>
-  </p>
+## What this example adds
 
-  <p>
-    Built for developers who want a production-ready standalone API.
-  </p>
+| File                                                                 | Shows                                                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `adonisrc.ts`                                                        | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`    |
+| `database/migrations/1768620765696_add_deleted_at_to_users.ts`       | A nullable `deleted_at` column on `users`                                            |
+| `app/models/user.ts`                                                 | `SoftDeletes` composed into the user model                                           |
+| `app/services/soft_delete_admins.ts`, `start/env.ts`, `.env.example` | Administrators come from `SOFT_DELETE_ADMIN_EMAILS`; missing means nobody            |
+| `app/controllers/account_deletion_controller.ts`                     | `DELETE /api/v1/account` soft deletes the signed-in account                          |
+| `app/controllers/deleted_users_controller.ts`, `start/routes.ts`     | `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore` |
 
-  <br>
+A deleted account's access tokens stop authenticating and it cannot log in, because the auth
+guard and `verifyCredentials` query through the model, which leaves deleted rows out.
 
-<a href="#-whats-in-the-box">Features</a>
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="#-quick-start">Quick Start</a>
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="https://adonisjs.com">Documentation</a>
+## Install and run
 
-  <br>
-  <br>
+Use Node 24 and pnpm. From the Lucid Soft Delete repository root:
 
-</div>
-
----
-
-## ✨ What's in the Box
-
-This starter kit is designed to help you build production-ready APIs with AdonisJS. It provides a solid foundation with authentication, type-safe routes, and everything you need to build modern APIs that work with any frontend framework.
-
-### 🎯 Core Features
-
-- **🔐 Dual Authentication** - API tokens (default) and session-based authentication pre-configured
-- **🔄 RESTful API** - Clean API structure with versioning (`/api/v1`)
-- **🏥 Health Check** - Built-in health check endpoint for monitoring
-- **✅ Form Validation** - Powered by VineJS with automatic error handling
-- **🛡️ Security First** - CORS, Shield middleware, and secure authentication
-- **🔒 Type Safety** - End-to-end TypeScript with Tuyau for type-safe API calls
-- **🌐 CORS Ready** - Pre-configured for cross-origin requests
-
-### 🔧 Tech Stack
-
-<table>
-  <tr>
-    <td><strong>Backend</strong></td>
-    <td>
-      <a href="https://adonisjs.com">AdonisJS 7.x</a> - Full-featured Node.js framework
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Database</strong></td>
-    <td>
-      <a href="https://lucid.adonisjs.com">Lucid ORM</a> - SQL ORM with migrations (SQLite, PostgreSQL, MySQL, MSSQL)
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Auth</strong></td>
-    <td>
-      API tokens (default) and session-based authentication
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Validation</strong></td>
-    <td>
-      <a href="https://vinejs.dev">VineJS</a> - Type-safe schema validation
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Type Safety</strong></td>
-    <td>
-      <a href="https://docs.adonisjs.com/guides/frontend/api-client">Tuyau</a> - End-to-end type safety for API calls
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Testing</strong></td>
-    <td>
-      <a href="https://japa.dev">Japa</a> - Delightful testing framework
-    </td>
-  </tr>
-  <tr>
-    <td><strong>TypeScript</strong></td>
-    <td>
-      Full TypeScript support with strict mode enabled
-    </td>
-  </tr>
-</table>
-
----
-
-## 🚀 Quick Start
-
-### Create a New Project
-
-```bash
-npm init adonisjs@latest -- -K=api
+```sh
+pnpm install --frozen-lockfile
+pnpm --dir examples/starter/api kit:pack
+cd examples/starter/api
+pnpm install --no-frozen-lockfile
+cp .env.example .env
+node ace generate:key
+node ace migration:run
+pnpm dev
 ```
 
-This command will:
+`kit:pack` builds Lucid Soft Delete from this checkout into `vendor/`. The packed archive's
+checksum changes with every build, so the install does not use a frozen lockfile.
 
-- Clone this starter kit
-- Install all dependencies
-- Set up your `.env` file
-- Generate your app encryption key
-- Configure your database
-- Run migrations
+Set `SOFT_DELETE_ADMIN_EMAILS` in `.env` to a comma-separated list of addresses and restart
+the app. Create those accounts, and any others, through signup.
 
-### Start Developing
+## Checks
 
-```bash
-# Run the development server with hot reload
-npm run dev
+```sh
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm test
 ```
 
-### Useful Commands
-
-```bash
-# Run tests
-npm run test
-
-# Type check
-npm run typecheck
-
-# Lint your code
-npm run lint
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-Your API will be running at `http://localhost:3333`
-
-### Available Endpoints
-
-- `POST /api/v1/auth/signup` - Create a new account
-- `POST /api/v1/auth/login` - Login and get access token
-- `POST /api/v1/auth/logout` - Logout (requires authentication)
-- `GET /api/v1/account/profile` - Get current user profile (requires authentication)
-
----
-
-## 📚 Learn More
-
-<table>
-  <tr>
-    <td>
-      <a href="https://docs.adonisjs.com"><strong>📖 AdonisJS Docs</strong></a>
-      <br>
-      <span>Complete guide to AdonisJS</span>
-    </td>
-    <td>
-      <a href="https://docs.adonisjs.com/guides/frontend/api-client"><strong>🔒 Tuyau</strong></a>
-      <br>
-      <span>Type-safe API calls</span>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://lucid.adonisjs.com"><strong>💾 Lucid ORM</strong></a>
-      <br>
-      <span>Database queries and relationships</span>
-    </td>
-    <td>
-      <a href="https://vinejs.dev"><strong>✅ VineJS</strong></a>
-      <br>
-      <span>Schema validation guide</span>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://docs.adonisjs.com/guides/authentication/introduction"><strong>🔐 Authentication Guide</strong></a>
-      <br>
-      <span>Sessions and access tokens in AdonisJS</span>
-    </td>
-    <td>
-      <a href="https://docs.adonisjs.com/guides/security/cors"><strong>🌐 CORS Guide</strong></a>
-      <br>
-      <span>Configure CORS for your API</span>
-    </td>
-  </tr>
-</table>
-
----
-
-## 🎨 Philosophy
-
-This starter kit embraces the **API-first** approach to web development:
-
-- **Framework Agnostic** - Use any frontend framework (React, Vue, Svelte, Angular, etc.)
-- **Type Safety Everywhere** - TypeScript across the stack with Tuyau for type-safe API calls
-- **Dual Authentication** - API tokens for cross-origin and sessions for same-domain apps
-- **Convention Over Configuration** - Sensible defaults, escape hatches when you need them
-- **Developer Experience** - Hot reload, great error messages, instant feedback
-- **Production Ready** - Security, validation, and testing built-in
-
-### Authentication Strategies
-
-This starter kit provides both authentication strategies:
-
-- **API Tokens (Default)** - Use when your API and frontend are on different domains. Stateless and perfect for mobile apps, SPAs, and third-party integrations.
-- **Session-based** - Use when your API and frontend share the same top-level domain. Traditional cookie-based authentication with CSRF protection.
-
-You can easily switch between strategies by changing the guard in your middleware configuration.
-
----
-
-## 🤝 Contributing
-
-This starter kit is maintained by the AdonisJS team. Found a bug or have a suggestion? [Open an issue](https://github.com/adonisjs/starter-kits/issues) or submit a pull request!
-
----
-
-## 📄 License
-
-This starter kit is open-sourced software licensed under the [MIT license](LICENSE).
-
----
-
-<div align="center">
-  <sub>Built with ❤️ by the AdonisJS team</sub>
-</div>
+`tests/functional/soft_delete.spec.ts` covers deleting your own account, being unable to sign in
+afterwards, an administrator listing and restoring it, and a refused non-administrator and guest.

@@ -1,304 +1,57 @@
-<div align="center">
+# Lucid Soft Delete: Hypermedia starter example
 
-  <!-- Add your cover image here -->
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/adonisjs/starter-kits/blob/main/docs/hypermedia-dark.png?raw=true">
-    <img src="https://github.com/adonisjs/starter-kits/blob/main/docs/hypermedia-light.png?raw=true" alt="AdonisJS Hypermedia Starter Kit" width="100%">
-  </picture>
+This app is the official AdonisJS Hypermedia starter at
+[`adonisjs/starter-kits` revision `46d235932e3eb6472a16b740fa0b47b5f69fc6fc`](https://github.com/adonisjs/starter-kits/tree/46d235932e3eb6472a16b740fa0b47b5f69fc6fc/hypermedia),
+with Lucid Soft Delete added. An account can delete itself; the row stays, normal queries stop
+finding it, and an administrator lists deleted accounts and restores one. The
+[starter examples sandbox](https://github.com/Kevinjohn/oss-adonisjs-starter-examples) combines it
+with the other packages' examples.
 
-  <h1>Hypermedia Starter Kit</h1>
+## What this example adds
 
-  <p>
-    <strong>A batteries-included AdonisJS starter kit for building modern server-rendered web applications.</strong>
-  </p>
+| File                                                                                    | Shows                                                                             |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `adonisrc.ts`                                                                           | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete` |
+| `database/migrations/*_add_deleted_at_to_users.ts`                                      | A nullable `deleted_at` column on `users`                                         |
+| `app/models/user.ts`                                                                    | `SoftDeletes` composed into the user model                                        |
+| `app/services/soft_delete_admins.ts`, `start/env.ts`, `.env.example`                    | Administrators come from `SOFT_DELETE_ADMIN_EMAILS`; missing means nobody         |
+| `app/controllers/account_deletion_controller.ts`                                        | `/account/delete`: confirm, soft delete the signed-in account and sign out        |
+| `app/controllers/deleted_users_controller.ts`, `start/routes.ts`                        | `/admin/deleted-users`: the deleted accounts, each with a **Restore** button      |
+| `resources/views/pages/account/delete.edge`, `resources/views/pages/deleted_users.edge` | The two pages                                                                     |
 
-  <p>
-    Built for developers who believe in the power of hypermedia and want to ship fast without sacrificing DX.
-  </p>
+A deleted account is signed out and cannot sign in again, because the session guard and
+`verifyCredentials` query through the model, which leaves deleted rows out.
 
-  <br>
+## Install and run
 
-<a href="#-whats-in-the-box">Features</a>
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="#-quick-start">Quick Start</a>
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="https://adonisjs.com">Documentation</a>
+Use Node 24 and pnpm. From the Lucid Soft Delete repository root:
 
-  <br>
-  <br>
-
-</div>
-
----
-
-## ✨ What's in the Box
-
-This starter kit is designed to help you build production-ready web applications with server-side rendering, progressive enhancement, and minimal JavaScript. It's perfect for building traditional web apps, admin panels, content sites, and SaaS applications.
-
-### 🎯 Core Features
-
-- **🔐 Authentication System** - Complete user signup, login, and session management out of the box
-- **📝 Pre-built UI Components** - Form inputs, buttons, alerts, avatars, and more ready to use
-- **⚡️ Server-Side Rendering** - Fast initial page loads with Edge.js templating
-- **🎨 Custom Design System** - Hand-written CSS built on semantic design tokens, re-themed from one place in `app.css` (no framework bloat)
-- **🌗 Dark Mode** - Light and dark themes with a header toggle, remembered in a cookie and server-rendered with no flash
-- **🧩 Layouts** - Marketing, auth, app and settings layouts under `resources/views/components/layouts`
-- **📊 Dashboard** - An authenticated `/dashboard` route to land on after login or signup
-- **✅ Form Validation** - Powered by VineJS with automatic error handling
-- **🌊 Flash Messages** - Success/error notifications built-in
-- **🛡️ Security First** - CSRF protection, Shield middleware, and secure session handling
-
-### 🔧 Tech Stack
-
-<table>
-  <tr>
-    <td><strong>Backend</strong></td>
-    <td>
-      <a href="https://adonisjs.com">AdonisJS 7.x</a> - Full-featured Node.js framework
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Templates</strong></td>
-    <td>
-      <a href="https://edgejs.dev">Edge.js</a> - Powerful, expressive templating engine
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Database</strong></td>
-    <td>
-      <a href="https://lucid.adonisjs.com">Lucid ORM</a> - SQL ORM with migrations (SQLite, PostgreSQL, MySQL, MSSQL)
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Auth</strong></td>
-    <td>
-      Session-based authentication with secure cookie storage
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Frontend</strong></td>
-    <td>
-      <a href="https://alpinejs.dev">Alpine.js</a> - Lightweight JavaScript for sprinkles of interactivity
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Icons</strong></td>
-    <td>
-      <a href="https://github.com/edge-js/edge-iconify">Lucide via edge-iconify</a> - Inline SVG icons with the <code>@svg('lucide:…')</code> tag
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Styling</strong></td>
-    <td>
-      Hand-written CSS built on semantic design tokens, with light and dark themes
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Build</strong></td>
-    <td>
-      <a href="https://vitejs.dev">Vite</a> - Lightning-fast HMR and optimized builds
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Validation</strong></td>
-    <td>
-      <a href="https://vinejs.dev">VineJS</a> - Type-safe schema validation
-    </td>
-  </tr>
-  <tr>
-    <td><strong>Testing</strong></td>
-    <td>
-      <a href="https://japa.dev">Japa</a> - Delightful testing framework with browser testing support
-    </td>
-  </tr>
-  <tr>
-    <td><strong>TypeScript</strong></td>
-    <td>
-      Full TypeScript support with strict mode enabled
-    </td>
-  </tr>
-</table>
-
----
-
-## 🚀 Quick Start
-
-### Create a New Project
-
-```bash
-npm init adonisjs@latest -- -K=hypermedia
+```sh
+pnpm install --frozen-lockfile
+pnpm --dir examples/starter/hypermedia kit:pack
+cd examples/starter/hypermedia
+pnpm install --no-frozen-lockfile
+cp .env.example .env
+node ace generate:key
+node ace migration:run
+pnpm dev
 ```
 
-This command will:
+`kit:pack` builds Lucid Soft Delete from this checkout into `vendor/`. The packed archive's
+checksum changes with every build, so the install does not use a frozen lockfile.
 
-- Clone this starter kit
-- Install all dependencies
-- Set up your `.env` file
-- Generate your app encryption key
-- Configure your database
-- Configure authentication
-- Run migrations
+Set `SOFT_DELETE_ADMIN_EMAILS` in `.env` to a comma-separated list of addresses and restart
+the app. Create those accounts, and any others, through signup.
 
-### Start Developing
+## Checks
 
-```bash
-# Run the development server with hot reload
-node ace serve --hmr
-
-# Run tests
-node ace test
-
-# Type check your code
-npm run typecheck
-
-# Lint your code
-npm run lint
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
+```sh
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm test
 ```
 
-Your app will be running at `http://localhost:3333`
-
----
-
-## 🧱 Adding Pages
-
-The kit ships the building blocks for app pages, without shipping pages you would have to delete.
-
-| Piece                                              | What it does                                                                                   |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `resources/views/components/page.edge`             | Renders the page heading, description and actions.                                             |
-| `resources/views/components/section.edge`          | A group of content within a page, with an optional title. Stacked sections get a divider.      |
-| `resources/views/components/layouts/settings.edge` | The settings area: a heading, a sidebar of links and a card holding the current settings page. |
-| `nav` in `components/layouts/app.edge`             | The top-level navigation. Add an entry for every new area of your app.                         |
-
-### A single page
-
-Render the page inside the app layout and wrap its content in `@page`. The document title is set on the layout. Leave out the `@page` title when the page should not render a heading. Buttons or links for the page header go in the `actions` slot.
-
-```edge
-{{-- resources/views/pages/reports.edge --}}
-@layouts.app({ title: 'Reports' })
-  @page({ title: 'Reports', description: 'Monthly numbers at a glance.' })
-    @slot('actions')
-      @link({ route: 'reports.export', class: 'btn btn--secondary btn--sm' })
-        Export
-      @end
-    @end
-    …
-  @end
-@end
-```
-
-Register a route for it and add an entry to `nav` in `resources/views/components/layouts/app.edge` to link to it.
-
-To show content on a card, wrap it in `<div class="panel">`. The settings layout uses the same class for its content card.
-
-### Settings pages
-
-The settings layout is ready, it only needs pages. Start with a route group.
-
-```ts
-// start/routes.ts
-router
-  .group(() => {
-    router.on('/').render('pages/settings/profile').as('profile')
-    router.on('/security').render('pages/settings/security').as('security')
-  })
-  .prefix('/settings')
-  .as('settings')
-  .use(middleware.auth())
-```
-
-List the pages in `items` inside `resources/views/components/layouts/settings.edge`. The sidebar highlights the current one.
-
-```edge
-@let(items = [
-  { label: 'Profile', route: 'settings.profile', icon: 'lucide:user' },
-  { label: 'Security', route: 'settings.security', icon: 'lucide:shield' },
-])
-```
-
-Each page renders inside the settings layout, which renders the app layout for you.
-
-```edge
-{{-- resources/views/pages/settings/profile.edge --}}
-@layouts.settings({ title: 'Profile' })
-  @section({ title: 'Profile', description: 'This is how others will see you.' })
-    @field.root({ name: 'username' })
-      @!field.label({ text: 'Username' })
-      @!input.control()
-      <p class="field__hint">This is your public display name.</p>
-    @end
-  @end
-@end
-```
-
-Finally, add `{ label: 'Settings', route: 'settings.profile', icon: 'lucide:settings' }` to `nav` in the app layout. It stays active on every page under `/settings`.
-
-Need another area with a sidebar, like reports or admin? Copy `layouts/settings.edge`, change its heading and items. The `sidebar-layout` styles are shared.
-
----
-
-## 📚 Learn More
-
-<table>
-  <tr>
-    <td>
-      <a href="https://docs.adonisjs.com"><strong>📖 Documentation</strong></a>
-      <br>
-      <span>Complete guide to AdonisJS</span>
-    </td>
-    <td>
-      <a href="https://edgejs.dev"><strong>🎨 Edge.js Docs</strong></a>
-      <br>
-      <span>Learn about the template engine</span>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://lucid.adonisjs.com"><strong>💾 Lucid ORM</strong></a>
-      <br>
-      <span>Database queries and relationships</span>
-    </td>
-    <td>
-      <a href="https://vinejs.dev"><strong>✅ VineJS</strong></a>
-      <br>
-      <span>Schema validation guide</span>
-    </td>
-  </tr>
-</table>
-
----
-
-## 🎨 Philosophy
-
-This starter kit embraces the **hypermedia-driven** approach to web development:
-
-- **Server-Side Rendering First** - Fast initial loads, SEO-friendly, works without JavaScript
-- **Progressive Enhancement** - Sprinkle interactivity where needed with Alpine.js
-- **Convention Over Configuration** - Sensible defaults, escape hatches when you need them
-- **Developer Experience** - Hot reload, TypeScript, great error messages
-- **Production Ready** - Security, validation, and testing built-in
-
----
-
-## 🤝 Contributing
-
-This starter kit is maintained by the AdonisJS team. Found a bug or have a suggestion? [Open an issue](https://github.com/adonisjs/starter-kits/issues) or submit a pull request!
-
----
-
-## 📄 License
-
-This starter kit is open-sourced software licensed under the [MIT license](LICENSE).
-
----
-
-<div align="center">
-  <sub>Built with ❤️ by the AdonisJS team</sub>
-</div>
+`tests/functional/soft_delete.spec.ts` covers deleting your own account, being unable to sign in
+afterwards, an administrator listing and restoring it, and a refused non-administrator and guest.
+`tests/browser/soft_delete.spec.ts` restores an account from the administrator page in Chromium.
