@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.7 - 2026-11-08
+
 ### Added
 
 - An Inertia Vue starter example, in `examples/starter/inertia_vue`, for the starter examples
