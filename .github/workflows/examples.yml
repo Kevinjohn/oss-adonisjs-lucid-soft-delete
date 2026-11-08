@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [api, hypermedia, inertia_react]
+        example: [api, hypermedia, inertia_react, inertia_vue]
     env:
       HOST: 127.0.0.1
     defaults:
