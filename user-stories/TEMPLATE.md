@@ -83,34 +83,76 @@ Use real visible controls and behavior. Include confirmation controls and releva
 
 ## Writing and maintenance rules
 
-- Use one story per meaningful outcome. Create and edit are distinct when their outcomes differ; inseparable controls may share a story.
-- Include every relevant field, including conditional and read-only fields. Record exact labels, controls, required or optional state, defaults, limits, choices, dependencies, visibility and read-only conditions. Describe dynamic choices by their source and filtering rules.
-- Link an identical shared field list when useful and describe create/edit differences locally. Do not force readers to reconstruct a form from several links.
-- Keep criteria concise and observable. Do not turn them into a test script or duplicate detailed backend contracts.
-- Include **Status**, **Access**, **Entry**, **Documentation** and **Source**. Say when no relevant guide exists. Add optional **Coverage** only when a useful test link exists; a link does not say the test ran.
-- Keep identifiers and filenames stable. Use the next unused identifier in an area. Retain historical intent with an explicit availability status unless retirement is authorized.
-- Maintain the README index, REFERENCE, COVERAGE and GAPS with the stories. “New” means newly catalogued, not newly implemented.
-- Compare source behavior with accepted decisions. Record actual mismatches in GAPS without silently changing either intent or code. Do not invent a target when none exists.
+- Use one story per meaningful outcome. An inseparable set of controls may share a story;
+  independently useful actions deserve their own. Create and edit are distinct actions.
+  When splitting, preserve the original ID/path for one outcome and give the other the next unused
+  ID; update catalogue references and counts together.
+- Include every relevant field, including conditional and read-only fields. Record exact labels,
+  required/optional state, defaults, limits, available options and dependent choices. For dynamic
+  choices, describe their source and filtering rules rather than listing transient data.
+- Edit forms include current-value prefills. API/library/CLI actions document real argument names,
+  required values, omission/null defaults, flag/prompt behavior and limits. Verify what callbacks
+  receive before assigning host policy to them.
+- Link an identical shared field list and describe create/edit differences locally. Do not make
+  readers chase several links to discover a form.
+- Keep acceptance criteria concise and observable. Avoid detailed test scripts and exhaustive
+  backend guarantees; keep those in tests and the authoritative decision record.
+- Keep identifiers and filenames stable. Add the next unused identifier within the area. Retain
+  intent and mark availability when a feature disappears, unless retirement is explicitly authorized.
+- Use the availability definitions below. Explain unavailable entries and identify historical or
+  intended controls clearly. Retention does not promise restoration or authorize new functionality.
+  State opt-in capabilities and required hooks; trace account-state and permission requirements
+  for this operation instead of copying them from a neighboring action.
+- An optional **Coverage:** test link identifies supporting tests; it does not claim they were run.
+  Keep runtime results separate from source-reviewed availability.
+- Verify source rather than inheriting stale copy. Update the index (README.md), coverage matrix
+  (COVERAGE.md), shared reference (REFERENCE.md) and decision gaps (GAPS.md) alongside affected stories.
+  Adapt these names to the repository's established equivalents.
+- Reconcile copied examples in TEMPLATE.md too. Close review findings with source evidence for
+  each correction; green checks alone do not establish that an inaccurate claim is fixed.
+- Record differences between agreed targets and current implementation in the gaps record without
+  silently changing either. “New” in the coverage matrix means newly documented, not newly implemented.
 
 ## Availability definitions
 
 | Status   | Meaning                                                                 |
 | -------- | ----------------------------------------------------------------------- |
-| Current  | Exposed under the stated role, configuration and conditions             |
+| Current  | Exposed, subject to stated roles, configuration and conditions          |
 | Hidden   | Implementation remains but its ordinary entry or trigger is unavailable |
 | Removed  | Historical capability has no current product entry                      |
-| Demo     | Available only in a specified demo context                              |
-| Operator | Installation, hosting or recovery outside an ordinary application UI    |
+| Demo     | Available only in the specified demo context                            |
+| Operator | Installation, hosting or recovery outside the ordinary application UI   |
 | Planned  | Agreed target without an ordinary implemented journey                   |
 
-Read Status with Access and Entry. A configured switch is an availability condition, not proof of removal. Current is source-reviewed availability, never a test-pass status.
+Read Status with Access and Entry. A configured feature switch is a condition, not proof of removal.
+Current describes availability, not a browser test result. Preserve equivalent repository status
+semantics and explain their mapping where an established scheme differs.
 
-## Diagram and verification conventions
+## Diagram conventions
 
-- Every story has a plain-language **User flow** and an implementation **Code flow**, each in a Mermaid flowchart. Include meaningful choices, cancellation, refusal, failure and recovery.
-- Trace actual entry, handler, state/service, persistence where applicable and visible result. Use existing symbols; link files under **Code references**. Name the boundary if a flow stops before the final consumer.
-- Trace producers as well as consumers. A retained component or setter does not prove a reachable journey. Trace authorization to its owning layer when claiming an access restriction.
-- Distinguish server writes, device preferences and read-only operations. Inspect the demo's real persistence path rather than assuming it is mocked.
-- For Hidden, Removed or Planned journeys, label the user flow unavailable and show the missing entry/trigger plus any retained support in Code flow.
-- Parse every changed diagram and inspect a representative rendering. Syntax validity does not prove behavior or establish that a journey was exercised.
-- Verify unique IDs, source/guide links, index and matrix parity, dispositions for old stories, story metadata, gaps, symbols and availability. Report source review separately from runtime results.
+- Every story has User flow and Code flow sections, each containing a Mermaid flowchart. The first
+  uses screens, actions, decisions and outcomes a person understands; the second names the actual
+  implementation. Link supporting files under Code references.
+- Keep diagrams focused on the action. Include meaningful choices, cancellation, refusal, failure
+  and recovery where they affect the journey; avoid repeating every validation or security rule.
+- Trace producers and consumers: entry, handler, state or service, persistence where applicable
+  and resulting UI. A retained component or setter alone does not prove a reachable journey.
+- Distinguish server writes, device preferences and read-only actions. Verify the demo's actual
+  path. Do not infer server authorization from hidden controls.
+- Trace each client and authentication strategy separately. Show actual response fields and
+  prerequisite-token sources; browser rendering, API acknowledgements and audit events may differ.
+  Keep real calls on the branches that execute them, including client-specific queries.
+- Place guards and validation before the operations they govern. Include early no-op returns,
+  scope/replacement effects and refusals that consume proof or leave committed state in place.
+  Distinguish confirmation/completion recipients and attempted cleanup from guaranteed removal;
+  show recovery when these differences affect the action. Bounded counts describe the current run.
+- Code labels must name existing symbols or explicitly identify absent/intended controls. State
+  the scope when a diagram stops at a shared boundary.
+- For Hidden, Removed or Planned features, label the intended user flow as unavailable. Show the
+  actual missing entry/trigger and retained support in the code flow without implying execution.
+- Reconcile labels and branches against source. Parse changed Mermaid diagrams and inspect
+  representative rendering; report any check that could not be completed. Syntax validation does
+  not establish behavioral correctness or prove a browser journey was exercised.
+- Tie validation and CI to the final content/revision, distinguish skipped jobs from successful
+  gates and reuse evidence only for unchanged guarantees. Report source review, documentation
+  checks and runtime journeys separately.
