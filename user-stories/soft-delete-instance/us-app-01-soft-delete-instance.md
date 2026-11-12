@@ -20,14 +20,14 @@ As application code using a `SoftDeletes` model, I want to delete a persisted in
 
 ```mermaid
 flowchart TD
-    A["Application has a persisted model"] --> B{"Call delete() or deleteQuietly()?"}
+    A["Application has a model to delete"] --> G{"Is the model persisted?"}
+    G -->|No| H["Receive E_MODEL_NOT_PERSISTED"]
+    G -->|Yes| B{"Call delete() or deleteQuietly()?"}
     B -->|delete| C["Lucid save hooks run"]
     B -->|deleteQuietly| D["Lucid saveQuietly runs"]
     C --> E["deletedAt is saved"]
     D --> E
     E --> F["Ordinary model fetches omit the row"]
-    A --> G{"Is the model persisted?"}
-    G -->|No| H["Receive E_MODEL_NOT_PERSISTED"]
 ```
 
 ## Code flow
