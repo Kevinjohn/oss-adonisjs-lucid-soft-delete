@@ -106,3 +106,7 @@ and [SECURITY.md](SECURITY.md) for vulnerability reports and the support window.
 
 [MIT](LICENSE.md). Originally created by Lookin Anton as
 [adonis-lucid-soft-deletes](https://github.com/lookinlab/adonis-lucid-soft-deletes).
+
+## User story catalogue
+
+See the [source-reviewed user story catalogue](user-stories/README.md) for capability coverage and code-backed action flows.
