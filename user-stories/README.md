@@ -13,7 +13,9 @@ The catalogue records source-reviewed API availability; “Current” does not c
 | [US-APP-02 — Select active, all, or deleted models](query-deleted-records/us-app-02-query-deleted-records.md) | Select active, all, or deleted models         | Application developer                           | Current  |
 | [US-APP-03 — Restore a soft-deleted model](restore-instance/us-app-03-restore-instance.md)                    | Restore a soft-deleted model                  | Application service using a `SoftDeletes` model | Current  |
 | [US-APP-04 — Permanently remove an active or trashed model](purge-instance/us-app-04-purge-instance.md)       | Permanently remove an active or trashed model | Application service using a `SoftDeletes` model | Current  |
-| [US-APP-05 — Change lifecycle state for matching rows in bulk](bulk-operations/us-app-05-bulk-lifecycle.md)   | Change lifecycle state in bulk                | Application developer                           | Current  |
+| [US-APP-05 — Soft-delete matching rows in bulk](bulk-operations/us-app-05-bulk-lifecycle.md)                  | Soft-delete matching rows in bulk             | Application code                                | Current  |
+| [US-APP-06 — Restore matching rows in bulk](bulk-operations/us-app-06-restore-bulk.md)                        | Restore matching rows in bulk                 | Application code                                | Current  |
+| [US-APP-07 — Permanently remove matching rows in bulk](bulk-operations/us-app-07-purge-bulk.md)               | Permanently remove matching rows in bulk      | Application code                                | Current  |
 
 ## Catalogue records
 

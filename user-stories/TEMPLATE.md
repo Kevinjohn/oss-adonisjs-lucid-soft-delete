@@ -42,19 +42,32 @@ Scope: model instance through Lucid save; route access and application authoriza
 ```mermaid
 flowchart TD
     A["ModelWithSoftDeletes.delete or deleteQuietly"] --> B["deleteActionFor"]
-    B --> C{"Persisted and recoverable?"}
-    C -->|No| D["E_MODEL_NOT_PERSISTED or physical-delete path"]
-    C -->|Yes| E["$getQueryFor returns soft-delete del/delete callbacks"]
-    E --> F["persistDeletedAt sets DateTime.local()"]
-    F --> G{"quietly"}
-    G -->|No| H["Lucid save"]
-    G -->|Yes| I["Lucid saveQuietly"]
-    H --> J["Persist deletedAt"]
-    I --> J
+    B --> C{"Persisted state and action"}
+    C -->|Unsaved| D["Throw E_MODEL_NOT_PERSISTED"]
+    C -->|Already trashed and unchanged| E["Return without write"]
+    C -->|Physical| F["Delegate to Lucid physical delete"]
+    C -->|Soft| G{"Quiet method?"}
+    G -->|No| H["super.delete invokes overridden $getQueryFor"]
+    H --> I["persistDeletedAt with DateTime.local()"]
+    G -->|Yes| J["persistDeletedAt with quietly = true"]
+    I --> K["model.save runs update and save hooks"]
+    J --> L["model.saveQuietly omits hooks"]
+    K --> M["delete finally resets $isDeleted, including on failure"]
+    L --> N["Return, or propagate persistence error"]
 ```
 
 **Code references:** [SoftDeletes mixin](../../src/mixin.ts), [model lifecycle tests](../../tests/model.spec.ts), [lifecycle reference](../../docs/reference/README.md#instance-lifecycle-methods).
 ````
+
+## Actions with input fields
+
+For an action with a form or configurable API inputs, use the following table. Replace the placeholders with real labels or parameter names; a library API is not evidence of a browser control.
+
+```markdown
+| Field or input             | Control or API parameter | Required/default/conditions                                                                      |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ |
+| [Exact label or parameter] | [Actual control/type]    | [Required/optional, default, limits, options, dependent choices, visibility and read-only state] |
+```
 
 ## Actions without input fields
 
@@ -63,7 +76,7 @@ For actions without form input, use concise controls and observable results inst
 ```markdown
 ## Acceptance criteria
 
-- **Today** returns the timeline to the start of the current week in the configured time zone.
+- **restore()** returns an active persisted model unchanged without saving dirty fields.
 ```
 
 Use real visible controls and behavior. Include confirmation controls and relevant cancellation, refusal, and failure outcomes when they affect the action.

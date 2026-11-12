@@ -37,17 +37,18 @@ Scope: instance call through Lucid save; application route and authorization are
 ```mermaid
 flowchart TD
     A["ModelWithSoftDeletes.delete or deleteQuietly"] --> B["deleteActionFor"]
-    B --> C{"Action"}
+    B --> C{"Persisted state and action"}
     C -->|Unsaved| D["Throw E_MODEL_NOT_PERSISTED"]
     C -->|Already trashed and unchanged| E["Return without write"]
-    C -->|Active or changed| F["super.delete or super.deleteQuietly"]
-    F --> G["$getQueryFor returns soft-delete callbacks"]
-    G --> H["persistDeletedAt(DateTime.local())"]
-    H --> I{"Quietly?"}
-    I -->|No| J["model.save()"]
-    I -->|Yes| K["model.saveQuietly()"]
-    J --> L["delete finally resets $isDeleted"]
-    K --> M["Timestamp remains persisted"]
+    C -->|Physical| F["Delegate to Lucid physical delete"]
+    C -->|Soft| G{"Quiet method?"}
+    G -->|No| H["super.delete invokes overridden $getQueryFor"]
+    H --> I["persistDeletedAt with DateTime.local()"]
+    G -->|Yes| J["persistDeletedAt with quietly = true"]
+    I --> K["model.save runs update and save hooks"]
+    J --> L["model.saveQuietly omits hooks"]
+    K --> M["delete finally resets $isDeleted, including on failure"]
+    L --> N["Return, or propagate persistence error"]
 ```
 
 **Code references:** [deleteActionFor, persistDeletedAt and instance methods](../../src/mixin.ts), [lifecycle tests](../../tests/lifecycle.spec.ts), [instance API contract](../../docs/reference/README.md#delete).
