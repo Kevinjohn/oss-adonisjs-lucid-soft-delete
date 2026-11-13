@@ -22,7 +22,9 @@ As application code using a `SoftDeletes` model, I want to delete a persisted in
 flowchart TD
     A["Application has a model to delete"] --> G{"Is the model persisted?"}
     G -->|No| H["Receive E_MODEL_NOT_PERSISTED"]
-    G -->|Yes| B{"Call delete() or deleteQuietly()?"}
+    G -->|Yes| I{"Already trashed with unchanged deletedAt?"}
+    I -->|Yes| J["Return without saving"]
+    I -->|No, active soft-delete path| B{"Call delete() or deleteQuietly()?"}
     B -->|delete| C["Lucid save hooks run"]
     B -->|deleteQuietly| D["Lucid saveQuietly runs"]
     C --> E["deletedAt is saved"]

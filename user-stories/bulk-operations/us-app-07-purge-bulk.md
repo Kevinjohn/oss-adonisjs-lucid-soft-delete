@@ -26,7 +26,7 @@ flowchart TD
     A["Application selects rows and applies its access policy"] --> B["Call forceDelete with optional receipt"]
     B --> C{"Supported model, query shape and transaction?"}
     C -->|No| D["Receive specific validation error before writing"]
-    C -->|Yes| E["Apply permanently remove matching rows in bulk"]
+    C -->|Yes| E["Permanently remove matching rows in bulk"]
     E --> F{"Database write succeeds?"}
     F -->|No| G["Receive failure; roll back and resolve before retry"]
     F -->|Yes| H["Receive count or receipt; caller commits or rolls back"]
