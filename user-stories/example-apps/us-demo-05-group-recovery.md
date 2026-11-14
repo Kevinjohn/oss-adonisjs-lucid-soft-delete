@@ -15,7 +15,7 @@ As application code in the example app, I want to soft-delete selected rows as o
 - `restoreGroup` requires a `usable` group with current associations whose rows are all still trashed, marks the group `consumed`, then restores the rows with `onlyTrashed().restore()` and deletes the associations. A group restores once.
 - `invalidateGroup` marks a `usable` group `invalidated` and keeps its associations.
 - `purgeGroup` requires an `invalidated` group, at least one id, and that every selected row is currently associated with the group and trashed for the tenant; it then runs `onlyTrashed().forceDelete()`, removes those associations and marks the group `consumed` once none remain. A mismatch throws before any deletion.
-- Every operation runs inside the caller's transaction, so a thrown error rolls back row and bookkeeping changes together.
+- Every operation runs inside the caller's transaction, but never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
 
 ## User flow
 
@@ -23,7 +23,7 @@ As application code in the example app, I want to soft-delete selected rows as o
 flowchart TD
     A["Application selects tenant rows to remove together"] --> B["deleteGroup creates a usable group"]
     B --> C{"Rows actually soft-deleted?"}
-    C -->|None| D["Receive error; nothing is kept"]
+    C -->|None| D["Receive error; caller rolls back"]
     C -->|Some| E["Rows are hidden and recorded against the group"]
     E --> F{"Recover or discard?"}
     F -->|Recover| G["restoreGroup restores the rows once"]

@@ -13,7 +13,7 @@ As a soft-delete administrator of the hypermedia starter app, I want to see dele
 
 - Both routes sit behind `middleware.auth()`; a non-administrator receives `403` before any query runs.
 - `index` renders `pages/deleted_users` with `User.onlyTrashed()` ordered by `deleted_at` descending, each as `id`, `email` and an ISO-date `deletedAt`.
-- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()`, calls `restore()`, flashes "<email> is restored." and redirects to `deleted_users.index`. An id that is missing or not trashed fails as not found.
+- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()`, calls `restore()`, flashes "`<email>` is restored." and redirects to `deleted_users.index`. An id that is missing or not trashed fails as not found.
 - The administrator list comes from the environment; an address differing only in case is not an administrator.
 
 ## User flow

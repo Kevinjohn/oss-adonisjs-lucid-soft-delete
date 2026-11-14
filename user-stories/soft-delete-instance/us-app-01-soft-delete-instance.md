@@ -53,4 +53,4 @@ flowchart TD
     L --> N["Return, or propagate persistence error"]
 ```
 
-**Code references:** [deleteActionFor, persistDeletedAt and instance methods](../../src/mixin.ts), [Lucid BaseModel.delete (before:delete, adapter delete, after:delete)](../../node_modules/@adonisjs/lucid/build/src/orm/base_model/index.js), [lifecycle tests](../../tests/lifecycle.spec.ts), [instance API contract](../../docs/reference/README.md#delete).
+**Code references:** [deleteActionFor, persistDeletedAt and instance methods](../../src/mixin.ts), `@adonisjs/lucid` 22.4.2 `BaseModel.delete` (before:delete, adapter delete, after:delete), [lifecycle tests](../../tests/lifecycle.spec.ts), [instance API contract](../../docs/reference/README.md#delete).
