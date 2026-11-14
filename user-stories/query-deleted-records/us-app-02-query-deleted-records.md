@@ -3,7 +3,7 @@
 As application code using a `SoftDeletes` model, I want to query active rows or explicitly include deleted rows so that ordinary reads stay clean while recovery workflows can inspect the recycle bin.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
-**Access:** Application code. Query scoping does not authorize access. Builder `withTrashed()`/`onlyTrashed()` and relation sub-query scoping require the booted provider, which calls `extendModelQueryBuilder`; the static model methods and fetch hooks do not.
+**Access:** Application code. Query scoping does not authorize access. Builder `withTrashed()`/`onlyTrashed()` and relation sub-query scoping require the booted provider, which calls `extendModelQueryBuilder`. Install it wherever the model is used: without it a cloned query loses its read mode and falls back to active rows, and predicates a later fetch hook adds are not regrouped with the scope.
 **Entry:** Model queries, `withTrashed()`, or `onlyTrashed()`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [query-scope contract](../../docs/reference/scope-contract.md).
 **Source:** [SoftDeletes hooks and read modes](../../src/mixin.ts), [scope application](../../src/scope.ts).
