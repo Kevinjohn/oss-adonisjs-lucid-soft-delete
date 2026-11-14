@@ -7,7 +7,7 @@ As application code, I want to permanently remove matching rows in bulk so that 
 **Entry:** A Lucid model query builder followed by `forceDelete(options?)`.
 **Documentation:** [Builder lifecycle reference](../../docs/reference/README.md#builder-lifecycle-methods).
 **Source:** [extendModelQueryBuilder](../../src/bindings/model_query_builder.ts), [receipt implementation](../../src/receipts.ts).
-**Coverage:** [Builder lifecycle tests](../../tests/builder_lifecycle.spec.ts), [builder restore tests](../../tests/builder_restore.spec.ts).
+**Coverage:** [Builder lifecycle tests](../../tests/builder_lifecycle.spec.ts), [builder restore tests (row-window refusals)](../../tests/builder_restore.spec.ts), [receipt tests](../../tests/builder_receipts.spec.ts).
 
 ## Acceptance criteria
 

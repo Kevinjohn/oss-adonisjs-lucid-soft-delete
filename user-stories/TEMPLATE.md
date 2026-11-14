@@ -20,7 +20,7 @@ As an application service, I want to soft-delete a persisted model so that ordin
 
 ## Acceptance criteria
 
-- `delete()` saves a deletion timestamp through Lucid's ordinary save hooks; `deleteQuietly()` uses `saveQuietly()`.
+- `delete()` saves a deletion timestamp through Lucid's `beforeDelete`/`afterDelete` hooks and ordinary save hooks; `deleteQuietly()` uses `saveQuietly()`.
 - After deletion the model is marked not deleted in memory, while its stored `deletedAt` marks it as trashed; ordinary model fetches omit it.
 - Unsaved models are refused. A failed save restores the prior in-memory timestamp only if Lucid has not advanced the model's saved originals.
 
@@ -47,10 +47,10 @@ flowchart TD
     C -->|Already trashed and unchanged| E["Return without write"]
     C -->|Physical| F["Delegate to Lucid physical delete"]
     C -->|Soft| G{"Quiet method?"}
-    G -->|No| H["super.delete invokes overridden $getQueryFor"]
+    G -->|No| H["super.delete runs before:delete, then overridden $getQueryFor"]
     H --> I["persistDeletedAt with DateTime.local()"]
     G -->|Yes| J["persistDeletedAt with quietly = true"]
-    I --> K["model.save runs update and save hooks"]
+    I --> K["model.save runs update and save hooks, then after:delete runs"]
     J --> L["model.saveQuietly omits hooks"]
     K --> M["delete finally resets $isDeleted, including on failure"]
     L --> N["Return, or propagate persistence error"]

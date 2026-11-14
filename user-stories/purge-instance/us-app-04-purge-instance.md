@@ -13,6 +13,7 @@ As application code using a `SoftDeletes` model, I want to permanently delete on
 
 - `forceDelete()` stores the prior `$forceDelete` flag, sets it to `true`, calls `delete()`, then restores the prior flag in `finally` even when Lucid throws.
 - The `deleteActionFor()` decision uses the force flag to choose Lucid's physical-delete path for persisted active or trashed instances; the operation is not limited to trashed records.
+- An unsaved instance is refused with `E_MODEL_NOT_PERSISTED` before `deleteActionFor()` checks the force flag to select the physical path.
 - The physical delete follows Lucid hooks and database constraints. The row is removed; related rows follow database rules, not automatic package cascades.
 - A failed operation propagates. If an enclosing caller-owned transaction later rolls back, the database row returns but the retained model instance remains marked deleted; fetch a new instance.
 
@@ -20,8 +21,10 @@ As application code using a `SoftDeletes` model, I want to permanently delete on
 
 ```mermaid
 flowchart TD
-    A["Application selects a persisted model and applies its confirmation policy"] --> B["Call forceDelete()"]
-    B --> C{"Physical delete succeeds?"}
+    A["Application selects a model and applies its confirmation policy"] --> B["Call forceDelete()"]
+    B --> P{"Is the model persisted?"}
+    P -->|No| Q["Receive E_MODEL_NOT_PERSISTED"]
+    P -->|Yes| C{"Physical delete succeeds?"}
     C -->|No| D["Receive Lucid or database failure"]
     C -->|Yes| E["Row is physically removed"]
     E --> F["A caller transaction may still roll back the database change"]
@@ -35,7 +38,9 @@ Scope: model method through Lucid physical delete and caller transaction boundar
 flowchart TD
     A["ModelWithSoftDeletes.forceDelete"] --> B["Set $forceDelete = true"]
     B --> C["ModelWithSoftDeletes.delete"]
-    C --> D["deleteActionFor chooses physical"]
+    C --> U{"Persisted?"}
+    U -->|"No"| V["Throw E_MODEL_NOT_PERSISTED"]
+    U -->|"Yes"| D["deleteActionFor chooses physical"]
     D --> E["super.delete()"]
     E --> F["$getQueryFor delegates to BaseModel query"]
     F --> G["Lucid executes DELETE and hooks"]
