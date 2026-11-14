@@ -3,7 +3,7 @@
 As application code using a `SoftDeletes` model, I want to query active rows or explicitly include deleted rows so that ordinary reads stay clean while recovery workflows can inspect the recycle bin.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
-**Access:** Application code. Query scoping does not authorize access.
+**Access:** Application code. Query scoping does not authorize access. Builder `withTrashed()`/`onlyTrashed()` and relation sub-query scoping require the booted provider, which calls `extendModelQueryBuilder`; the static model methods and fetch hooks do not.
 **Entry:** Model queries, `withTrashed()`, or `onlyTrashed()`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [query-scope contract](../../docs/reference/scope-contract.md).
 **Source:** [SoftDeletes hooks and read modes](../../src/mixin.ts), [scope application](../../src/scope.ts).
@@ -14,7 +14,7 @@ As application code using a `SoftDeletes` model, I want to query active rows or 
 - `ModelWithSoftDeletes.ignoreDeleted()` is called by Lucid's `beforeFind` and `beforeFetch` hooks and delegates to `applyScope()`.
 - Default mode applies a qualified `whereNull(deletedAtColumn)` filter; `withTrashed()` removes the filter; `onlyTrashed()` applies `whereNotNull(deletedAtColumn)`.
 - `ignoreDeletedPaginate()` copies the selected mode to the count query before applying the same scope.
-- Relation counts, aggregates and existence queries (`withCount`, `withAggregate`, `has`, `whereHas` and variants) automatically apply the related model’s scope even without fetch hooks. Each related model query uses its own mode; callers set `withTrashed()` or `onlyTrashed()` in that relation callback when needed.
+- Relation counts, aggregates and existence queries (`withCount`, `withAggregate`, `has`, `whereHas` and variants) automatically apply, once the provider has installed the builder extension, the related model’s scope even without fetch hooks. Each related model query uses its own mode; callers set `withTrashed()` or `onlyTrashed()` in that relation callback when needed.
 - Fetch paths that bypass model hooks, including `pojo()`, raw queries and manually joined tables, need explicit predicates; the scope does not filter arbitrary joined or subquery tables.
 - Reads installing a deleted-row predicate require a mapped `deletedAt` column or reject with `E_MODEL_SOFT_DELETE`; `withTrashed()` bypasses that mapping check.
 
@@ -55,4 +55,4 @@ flowchart TD
     J --> K
 ```
 
-**Code references:** [hooks and read-mode constructors](../../src/mixin.ts), [applyScope](../../src/scope.ts), [relation subquery scope](../../src/sub_query_scope.ts), [scope contract](../../docs/reference/scope-contract.md), [scope bypass tests](../../tests/scope_bypass.spec.ts).
+**Code references:** [hooks and read-mode constructors](../../src/mixin.ts), [applyScope](../../src/scope.ts), [relation subquery scope](../../src/sub_query_scope.ts), [builder extension and macros](../../src/bindings/model_query_builder.ts), [provider](../../providers/lucid_soft_delete_provider.ts), [scope contract](../../docs/reference/scope-contract.md), [scope bypass tests](../../tests/scope_bypass.spec.ts).
