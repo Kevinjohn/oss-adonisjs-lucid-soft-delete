@@ -3,7 +3,7 @@
 As a soft-delete administrator of the API starter app, I want to list deleted accounts and restore one so that a user who deleted their account can be recovered.
 
 **Status:** Demo; source-reviewed in the API starter example only, not runtime-tested here.
-**Access:** Authenticated user whose email is listed in `SOFT_DELETE_ADMIN_EMAILS`, compared exactly and case-sensitively; others receive `403`.
+**Access:** Authenticated user whose email is listed in `SOFT_DELETE_ADMIN_EMAILS`, compared exactly and case-sensitively. A signed-in non-administrator receives `403`; a guest receives `401` from `middleware.auth()`.
 **Entry:** `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [Instance lifecycle methods](../../docs/reference/README.md#instance-lifecycle-methods).
 **Source:** [Routes](../../examples/starter/api/start/routes.ts) (lines 40-41), [DeletedUsersController](../../examples/starter/api/app/controllers/deleted_users_controller.ts) (lines 11, 22), [admin check](../../examples/starter/api/app/services/soft_delete_admins.ts).

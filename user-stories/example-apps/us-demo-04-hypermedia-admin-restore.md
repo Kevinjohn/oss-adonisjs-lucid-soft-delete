@@ -3,7 +3,7 @@
 As a soft-delete administrator of the hypermedia starter app, I want to see deleted accounts and restore one so that a user who deleted their account can sign in again.
 
 **Status:** Demo; source-reviewed in the hypermedia starter example only, not runtime-tested here.
-**Access:** Authenticated user whose email is listed in `SOFT_DELETE_ADMIN_EMAILS`, compared exactly and case-sensitively; others receive `403`.
+**Access:** Authenticated user whose email is listed in `SOFT_DELETE_ADMIN_EMAILS`, compared exactly and case-sensitively. A signed-in non-administrator receives `403`; a guest is redirected to `/login` by `middleware.auth()`.
 **Entry:** `GET /admin/deleted-users` and `POST /admin/deleted-users/:id/restore`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [Instance lifecycle methods](../../docs/reference/README.md#instance-lifecycle-methods).
 **Source:** [Routes](../../examples/starter/hypermedia/start/routes.ts) (lines 39-42), [DeletedUsersController](../../examples/starter/hypermedia/app/controllers/deleted_users_controller.ts) (lines 9, 22), [admin check](../../examples/starter/hypermedia/app/services/soft_delete_admins.ts).

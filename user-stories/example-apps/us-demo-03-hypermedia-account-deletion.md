@@ -11,7 +11,7 @@ As a signed-in user of the hypermedia starter app, I want to confirm and delete 
 
 ## Acceptance criteria
 
-- The deletion form has one control, the "Delete my account" submit button, and no input fields; the shared layout adds its usual navigation, theme toggle and log-out controls. It warns that the account is hidden at once, the user is signed out and an administrator can restore it.
+- The deletion form has one control, the "Delete my account" submit button, and no user-entered fields (the shared form component adds a hidden CSRF token); the shared layout adds its usual navigation, theme toggle and log-out controls. It warns that the account is hidden at once, the user is signed out and an administrator can restore it.
 - `destroy` calls `user.delete()`, logs out the `web` guard and redirects to the `session.create` route.
 - The row stays with `deletedAt` set; ordinary `User` queries no longer find it, so it cannot sign in. [US-DEMO-04](us-demo-04-hypermedia-admin-restore.md) restores it.
 - A guest is redirected by `middleware.auth()` before either route runs. There is no separate cancel control other than leaving the page.

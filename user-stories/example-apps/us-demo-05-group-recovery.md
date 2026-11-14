@@ -1,51 +1,52 @@
-# US-DEMO-05 — Delete, restore and purge a recovery group in the example app
+# US-DEMO-05 — Soft-delete rows as a recovery group in the example app
 
-As application code in the example app, I want to soft-delete selected rows as one recovery group so that exactly those rows can be restored once, or permanently purged after the group is invalidated.
+As application code in the example app, I want to soft-delete selected rows as one recovery group so that exactly the rows this call deleted can later be restored or purged together.
 
-**Status:** Demo; source-reviewed in the example app service only, not runtime-tested here. The package does not ship group recovery; this is an application-owned recipe built on builder `softDelete()`, `restore()` and `forceDelete()`.
-**Access:** Application code holding a caller-owned transaction; tenant scoping, authorization and write serialisation are the caller's.
-**Entry:** `deleteGroup`, `invalidateGroup`, `restoreGroup` and `purgeGroup` in the example service.
+**Status:** Demo; source-reviewed in the example app service only, not runtime-tested here. The package does not ship group recovery; this is an application-owned recipe built on builder `softDelete()`.
+**Access:** Application code holding a caller-owned transaction and a `tenantId` it has chosen and authorised; the service filters every query by that `tenantId`. Authorization and write serialisation are the caller's.
+**Entry:** `deleteGroup(trx, { tenantId, ids, label })` in the example service.
 **Documentation:** [Recipes](../../docs/recipes/index.md), [Builder lifecycle methods](../../docs/reference/README.md#builder-lifecycle-methods).
-**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`deleteGroup` line 40, `restoreGroup` line 115, `purgeGroup` line 173).
+**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`deleteGroup` line 40).
 **Coverage:** [Group recovery tests](../../examples/app/tests/group_recovery.spec.ts), [example tests](../../examples/app/tests/group_recovery_example.spec.ts).
 
 ## Acceptance criteria
 
-- `deleteGroup(trx, { tenantId, ids, label })` rejects an empty id list, creates a `usable` group and, for each active tenant row, calls `softDelete()`. Only rows where it reports one update join the group; if none do, it throws.
-- `restoreGroup` requires a `usable` group with current associations whose rows are all still trashed, marks the group `consumed`, then restores the rows with `onlyTrashed().restore()` and deletes the associations. A group restores once.
-- `invalidateGroup` marks a `usable` group `invalidated` and keeps its associations.
-- `purgeGroup` requires an `invalidated` group, at least one id, and that every selected row is currently associated with the group and trashed for the tenant; it then runs `onlyTrashed().forceDelete()`, removes those associations and marks the group `consumed` once none remain. A mismatch throws before any deletion.
-- Every operation runs inside the caller's transaction, but never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
+- `deleteGroup` removes duplicate ids and rejects an empty id list before any write.
+- It locks the tenant's active rows among the ids, creates a `usable` group, and calls `softDelete()` for each row. Only rows where `softDelete()` reports one update join the group, with their recorded `deletedAt`; any older association for that row is replaced.
+- If no row was soft-deleted, it throws. It returns the new group id otherwise.
+- It runs inside the caller's transaction and never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
+- [US-DEMO-06](us-demo-06-restore-recovery-group.md) restores the group; [US-DEMO-07](us-demo-07-purge-recovery-group.md) invalidates and purges it.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    A["Application selects tenant rows to remove together"] --> B["deleteGroup creates a usable group"]
-    B --> C{"Rows actually soft-deleted?"}
-    C -->|None| D["Receive error; caller rolls back"]
-    C -->|Some| E["Rows are hidden and recorded against the group"]
-    E --> F{"Recover or discard?"}
-    F -->|Recover| G["restoreGroup restores the rows once"]
-    F -->|Discard| H["invalidateGroup, then purgeGroup removes selected rows"]
+    A["Application selects tenant rows to remove together"] --> B{"Any ids supplied?"}
+    B -->|No| C["Receive error"]
+    B -->|Yes| D["deleteGroup creates a usable group"]
+    D --> E{"Rows actually soft-deleted?"}
+    E -->|None| F["Receive error; caller rolls back"]
+    E -->|Some| G["Rows are hidden and recorded against the group; receive group id"]
 ```
 
 ## Code flow
 
-Scope: example service functions through builder lifecycle macros inside a caller transaction; transaction commit is caller-owned.
+Scope: example service function through the builder `softDelete()` macro inside a caller transaction; transaction commit is caller-owned.
 
 ```mermaid
 flowchart TD
-    A["deleteGroup"] --> B["RecoverableRecord query forUpdate on active rows"]
-    B --> C["Insert recovery_groups usable"]
-    C --> D["Per row: softDelete returns affected count"]
-    D -->|1| E["Read deletedAt with withTrashed, insert recovery_records"]
-    D -->|Not 1| F["Skip row"]
-    G["restoreGroup"] --> H["Lock usable group and records"]
-    H --> I["Mark consumed, onlyTrashed restore, delete records"]
-    J["invalidateGroup"] --> K["Group status invalidated"]
-    L["purgeGroup"] --> M["Require invalidated group and owned ids"]
-    M --> N["onlyTrashed forceDelete, remove records, consume group when empty"]
+    A["deleteGroup"] --> B{"Deduplicated ids empty?"}
+    B -->|Yes| C["Throw"]
+    B -->|No| D["RecoverableRecord query by tenantId and ids, forUpdate"]
+    D --> E["Insert recovery_groups usable"]
+    E --> F["Per row: softDelete returns affected count"]
+    F -->|Not 1| G["Skip row"]
+    F -->|1| H["Read deletedAt with withTrashed"]
+    H --> I["Delete old recovery_records for row, insert new one"]
+    G --> J{"Any row captured?"}
+    I --> J
+    J -->|No| K["Throw; caller rolls back"]
+    J -->|Yes| L["Return group id"]
 ```
 
 **Code references:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts), [recipes](../../docs/recipes/index.md), [builder macros](../../src/bindings/model_query_builder.ts), [group recovery tests](../../examples/app/tests/group_recovery.spec.ts).
