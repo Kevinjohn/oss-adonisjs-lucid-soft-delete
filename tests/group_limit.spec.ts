@@ -11,7 +11,7 @@ import { test } from '@japa/runner'
 import type { Assert } from '@japa/assert'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationIndustry, RelationPost, RelationUser } from './fixtures/models.js'
+import { RelationComment, RelationIndustry, RelationPost, RelationUser } from './fixtures/models.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 /**
@@ -166,6 +166,83 @@ test.group('Soft-delete scope with relation group limits', (group) => {
       )
     assert.deepEqual(
       deletedUsers.map((user) => user.industries.map((industry) => industry.id)),
+      [[firstDeleted.id], [secondDeletedOne.id, secondDeletedTwo.id]]
+    )
+  })
+
+  test('scopes has-many-through rows before applying per-parent limits in each mode', async ({
+    assert,
+  }) => {
+    const queries: string[] = []
+    const db = await createDatabase((event) => queries.push(event.sql))
+    await createTables(db)
+
+    async function createUser(username: string) {
+      const user = new RelationUser()
+      user.fill({ username, email: `${username}@example.test`, managerId: null })
+      await user.save()
+      const post = new RelationPost()
+      post.fill({ userId: user.id, title: `${username}-post` })
+      await post.save()
+      return { user, post }
+    }
+
+    async function createComment(postId: number, body: string, trashed = false) {
+      const comment = new RelationComment()
+      comment.fill({ postId, body })
+      await comment.save()
+      if (trashed) await comment.delete()
+      return comment
+    }
+
+    const first = await createUser('first-hmt')
+    const second = await createUser('second-hmt')
+
+    const firstActiveOne = await createComment(first.post.id, 'first-active-one')
+    const firstDeleted = await createComment(first.post.id, 'first-deleted', true)
+    const firstActiveTwo = await createComment(first.post.id, 'first-active-two')
+    await createComment(first.post.id, 'first-active-three')
+
+    const secondDeletedOne = await createComment(second.post.id, 'second-deleted-one', true)
+    const secondActiveOne = await createComment(second.post.id, 'second-active-one')
+    const secondDeletedTwo = await createComment(second.post.id, 'second-deleted-two', true)
+    const secondActiveTwo = await createComment(second.post.id, 'second-active-two')
+
+    queries.length = 0
+    const activeUsers = await RelationUser.query()
+      .orderBy('id')
+      .preload('comments', (comments) => comments.groupLimit(2).groupOrderBy('comments.id', 'asc'))
+    assert.deepEqual(
+      activeUsers.map((user) => user.comments.map((comment) => comment.id)),
+      [
+        [firstActiveOne.id, firstActiveTwo.id],
+        [secondActiveOne.id, secondActiveTwo.id],
+      ]
+    )
+    const sql = queries.find((query) => query.includes('adonis_group_limit_counter'))
+    assert.isDefined(sql)
+    assertFilterInsideGroupLimitSubquery(assert, sql!)
+
+    const allUsers = await RelationUser.query()
+      .orderBy('id')
+      .preload('comments', (comments) =>
+        comments.groupLimit(3).groupOrderBy('comments.id', 'asc').withTrashed()
+      )
+    assert.deepEqual(
+      allUsers.map((user) => user.comments.map((comment) => comment.id)),
+      [
+        [firstActiveOne.id, firstDeleted.id, firstActiveTwo.id],
+        [secondDeletedOne.id, secondActiveOne.id, secondDeletedTwo.id],
+      ]
+    )
+
+    const deletedUsers = await RelationUser.query()
+      .orderBy('id')
+      .preload('comments', (comments) =>
+        comments.groupLimit(2).groupOrderBy('comments.id', 'asc').onlyTrashed()
+      )
+    assert.deepEqual(
+      deletedUsers.map((user) => user.comments.map((comment) => comment.id)),
       [[firstDeleted.id], [secondDeletedOne.id, secondDeletedTwo.id]]
     )
   })
