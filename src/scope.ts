@@ -39,10 +39,10 @@ type GroupLimit = {
 }
 
 /**
- * Detect Lucid's group-limit path for has-many and many-to-many relations. Lucid builds a
- * `row_number()` subquery named `adonis_group_limit_counter` and executes a fresh outer builder
- * whose table is the inner Knex builder. The filter must land on that inner builder so trashed
- * rows do not consume a parent's limit. The SQL is read from a clone; the query that will execute
+ * Detect Lucid's group-limit path for has-many, many-to-many and has-many-through relations. Lucid
+ * builds a `row_number()` subquery named `adonis_group_limit_counter` and executes a fresh outer
+ * builder whose table is the inner Knex builder. The filter must land on that inner builder so
+ * trashed rows do not consume a parent's limit. The SQL is read from a clone; the query that will execute
  * is never previewed.
  */
 function resolveGroupLimit(query: ModelQueryBuilderContract<LucidModel>): GroupLimit | undefined {

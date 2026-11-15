@@ -61,10 +61,10 @@ builder that runs twice would otherwise lose the caller's predicates. One group 
 change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
 `tests/scope.spec.ts` and `tests/builder_restore.spec.ts` cover it.
 
-For group-limited has-many and many-to-many relations, Lucid builds a `row_number()` subquery named
-`adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js`,
+For group-limited has-many, many-to-many and has-many-through relations, Lucid builds a
+`row_number()` subquery named `adonis_group_limit_counter` (`orm/relations/has_many/query_builder.js`,
 `orm/relations/many_to_many/query_builder.js` and `orm/relations/has_many_through/query_builder.js`;
-the has-many-through path is not covered by a test). The soft-delete filter must be added to the inner
+`tests/group_limit.spec.ts` covers all three). The soft-delete filter must be added to the inner
 Knex builder at `query.knexQuery._single.table` so deleted rows do not consume each parent's limit.
 The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
 for group-limited execution. Its table alias is also read from that inner builder when qualifying
