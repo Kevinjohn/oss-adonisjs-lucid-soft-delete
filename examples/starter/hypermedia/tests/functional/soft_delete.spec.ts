@@ -77,7 +77,7 @@ test.group('soft delete', (group) => {
     })
     assert.equal(created.headers.get('location'), '/dashboard')
     const signedUp = await User.findByOrFail('email', 'admin@example.test')
-    assert.isFalse(signedUp.isSoftDeleteAdmin)
+    assert.include([false, 0], signedUp.isSoftDeleteAdmin)
     const listed = await signup.request('/admin/deleted-users')
     assert.equal(listed.status, 403)
     await signup.request('/dashboard')
@@ -86,11 +86,25 @@ test.group('soft delete', (group) => {
     assert.isNull(await User.find(deleted.id))
   })
 
-  test('an unselected account is not an administrator', async ({ assert }) => {
-    await User.create({ email: 'Admin@example.test', password })
-    const lookalike = new FormSession()
-    await lookalike.login('Admin@example.test', password)
-    const listed = await lookalike.request('/admin/deleted-users')
+  test('revoking an administrator denies later list and restore requests', async ({ assert }) => {
+    const adminAccount = await User.create({ email: 'admin@example.test', password })
+    adminAccount.isSoftDeleteAdmin = true
+    await adminAccount.save()
+    const deleted = await User.create({ email: 'deleted@example.test', password })
+    await deleted.delete()
+
+    const admin = new FormSession()
+    await admin.login(adminAccount.email, password)
+    const before = await admin.request('/admin/deleted-users')
+    assert.equal(before.status, 200)
+    adminAccount.isSoftDeleteAdmin = false
+    await adminAccount.save()
+
+    const listed = await admin.request('/admin/deleted-users')
     assert.equal(listed.status, 403)
+    await admin.request('/dashboard')
+    const restored = await admin.request(`/admin/deleted-users/${deleted.id}/restore`, {})
+    assert.equal(restored.status, 403)
+    assert.isNull(await User.find(deleted.id))
   })
 })

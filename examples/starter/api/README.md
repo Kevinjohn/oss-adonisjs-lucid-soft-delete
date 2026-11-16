@@ -41,8 +41,7 @@ pnpm dev
 checksum changes with every build, so the install does not use a frozen lockfile.
 
 Create and verify the administrator account first. As a trusted database operator, grant it by
-setting `users.is_soft_delete_admin = true` for its existing numeric `id`. For example, after
-confirming the selected ID belongs to the intended account:
+setting `users.is_soft_delete_admin = true` for its existing numeric `id`. For example, with the default SQLite connection, after confirming the selected ID belongs to the intended account:
 
 ```sql
 UPDATE users SET is_soft_delete_admin = true WHERE id = 123;
