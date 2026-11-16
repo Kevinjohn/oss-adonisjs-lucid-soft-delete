@@ -150,7 +150,7 @@ read_owner() {
   if IFS= read -r extra <&3 || [ -n "$extra" ]; then exec 3<&-; return 1; fi
   exec 3<&-
   case "$owner" in ''|0*|*[!0-9]*) return 1;; esac
-  [ "${#owner}" -le 10 ] && [ "$owner" -le 2147483647 ]
+  [ "$size" -eq "$((${#owner} + 1))" ] && [ "${#owner}" -le 10 ] && [ "$owner" -le 2147483647 ]
 }
 if [ "$COMMAND" != status ]; then
   mkdir -p "$ROOT/tmp"

@@ -195,7 +195,17 @@ test.group('pg.sh lock', () => {
     assert.include(second.stderr, 'cluster lock busy')
   })
 
-  for (const record of ['123x\n', '12', '1\n2\n', '99999999999\n', '0\n']) {
+  for (const record of [
+    '123x\n',
+    '123\0\n',
+    '123\r\n',
+    '12',
+    '1\n2\n',
+    '1\n\n',
+    '01\n',
+    '99999999999\n',
+    '0\n',
+  ]) {
     test(`refuses malformed owner record ${JSON.stringify(record)}`, async ({
       assert,
       cleanup,
