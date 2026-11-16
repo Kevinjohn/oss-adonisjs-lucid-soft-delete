@@ -189,6 +189,35 @@ export async function createTables(db: Database) {
   })
 }
 
+/** Registers disposal only after the namespace CREATE succeeds. */
+export async function acquireOwnedNamespace(
+  create: () => Promise<unknown>,
+  close: () => Promise<unknown>,
+  drop: () => Promise<unknown>,
+  registerCleanup: (cleanup: () => Promise<void>) => void
+) {
+  await create()
+  registerCleanup(async () => {
+    let closeFailed = false
+    let closeFailure: unknown
+    try {
+      await close()
+    } catch (error) {
+      closeFailed = true
+      closeFailure = error
+    }
+
+    try {
+      await drop()
+    } catch (dropFailure) {
+      if (closeFailed)
+        throw new AggregateError([closeFailure, dropFailure], 'Namespace cleanup failed')
+      throw dropFailure
+    }
+    if (closeFailed) throw closeFailure
+  })
+}
+
 /** Acquires a secondary test namespace and registers disposal before the caller can use it. */
 export async function createSecondaryConnection(db: Database) {
   const test = getActiveTest()
@@ -198,11 +227,25 @@ export async function createSecondaryConnection(db: Database) {
 
   const secondaryConfig = structuredClone(primaryConfig)
   const namespace = `lucid_soft_delete_${randomUUID().replaceAll('-', '')}`
+  let secondaryAdded = false
+  const close = async () => {
+    if (secondaryAdded) await db.manager.close('secondary', true)
+  }
   if (dbClient === 'pg') {
-    await db.rawQuery(`CREATE SCHEMA ${namespace}`).exec()
+    await acquireOwnedNamespace(
+      () => db.rawQuery(`CREATE SCHEMA ${namespace}`).exec(),
+      close,
+      () => db.rawQuery(`DROP SCHEMA ${namespace} CASCADE`).exec(),
+      (cleanup) => test.cleanup(cleanup)
+    )
     ;(secondaryConfig as PostgreConfig).searchPath = [namespace]
   } else if (dbClient === 'mysql') {
-    await db.rawQuery(`CREATE DATABASE ${namespace}`).exec()
+    await acquireOwnedNamespace(
+      () => db.rawQuery(`CREATE DATABASE ${namespace}`).exec(),
+      close,
+      () => db.rawQuery(`DROP DATABASE ${namespace}`).exec(),
+      (cleanup) => test.cleanup(cleanup)
+    )
     const mysqlConfig = secondaryConfig as { connection: { database?: string } }
     mysqlConfig.connection = { ...mysqlConfig.connection, database: namespace }
   } else {
@@ -214,14 +257,10 @@ export async function createSecondaryConnection(db: Database) {
       dirname(sqliteConfig.connection.filename),
       'secondary.sqlite3'
     )
+    test.cleanup(close)
   }
-
-  test.cleanup(async () => {
-    await db.manager.close('secondary', true)
-    if (dbClient === 'pg') await db.rawQuery(`DROP SCHEMA ${namespace} CASCADE`).exec()
-    if (dbClient === 'mysql') await db.rawQuery(`DROP DATABASE ${namespace}`).exec()
-  })
   db.manager.add('secondary', secondaryConfig)
+  secondaryAdded = true
   db.manager.connect('secondary')
   return db.connection('secondary')
 }
