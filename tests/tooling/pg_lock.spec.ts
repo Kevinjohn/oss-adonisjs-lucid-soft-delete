@@ -7,10 +7,10 @@
  * file that was distributed with this source code.
  */
 
-import { chmod, copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
 
@@ -51,6 +51,46 @@ function deadPid() {
 }
 
 test.group('pg.sh lock', () => {
+  test('keeps the first taker as owner while a second taker attempts stale recovery', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(cleanup)
+    await writeFile(join(root, 'tmp/pg16.lock/owner'), `${deadPid()}\n`)
+    await writeFile(
+      join(root, 'fake-bin/pg_ctl'),
+      '#!/usr/bin/env bash\ncase "$1" in --version) echo "pg_ctl (PostgreSQL) 16.4";; -D) echo ENTERED; read -r _; exit 3;; esac\n'
+    )
+    const first = spawn('bash', [join(root, 'bin/pg.sh'), 'stop'], {
+      cwd: root,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: `${join(root, 'fake-bin')}:${process.env.PATH}` },
+    })
+    cleanup(async () => {
+      first.stdin.end('\n')
+      if (first.exitCode === null) first.kill()
+    })
+    const entered = new Promise<void>((resolve, reject) => {
+      let output = ''
+      first.stdout.on('data', (chunk: Buffer) => {
+        output += chunk.toString()
+        if (output.includes('ENTERED')) resolve()
+      })
+      first.on('exit', (code) => reject(new Error(`first taker exited before barrier: ${code}`)))
+    })
+    await entered
+    const owner = await readFile(join(root, 'tmp/pg16.lock/owner'), 'utf8')
+    const second = stop(root)
+    assert.notEqual(second.status, 0)
+    assert.include(second.stderr, 'cluster lock busy')
+    assert.equal(owner, `${first.pid}\n`)
+    const exited = new Promise<number | null>((resolve) => first.on('exit', resolve))
+    first.stdin.end('\n')
+    const code = await exited
+    assert.equal(code, 0)
+    assert.deepEqual(await readdir(join(root, 'tmp')), [])
+  })
+
   test('takes over a lock whose owner is gone, replacing the whole directory', async ({
     assert,
     cleanup,
@@ -75,5 +115,19 @@ test.group('pg.sh lock', () => {
     assert.notEqual(result.status, 0)
     assert.include(result.stderr, 'cluster lock busy')
     assert.deepEqual(await readdir(join(root, 'tmp/pg16.lock')), ['owner'])
+  })
+
+  test('leaves an ownerless lock untouched after interrupted publication', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await fixture(cleanup)
+
+    const result = stop(root)
+
+    assert.notEqual(result.status, 0)
+    assert.include(result.stderr, 'cluster lock busy')
+    assert.deepEqual(await readdir(join(root, 'tmp/pg16.lock')), [])
+    assert.deepEqual(await readdir(join(root, 'tmp')), ['pg16.lock'])
   })
 })
