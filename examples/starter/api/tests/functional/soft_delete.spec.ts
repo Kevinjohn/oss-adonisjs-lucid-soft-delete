@@ -45,6 +45,47 @@ test.group('soft delete', (group) => {
     login.assertStatus(200)
   })
 
+  test('the same bearer token resumes authenticating after restoration', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await User.create({ email: 'admin@example.test', password })
+    admin.isSoftDeleteAdmin = true
+    await admin.save()
+    const member = await User.create({ email: 'member@example.test', password })
+
+    const login = await client.post('/api/v1/auth/login').json({ email: member.email, password })
+    login.assertStatus(200)
+    const token = login.body().data.token as string
+    assert.isString(token)
+    assert.isNotEmpty(token)
+
+    const profileBefore = await client
+      .get('/api/v1/account/profile')
+      .header('Authorization', `Bearer ${token}`)
+    profileBefore.assertStatus(200)
+    assert.equal(profileBefore.body().data.email, member.email)
+
+    const deleted = await client
+      .delete('/api/v1/account')
+      .header('Authorization', `Bearer ${token}`)
+    deleted.assertStatus(204)
+    const profileWhileDeleted = await client
+      .get('/api/v1/account/profile')
+      .header('Authorization', `Bearer ${token}`)
+    profileWhileDeleted.assertStatus(401)
+
+    const restored = await client
+      .post(`/api/v1/admin/deleted-users/${member.id}/restore`)
+      .loginAs(admin)
+    restored.assertStatus(200)
+    const profileAfter = await client
+      .get('/api/v1/account/profile')
+      .header('Authorization', `Bearer ${token}`)
+    profileAfter.assertStatus(200)
+    assert.equal(profileAfter.body().data.email, member.email)
+  })
+
   test('a non-administrator and a guest cannot list or restore', async ({ client }) => {
     const member = await User.create({ email: 'member@example.test', password })
     const deleted = await User.create({ email: 'deleted@example.test', password })

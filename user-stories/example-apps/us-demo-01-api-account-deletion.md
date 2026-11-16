@@ -13,7 +13,7 @@ As a signed-in user of the API starter app, I want to delete my account so that 
 
 - The route sits in the `account` group behind `middleware.auth()`; a request without valid credentials never reaches the controller.
 - `destroy` loads the signed-in user with `auth.getUserOrFail()`, calls `user.delete()` and returns `204 No Content`; the request takes no input fields.
-- The row stays with `deletedAt` set. Ordinary `User` queries no longer find it, so its tokens stop authenticating and it cannot log in; [US-DEMO-02](us-demo-02-api-admin-restore.md) restores it.
+- The row stays with `deletedAt` set. Ordinary `User` queries no longer find it, so the same issued bearer token authenticates before deletion, is refused while deleted, and authenticates again after [US-DEMO-02](us-demo-02-api-admin-restore.md) restores the account. Password login is refused while deleted.
 - A failed write propagates as an error response; the controller does not catch it.
 
 ## User flow
