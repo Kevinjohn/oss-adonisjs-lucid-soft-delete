@@ -666,6 +666,26 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.isNotNull(persistedTrashed?.deleted_at)
   })
 
+  test('a failed delete leaves a fetched projection with unknown deletion state', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const active = await seedRecord('failed-projected-delete')
+    const projected = await LifecycleRecord.query()
+      .select('id')
+      .where('id', active.id)
+      .firstOrFail()
+    LifecycleRecord.failOn = 'beforeSave'
+
+    await assert.rejects(() => projected.delete(), 'beforeSave failed')
+
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    await assert.rejects(() => projected.restore(), E_MODEL_UNKNOWN_DELETION_STATE)
+    const stored = await LifecycleRecord.findOrFail(active.id)
+    assert.isNull(stored.deletedAt)
+  })
+
   test('restore preserves the force-deleted error for a fetched projection', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)

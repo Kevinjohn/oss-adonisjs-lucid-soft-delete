@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Failed deletion of a fetched projection preserves its unknown deletion state.
+
 ## 0.1.7 - 2026-11-08
 
 ### Added

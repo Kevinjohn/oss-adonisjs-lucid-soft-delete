@@ -28,13 +28,17 @@ async function persistDeletedAt(
   quietly = false
 ): Promise<void> {
   const previous = model.deletedAt
+  const hadDeletedAt = Object.hasOwn(model.$attributes, 'deletedAt')
   const originalsBeforeSave = model.$original
   model.deletedAt = value
   try {
     if (quietly) await model.saveQuietly()
     else await model.save()
   } catch (error) {
-    if (model.$original === originalsBeforeSave) model.deletedAt = previous
+    if (model.$original === originalsBeforeSave) {
+      if (hadDeletedAt) model.deletedAt = previous
+      else delete model.$attributes.deletedAt
+    }
     throw error
   }
 }
