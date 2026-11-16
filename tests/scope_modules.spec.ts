@@ -65,7 +65,7 @@ test.group('scope modules', (group) => {
     assert.equal(resolveTableReference(RelationUser.query().from('users as u')), 'u')
     const aliased = RelationUser.query()
     ;(aliased as unknown as { tableAlias?: string }).tableAlias = 'alias'
-    assert.equal(resolveTableReference(aliased), 'alias')
+    assert.equal(resolveTableReference(aliased), 'users')
     const changed = RelationUser.query().from({ prior: 'users' }).from('users as current')
     assert.equal(resolveTableReference(changed), 'current')
     assert.equal(resolveTableReference(changed.clone()), 'current')

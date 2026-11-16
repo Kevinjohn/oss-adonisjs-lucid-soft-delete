@@ -97,6 +97,27 @@ test.group('Read scope', (group) => {
     assert.equal(await query.where('current.id', target.id).softDelete(), 1)
   })
 
+  test('drops a previous alias when a builder returns to its unaliased table', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('alias-removed')
+    await createUser('deleted', true)
+    const query = User.query().from({ prior: 'users' }).from('users')
+    const rows = await query
+    const clonedRows = await query.clone()
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.deepEqual(
+      clonedRows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(await query.where('users.id', target.id).softDelete(), 1)
+  })
+
   test('groups a user OR expression in only-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
