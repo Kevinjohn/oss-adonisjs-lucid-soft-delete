@@ -125,7 +125,7 @@ Soft-deletes a persisted active instance by saving a local deletion timestamp. I
 - **Return/no-op:** `Promise<void>`. If already trashed, not physically deleted, and `deletedAt` is unchanged, it skips the write and hooks; other dirty attributes remain dirty and are not saved by that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** On the soft-delete write, Lucid runs `beforeDelete` → `beforeUpdate` → `beforeSave` → database write → `afterUpdate` → `afterSave` → `afterDelete`. Hook and database errors propagate. An after-hook can fail after the write completed.
 - **Dirty fields and timestamps:** Dirty fields are saved with the deletion timestamp. Configured automatic `updatedAt` advances. Lucid column `prepare` functions run.
-- **Client:** Uses the instance's client; a caller transaction must be attached to the instance.
+- **Client:** Uses the instance's client; a caller transaction must be attached to the instance. A fetched projection without `deletedAt` reads that column through the instance's write client before deleting. If the stored row is already trashed, deletion skips the write and hooks. An active row still follows the normal delete path.
 
 ```ts
 const user = await User.findOrFail(userId)
@@ -142,7 +142,7 @@ Takes the same active-to-trashed path as `delete()` using Lucid's quiet save met
 - **Return/no-op:** `Promise<void>`. Repeating a delete on a trashed, non-deleted instance with unchanged `deletedAt` is a no-op; other dirty attributes remain unsaved on that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** No model hooks run. Errors from the persistence operation propagate.
 - **Dirty fields and timestamps:** A soft-delete write saves other dirty fields and advances configured `updatedAt`; column `prepare` runs. The no-op writes nothing.
-- **Client:** Uses the instance's client, including any caller transaction attached to it.
+- **Client:** Uses the instance's client, including any caller transaction attached to it. A fetched projection without `deletedAt` reads that column through the instance's write client before deleting and skips the write when the stored row is already trashed.
 
 ```ts
 const user = await User.findOrFail(userId)

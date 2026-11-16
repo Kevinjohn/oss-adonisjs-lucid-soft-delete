@@ -46,12 +46,27 @@ async function persistDeletedAt(
 type DeleteAction = 'physical' | 'skip' | 'soft'
 
 /** Shared guard for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
-function deleteActionFor(
+async function deleteActionFor(
   model: InstanceType<typeof BaseModel> & { $forceDelete: boolean; trashed: boolean }
-): DeleteAction {
+): Promise<DeleteAction> {
   if (!model.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
   if (model.$isDeleted || model.$forceDelete) return 'physical'
   if (model.trashed && !('deletedAt' in model.$dirty)) return 'skip'
+  if (!model.$isLocal && !('deletedAt' in model.$attributes)) {
+    const Model = model.constructor as typeof BaseModel
+    const client = Model.$adapter.modelClient(model)
+    const deletedAtColumn = Model.$getColumn('deletedAt')!.columnName
+    const primaryKeyColumn = Model.$getColumn(Model.primaryKey)?.columnName ?? Model.primaryKey
+    const primaryKeyValue = Model.selfAssignPrimaryKey
+      ? model.$original[Model.primaryKey]
+      : model.$primaryKeyValue
+    const row = await client
+      .getWriteClient()(Model.table)
+      .select(deletedAtColumn)
+      .where(primaryKeyColumn, primaryKeyValue)
+      .first()
+    if (row?.[deletedAtColumn] !== null && row?.[deletedAtColumn] !== undefined) return 'skip'
+  }
   return 'soft'
 }
 
@@ -180,7 +195,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      * Override default delete method
      */
     async delete(): Promise<void> {
-      const action = deleteActionFor(this)
+      const action = await deleteActionFor(this)
       if (action === 'skip') return
       if (action === 'physical') return super.delete()
       try {
@@ -191,7 +206,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
     }
 
     async deleteQuietly(): Promise<void> {
-      const action = deleteActionFor(this)
+      const action = await deleteActionFor(this)
       if (action === 'skip') return
       if (action === 'physical') return super.deleteQuietly()
       await persistDeletedAt(this, DateTime.local(), true)
