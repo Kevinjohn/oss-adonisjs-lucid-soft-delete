@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-16
+
 ### Added
 
 - Starter UI examples: signed-in navigation to account deletion and administrator-only navigation to deleted accounts.
@@ -12,13 +14,17 @@
 - Detect relation group limits from their builder structure so bound text cannot be mistaken for the window counter and normal queries are not rendered for detection.
 - Qualify soft-delete filters with the current FROM alias after a builder changes aliases.
 - Receipt primary-key types include binary driver values (`Uint8Array`, including Node buffers).
-
 - Cleared lifecycle query limits, offsets and aggregate projections no longer block count or receipt writes.
-
 - Count-mode lifecycle writes reject has-one limits, including a rendered single-row limit, because a non-unique foreign key could otherwise mutate multiple rows.
 - Failed deletion of a fetched projection preserves its unknown deletion state.
 - Deleting a fetched projection of an already trashed record preserves its deletion time.
 - Starter examples: deleted-account administration now requires an operator-granted flag on an existing account. Public signup cannot gain access by claiming a configured email address.
+
+### Migration notes
+
+- In the starter examples, replace `SOFT_DELETE_ADMIN_EMAILS` with an operator-granted `users.is_soft_delete_admin` flag on an existing account. Remove the retired environment setting; public signup no longer grants administrator access by matching a configured email address.
+- Deleting a fetched model projection that omitted `deletedAt` now reads the stored deletion state through the model's write client before deciding whether to write. Account for this additional read in query counts and ensure the model's client is the intended transaction client when transaction-bound behavior is required.
+- Receipt IDs now include binary primary keys as `Uint8Array` values (including Node buffers), so their public type is `number | string | Uint8Array`. If a Lucid binding or application layer assumes only numbers or strings, narrow or handle the binary value at that boundary; do not discard it.
 
 ## 0.1.7 - 2026-11-08
 
