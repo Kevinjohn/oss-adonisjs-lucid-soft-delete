@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Starter examples: deleted-account administration now requires an operator-granted flag on an existing account. Public signup cannot gain access by claiming a configured email address.
+
 ## 0.1.7 - 2026-11-08
 
 ### Added
