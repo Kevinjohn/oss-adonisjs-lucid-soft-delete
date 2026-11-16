@@ -57,7 +57,9 @@ The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's in
 into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
 `applyWhere()` shifts the first predicate off every group when it holds several groups
 (`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
-builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
+builder that runs twice would otherwise lose the caller's predicates. The `applyWhere()` wrapper
+also groups an opted-in builder's multiple caller groups before its first render, including
+`withTrashed()` builders with no scope node. One group keeps them. A Lucid
 change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
 `tests/scope.spec.ts` and `tests/builder_restore.spec.ts` cover it.
 
@@ -69,8 +71,8 @@ Knex builder at `query.knexQuery._single.table` so deleted rows do not consume e
 The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
 for group-limited execution. Its table alias is also read from that inner builder when qualifying
 `deletedAt`.
-The package detects that path by inspecting SQL generated from a clone; it never previews the query
-that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
+The package detects that path from the inner builder's raw window projection, without rendering a
+clone or matching bound data. This depends on Lucid/Knex internals and is covered by group-limit tests.
 
 On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
 before the relation key and soft-delete filter. Builder `restore()` does not support a prior
@@ -99,8 +101,9 @@ from silently widening its target selection.
 Count-mode writes read the same `groupConstraints` and the Knex `_single.limit` and `_single.offset`
 fields. `HasOneQueryBuilder.applyConstraints()` and `BelongsToQueryBuilder.applyConstraints()` add
 `limit(1)` for select actions only, so a builder rendered with `toSQL()` before the write carries
-that limit; the guard accepts a limit of exactly `1` on those two relation types. Covered by
-`tests/builder_restore.spec.ts`.
+that limit. The guard accepts a limit of exactly `1` only on belongs-to. Has-one limits are
+rejected because its foreign key need not be unique and a caller limit is indistinguishable
+from the rendered select limit. Covered by `tests/builder_restore.spec.ts`.
 
 The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
 builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target

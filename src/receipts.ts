@@ -18,7 +18,7 @@ import {
 import { aliasFromTable, qualifiedColumnReference } from './table_reference.js'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
-export type PrimaryKeyValue = number | string
+export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
   receipt?: boolean
@@ -46,7 +46,7 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 type Query = ModelQueryBuilderContract<LucidModel>
 type KnexLike = {
   _method?: string
-  _statements: { grouping: string }[]
+  _statements: { grouping: string; type?: string }[]
   _single: { table?: unknown; limit?: unknown; offset?: unknown }
   client?: { transacting?: boolean }
 }
@@ -96,13 +96,24 @@ export function ensureReceiptSupport(query: Query): void {
     hasGroupBy?: boolean
     hasUnion?: boolean
   }
-  if (flags.hasAggregates || flags.hasGroupBy || flags.hasUnion) {
+  if (
+    knexQuery._statements.some(
+      (statement) =>
+        statement.grouping === 'columns' &&
+        (statement.type === 'aggregate' || statement.type === 'aggregateRaw')
+    ) ||
+    flags.hasGroupBy ||
+    flags.hasUnion
+  ) {
     throw new E_BULK_RECEIPT_UNSUPPORTED('aggregate, group by or union queries')
   }
   if (knexQuery._statements.some((statement) => REJECTED_GROUPINGS.has(statement.grouping))) {
     throw new E_BULK_RECEIPT_UNSUPPORTED('joins, group by, having, order by or union clauses')
   }
-  if (knexQuery._single.limit !== undefined || knexQuery._single.offset !== undefined) {
+  if (
+    (knexQuery._single.limit !== undefined && knexQuery._single.limit !== null) ||
+    (knexQuery._single.offset !== undefined && knexQuery._single.offset !== null)
+  ) {
     throw new E_BULK_RECEIPT_UNSUPPORTED('limit or offset clauses')
   }
   const table = knexQuery._single.table
@@ -155,7 +166,8 @@ export async function executeWithReceipt(
   if (ids.length === 0) return { count: 0, ids }
 
   const target = query.clone()
-  target.whereIn(reference, ids)
+  // Lucid types omit binary bindings, though Knex accepts the raw driver values.
+  target.whereIn(reference, ids as string[])
   const count = normalizeWriteCount(await write(target))
   if (count !== ids.length) throw new E_BULK_RECEIPT_DIVERGED(ids.length, count)
   return { count, ids }

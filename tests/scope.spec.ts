@@ -57,6 +57,67 @@ test.group('Read scope', (group) => {
     )
   })
 
+  test('treats a marker-valued alias predicate as ordinary data', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('adonis_group_limit_counter')
+    await createUser('deleted', true)
+    let rendered = 0
+    const query = User.query()
+      .from({ u: 'users' })
+      .where('u.username', 'adonis_group_limit_counter')
+      .where((subquery) => {
+        rendered++
+        subquery.where('u.id', target.id)
+      })
+    const rows = await query
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(rendered, 1)
+  })
+
+  test('follows the last alias when a builder replaces its FROM', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('last-alias')
+    await createUser('deleted', true)
+    const query = User.query().from({ prior: 'users' }).from('users as current')
+    const rows = await query
+    const clonedRows = await query.clone()
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.deepEqual(
+      clonedRows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(await query.where('current.id', target.id).softDelete(), 1)
+  })
+
+  test('drops a previous alias when a builder returns to its unaliased table', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('alias-removed')
+    await createUser('deleted', true)
+    const query = User.query().from({ prior: 'users' }).from('users')
+    const rows = await query
+    const clonedRows = await query.clone()
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.deepEqual(
+      clonedRows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(await query.where('users.id', target.id).softDelete(), 1)
+  })
+
   test('groups a user OR expression in only-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
@@ -119,6 +180,18 @@ test.group('Read scope', (group) => {
     const activePost = new RelationPost()
     activePost.fill({ userId: parent.id, title: 'active-branch' })
     await activePost.save()
+
+    const trashedOnlyParent = new RelationUser()
+    trashedOnlyParent.fill({
+      username: 'trashed-only-parent',
+      email: 'trashed-only-parent@example.test',
+      managerId: null,
+    })
+    await trashedOnlyParent.save()
+    const trashedOnlyPost = new RelationPost()
+    trashedOnlyPost.fill({ userId: trashedOnlyParent.id, title: 'trashed-branch' })
+    await trashedOnlyPost.save()
+    await trashedOnlyPost.delete()
 
     const parents = await RelationUser.query().whereHas('posts', (query) =>
       query.where('title', 'trashed-branch').orWhere('title', 'active-branch')
@@ -430,6 +503,40 @@ test.group('Read scope', (group) => {
     const sql = query.toQuery()
     assert.equal((sql.match(/deleted_at/g) ?? []).length, 1)
     assert.match(sql, /\)\) and [`"]users[`"]\.[`"]deleted_at[`"] is null$/)
+  })
+
+  test('keeps grouped with-trashed predicates through preview, reuse and a write', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('group-target')
+    const bystander = await createUser('group-bystander')
+    const trashed = await createUser('group-trashed', true)
+
+    const query = User.query()
+      .where('id', target.id)
+      .wrapExisting()
+      .where('username', target.username)
+      .withTrashed()
+    query.toQuery()
+    for (let run = 0; run < 2; run++) {
+      const rows = await query
+      assert.deepEqual(
+        rows.map((user) => user.id),
+        [target.id]
+      )
+    }
+    assert.equal(await query.softDelete(), 1)
+    const allRows = await User.query().withTrashed().orderBy('id')
+    assert.deepEqual(
+      allRows.map((user) => [user.id, Boolean(user.deletedAt)]),
+      [
+        [target.id, true],
+        [bystander.id, false],
+        [trashed.id, true],
+      ]
+    )
   })
 
   test('keeps caller predicates when a builder executes more than once', async ({ assert }) => {

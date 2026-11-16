@@ -101,6 +101,17 @@ class CustomLifecycleRecord extends compose(BaseModel, SoftDeletes) {
   declare deletedAt?: DateTime | null
 }
 
+class SelfAssignedLifecycleRecord extends compose(BaseModel, SoftDeletes) {
+  static table = 'posts'
+  static selfAssignPrimaryKey = true
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare title: string
+}
+
 async function seedRecord(username = 'lifecycle') {
   const record = new LifecycleRecord()
   record.fill({ username, email: `${username}@example.test` })
@@ -185,11 +196,13 @@ test.group('Soft-delete lifecycle', (group) => {
     await createTables(db)
     const record = await seedRecord()
     const previousDeletedAt = record.deletedAt
+    const hadOwnDeletedAt = Object.hasOwn(record, 'deletedAt')
     LifecycleRecord.failOn = 'beforeSave'
 
     await assert.rejects(() => record.delete(), 'beforeSave failed')
 
     assert.equal(record.deletedAt, previousDeletedAt)
+    assert.equal(Object.hasOwn(record, 'deletedAt'), hadOwnDeletedAt)
     assert.isFalse(record.$isDeleted)
     assert.isFalse(record.$isDirty)
     const stored = await LifecycleRecord.query().where('id', record.id).firstOrFail()
@@ -429,6 +442,136 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.deepEqual(statements, [])
   })
 
+  test('projected trashed deletes retain the stored timestamp and dirty bystanders', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const saved = await seedRecord('projected-trashed')
+    await saved.delete()
+    const original = await LifecycleRecord.withTrashed().where('id', saved.id).firstOrFail()
+
+    for (const quietly of [false, true]) {
+      const projected = await LifecycleRecord.withTrashed()
+        .select('id', 'username')
+        .where('id', saved.id)
+        .firstOrFail()
+      projected.username = `unsaved-${quietly}`
+      statements.length = 0
+      LifecycleRecord.events = []
+
+      if (quietly) await projected.deleteQuietly()
+      else await projected.delete()
+
+      assert.notProperty(projected.$attributes, 'deletedAt')
+      assert.isTrue(projected.$isDirty)
+      assert.deepEqual(LifecycleRecord.events, [])
+      assert.deepEqual(
+        statements.filter((sql) => /^update\b/i.test(sql)),
+        []
+      )
+      const stored = await LifecycleRecord.withTrashed().where('id', saved.id).firstOrFail()
+      assert.equal(stored.deletedAt!.toMillis(), original.deletedAt!.toMillis())
+      assert.equal(stored.username, saved.username)
+    }
+  })
+
+  test('projected active deletes still write through normal and quiet paths', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+
+    for (const quietly of [false, true]) {
+      const saved = await seedRecord(`projected-active-${quietly}`)
+      const projected = await LifecycleRecord.query()
+        .select('id')
+        .where('id', saved.id)
+        .firstOrFail()
+      if (quietly) await projected.deleteQuietly()
+      else await projected.delete()
+
+      const stored = await LifecycleRecord.withTrashed().where('id', saved.id).firstOrFail()
+      assert.isNotNull(stored.deletedAt)
+      assert.isFalse(projected.$isDeleted)
+    }
+  })
+
+  test('projected deletion reads a custom column on the attached transaction', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const saved = new CustomLifecycleRecord()
+    saved.title = 'custom-projected-delete'
+    await saved.save()
+    const projected = await CustomLifecycleRecord.query()
+      .select('id')
+      .where('id', saved.id)
+      .firstOrFail()
+    const transaction = await db.transaction()
+    projected.useTransaction(transaction)
+    const past = DateTime.fromISO('2020-01-01T00:00:00Z')
+
+    try {
+      const state = await CustomLifecycleRecord.query({ client: transaction })
+        .where('id', saved.id)
+        .firstOrFail()
+      state.deletedAt = past
+      await state.saveQuietly()
+      assert.notProperty(projected.$attributes, 'deletedAt')
+      await projected.deleteQuietly()
+      const inTransaction = await CustomLifecycleRecord.withTrashed()
+        .useTransaction(transaction)
+        .where('id', saved.id)
+        .firstOrFail()
+      assert.equal(inTransaction.deletedAt!.toMillis(), past.toMillis())
+      assert.notProperty(projected.$attributes, 'deletedAt')
+    } finally {
+      await transaction.rollback()
+    }
+
+    const persisted = await CustomLifecycleRecord.findOrFail(saved.id)
+    assert.isNull(persisted.deletedAt)
+  })
+
+  test('projected delete of a self-assigned key uses the persisted identity', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const saved = new SelfAssignedLifecycleRecord()
+    saved.id = 9001
+    saved.title = 'persisted-title'
+    await saved.save()
+    await saved.delete()
+    const original = await SelfAssignedLifecycleRecord.withTrashed()
+      .where('id', saved.id)
+      .firstOrFail()
+    const projected = await SelfAssignedLifecycleRecord.withTrashed()
+      .select('id', 'title')
+      .where('id', saved.id)
+      .firstOrFail()
+    projected.id = 9002
+    projected.title = 'unsaved-title'
+    statements.length = 0
+
+    await projected.delete()
+
+    assert.isTrue(projected.$isDirty)
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    assert.deepEqual(
+      statements.filter((sql) => /^update\b/i.test(sql)),
+      []
+    )
+    const stored = await SelfAssignedLifecycleRecord.withTrashed().where('id', 9001).firstOrFail()
+    assert.equal(stored.deletedAt!.toMillis(), original.deletedAt!.toMillis())
+    assert.equal(stored.title, 'persisted-title')
+    assert.isNull(await SelfAssignedLifecycleRecord.withTrashed().where('id', 9002).first())
+  })
+
   test('delete on a trashed model with an edited deletedAt writes a fresh timestamp', async ({
     assert,
   }) => {
@@ -664,6 +807,28 @@ test.group('Soft-delete lifecycle', (group) => {
     )
     const persistedTrashed = await db.from('users').where('id', trashed.id).first()
     assert.isNotNull(persistedTrashed?.deleted_at)
+  })
+
+  test('a failed delete leaves a fetched projection with unknown deletion state', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const active = await seedRecord('failed-projected-delete')
+    const projected = await LifecycleRecord.query()
+      .select('id')
+      .where('id', active.id)
+      .firstOrFail()
+    const hadOwnDeletedAt = Object.hasOwn(projected, 'deletedAt')
+    LifecycleRecord.failOn = 'beforeSave'
+
+    await assert.rejects(() => projected.delete(), 'beforeSave failed')
+
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    assert.equal(Object.hasOwn(projected, 'deletedAt'), hadOwnDeletedAt)
+    await assert.rejects(() => projected.restore(), E_MODEL_UNKNOWN_DELETION_STATE)
+    const stored = await LifecycleRecord.findOrFail(active.id)
+    assert.isNull(stored.deletedAt)
   })
 
   test('restore preserves the force-deleted error for a fetched projection', async ({ assert }) => {

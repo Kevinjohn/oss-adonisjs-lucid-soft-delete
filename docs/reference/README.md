@@ -117,6 +117,8 @@ The public `SoftDeletesStatics` contract also exposes `ignoreDeleted(query)`, `i
 
 Instance methods act on one model and use that instance's Lucid query client, including a named-connection client used to fetch it. Change the transaction with `useTransaction(trx)`. The package does not open a transaction. For a caller-owned transaction, fetch with `query({ client: trx })` or attach it with `useTransaction(trx)`; commit or roll back it yourself. A rollback does not rewind the in-memory model. See [transaction state](#caller-owned-transactions-and-model-state).
 
+Await each lifecycle operation before starting another operation on the same model instance. Concurrent calls on one mutable instance are not supported: they share attributes and lifecycle flags, so overlapping calls can leave stale in-memory state even when both reject. If calls have overlapped, wait for all of them to settle, then discard that instance and fetch a fresh one before performing another mutation. This limitation concerns the same in-memory object, not a promise of database isolation between separate instances.
+
 ### `delete()`
 
 Soft-deletes a persisted active instance by saving a local deletion timestamp. It also saves other dirty attributes on that write.
@@ -125,7 +127,7 @@ Soft-deletes a persisted active instance by saving a local deletion timestamp. I
 - **Return/no-op:** `Promise<void>`. If already trashed, not physically deleted, and `deletedAt` is unchanged, it skips the write and hooks; other dirty attributes remain dirty and are not saved by that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** On the soft-delete write, Lucid runs `beforeDelete` → `beforeUpdate` → `beforeSave` → database write → `afterUpdate` → `afterSave` → `afterDelete`. Hook and database errors propagate. An after-hook can fail after the write completed.
 - **Dirty fields and timestamps:** Dirty fields are saved with the deletion timestamp. Configured automatic `updatedAt` advances. Lucid column `prepare` functions run.
-- **Client:** Uses the instance's client; a caller transaction must be attached to the instance.
+- **Client:** Uses the instance's client; a caller transaction must be attached to the instance. A fetched projection without `deletedAt` reads that column through the instance's write client before deleting. If the stored row is already trashed, deletion skips the write and hooks. An active row still follows the normal delete path.
 
 ```ts
 const user = await User.findOrFail(userId)
@@ -142,7 +144,7 @@ Takes the same active-to-trashed path as `delete()` using Lucid's quiet save met
 - **Return/no-op:** `Promise<void>`. Repeating a delete on a trashed, non-deleted instance with unchanged `deletedAt` is a no-op; other dirty attributes remain unsaved on that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** No model hooks run. Errors from the persistence operation propagate.
 - **Dirty fields and timestamps:** A soft-delete write saves other dirty fields and advances configured `updatedAt`; column `prepare` runs. The no-op writes nothing.
-- **Client:** Uses the instance's client, including any caller transaction attached to it.
+- **Client:** Uses the instance's client, including any caller transaction attached to it. A fetched projection without `deletedAt` reads that column through the instance's write client before deleting and skips the write when the stored row is already trashed.
 
 ```ts
 const user = await User.findOrFail(userId)
@@ -248,16 +250,18 @@ Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is de
 
 ### Receipts
 
-Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write:
+Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write. Receipt mode requires a caller-owned transaction client; assume `trx` is bound to that transaction in these examples. The comments show the resolved values after `await`:
 
 ```ts
-await User.query().whereIn('id', ids).softDelete() // Promise<number>, unchanged
-await User.query().whereIn('id', ids).softDelete({ receipt: true }) // Promise<SoftDeleteReceipt>
-await User.query().whereIn('id', ids).restore({ receipt: true }) // Promise<RestoreReceipt>
-await User.onlyTrashed().whereIn('id', ids).forceDelete({ receipt: true }) // Promise<ForceDeleteReceipt>
+await User.query({ client: trx }).whereIn('id', ids).softDelete() // number
+await User.query({ client: trx }).whereIn('id', ids).softDelete({ receipt: true }) // SoftDeleteReceipt
+await User.query({ client: trx }).whereIn('id', ids).restore({ receipt: true }) // RestoreReceipt
+await User.query({ client: trx }).onlyTrashed().whereIn('id', ids).forceDelete({ receipt: true }) // ForceDeleteReceipt
 ```
 
 `{}` and `{ receipt: false }` behave exactly like no argument. The count-mode SQL and return values do not change.
+
+Receipt options are read structurally; they are not required to be plain objects. A non-null, non-array object with no `receipt` value and no unknown own enumerable string keys behaves like `{}`. The parser reads `receipt` as a normal property, so an inherited boolean is accepted. The unknown-key check ignores symbol and non-enumerable keys.
 
 ```ts
 const receipt = await db.transaction(async (trx) => {
@@ -275,7 +279,7 @@ The public types are:
 import type { DateTime } from 'luxon'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
-export type PrimaryKeyValue = number | string
+export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
   receipt?: boolean
@@ -304,11 +308,12 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - `ids` and `count` describe the rows the executed statement changed, not the rows selected before it ran.
 - The receipt describes an executed mutation inside the caller's transaction. It is not durable until the caller commits. It is not an audit log and does not authorise an undo.
 - `deletedAt` is not unique per call and is not a recovery-group or ownership token. Two calls in the same second (or millisecond on PostgreSQL) produce equal values.
-- Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. No `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalizing.
+- Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. Binary keys remain `Uint8Array` values (Node buffers on SQLite); no `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalizing.
+- For SQLite integer keys outside JavaScript's safe integer range, configure lossless decoding on every connection before any key read. For `better-sqlite3`, enable `connection.defaultSafeIntegers(true)` in the connection setup; returned `bigint` keys are converted to strings in receipts. Apply this consistently to ordinary reads and transaction connections and verify key round trips in your application. A key already rounded to a JavaScript `number` cannot be recovered by receipt normalization; converting that rounded number to a string does not restore its original digits.
 - Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
 - Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
 - Cost: PostgreSQL runs one statement with `RETURNING`. MySQL and SQLite run a `SELECT … FOR UPDATE` (SQLite ignores `FOR UPDATE`) followed by the write restricted to the selected keys, and hold the row locks until the caller commits. All ids are held in memory and, on MySQL/SQLite, sent back as bind parameters (SQLite's bound-parameter limit is 32766).
-- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, `limit`, `offset`, unions, aggregates, or a raw/sub-query `from`.
+- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
 - A prior `returning()` on the builder is overridden on PostgreSQL and ignored elsewhere.
 - Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
 - Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.
@@ -399,7 +404,7 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 | `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
 | `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
 | `E_LIFECYCLE_WRITE_UNSUPPORTED`       | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder, or without receipt mode on a builder with `limit`, `offset` or `groupLimit`.                                                 |
-| `InvalidArgumentsException`           | A bulk lifecycle method receives a non-object option, an unknown key, or a non-boolean `receipt`; only `undefined`, `{}` and `{ receipt: boolean }` are accepted. It comes from `@adonisjs/core/exceptions`.          |
+| `InvalidArgumentsException`           | Rejects `null`, functions, other primitives except `undefined`, arrays, unknown own enumerable string keys, or non-boolean `receipt` values. It comes from `@adonisjs/core/exceptions`.                               |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
 | `E_BULK_RECEIPT_UNSUPPORTED`          | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
 | `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
