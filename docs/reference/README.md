@@ -117,6 +117,8 @@ The public `SoftDeletesStatics` contract also exposes `ignoreDeleted(query)`, `i
 
 Instance methods act on one model and use that instance's Lucid query client, including a named-connection client used to fetch it. Change the transaction with `useTransaction(trx)`. The package does not open a transaction. For a caller-owned transaction, fetch with `query({ client: trx })` or attach it with `useTransaction(trx)`; commit or roll back it yourself. A rollback does not rewind the in-memory model. See [transaction state](#caller-owned-transactions-and-model-state).
 
+Await each lifecycle operation before starting another operation on the same model instance. Concurrent calls on one mutable instance are not supported: they share attributes and lifecycle flags, so overlapping calls can leave stale in-memory state even when both reject. If calls have overlapped, wait for all of them to settle, then discard that instance and fetch a fresh one before performing another mutation. This limitation concerns the same in-memory object, not a promise of database isolation between separate instances.
+
 ### `delete()`
 
 Soft-deletes a persisted active instance by saving a local deletion timestamp. It also saves other dirty attributes on that write.
