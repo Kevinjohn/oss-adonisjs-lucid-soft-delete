@@ -261,6 +261,8 @@ await User.query({ client: trx }).onlyTrashed().whereIn('id', ids).forceDelete({
 
 `{}` and `{ receipt: false }` behave exactly like no argument. The count-mode SQL and return values do not change.
 
+Receipt options are read structurally; they are not required to be plain objects. A non-null, non-array object with no `receipt` value and no unknown own enumerable string keys behaves like `{}`. The parser reads `receipt` as a normal property, so an inherited boolean is accepted. The unknown-key check ignores symbol and non-enumerable keys.
+
 ```ts
 const receipt = await db.transaction(async (trx) => {
   const result = await User.query({ client: trx }).whereIn('id', ids).softDelete({ receipt: true })
@@ -402,7 +404,7 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 | `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
 | `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
 | `E_LIFECYCLE_WRITE_UNSUPPORTED`       | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder, or without receipt mode on a builder with `limit`, `offset` or `groupLimit`.                                                 |
-| `InvalidArgumentsException`           | A bulk lifecycle method receives a non-object option, an unknown key, or a non-boolean `receipt`; only `undefined`, `{}` and `{ receipt: boolean }` are accepted. It comes from `@adonisjs/core/exceptions`.          |
+| `InvalidArgumentsException`           | Rejects `null`, functions, other primitives except `undefined`, arrays, unknown own enumerable string keys, or non-boolean `receipt` values. It comes from `@adonisjs/core/exceptions`.                               |
 | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
 | `E_BULK_RECEIPT_UNSUPPORTED`          | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
 | `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
