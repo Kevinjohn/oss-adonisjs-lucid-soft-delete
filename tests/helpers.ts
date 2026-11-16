@@ -3,11 +3,14 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { dirname } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { AppFactory } from '@adonisjs/core/factories/app'
 import { LoggerFactory } from '@adonisjs/core/factories/logger'
 import { Emitter } from '@adonisjs/core/events'
 import { Database } from '@adonisjs/lucid/database'
 import { BaseModel } from '@adonisjs/lucid/orm'
+import type { PostgreConfig, SqliteConfig } from '@adonisjs/lucid/types/database'
 
 const configuredDbClient = process.env.DB_CLIENT
 
@@ -86,21 +89,22 @@ export async function createTables(db: Database) {
   const test = getActiveTest()
   if (!test) throw new Error('Cannot use "createTables" outside of a Japa test')
 
+  const ownedTables: string[] = []
   test.cleanup(async () => {
-    await db.connection().schema.dropTableIfExists('comments')
-    await db.connection().schema.dropTableIfExists('profiles')
-    await db.connection().schema.dropTableIfExists('author_book')
-    await db.connection().schema.dropTableIfExists('industry_user')
-    await db.connection().schema.dropTableIfExists('posts')
-    await db.connection().schema.dropTableIfExists('books')
-    await db.connection().schema.dropTableIfExists('authors')
-    await db.connection().schema.dropTableIfExists('users')
-    await db.connection().schema.dropTableIfExists('industries')
-    await db.connection().schema.dropTableIfExists('roles')
-    await db.connection().schema.dropTableIfExists('big_keys')
+    for (const name of ownedTables.reverse()) {
+      await db.connection().schema.dropTable(name)
+    }
   })
 
-  await db.connection().schema.createTable('users', (table) => {
+  const createOwnedTable = async (
+    ...args: Parameters<ReturnType<Database['connection']>['schema']['createTable']>
+  ) => {
+    const [name, definition] = args
+    await db.connection().schema.createTable(name, definition)
+    ownedTables.push(name)
+  }
+
+  await createOwnedTable('users', (table) => {
     table.increments()
     table.string('username').unique()
     table.string('email').unique()
@@ -112,7 +116,7 @@ export async function createTables(db: Database) {
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('industries', (table) => {
+  await createOwnedTable('industries', (table) => {
     table.increments()
     table.string('title')
     table.string('text')
@@ -121,39 +125,39 @@ export async function createTables(db: Database) {
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('books', (table) => {
+  await createOwnedTable('books', (table) => {
     table.increments()
     table.string('name').unique()
     table.timestamps()
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('authors', (table) => {
+  await createOwnedTable('authors', (table) => {
     table.increments()
     table.string('name')
     table.timestamps()
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('roles', (table) => {
+  await createOwnedTable('roles', (table) => {
     table.increments()
     table.string('title')
     table.timestamps()
   })
 
-  await db.connection().schema.createTable('big_keys', (table) => {
+  await createOwnedTable('big_keys', (table) => {
     table.bigInteger('id').primary()
     table.string('label')
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('industry_user', (table) => {
+  await createOwnedTable('industry_user', (table) => {
     table.increments()
     table.integer('user_id')
     table.integer('industry_id')
   })
 
-  await db.connection().schema.createTable('author_book', (table) => {
+  await createOwnedTable('author_book', (table) => {
     table.increments()
     table.integer('book_id').unsigned()
     table.integer('author_id').unsigned()
@@ -162,7 +166,7 @@ export async function createTables(db: Database) {
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('posts', (table) => {
+  await createOwnedTable('posts', (table) => {
     table.increments()
     table.string('title')
     table.integer('user_id')
@@ -170,17 +174,54 @@ export async function createTables(db: Database) {
     table.timestamp('deletedAt', { useTz: true })
   })
 
-  await db.connection().schema.createTable('profiles', (table) => {
+  await createOwnedTable('profiles', (table) => {
     table.increments()
     table.integer('user_id')
     table.string('display_name')
     table.timestamp('deleted_at', { useTz: true })
   })
 
-  await db.connection().schema.createTable('comments', (table) => {
+  await createOwnedTable('comments', (table) => {
     table.increments()
     table.integer('post_id')
     table.string('body')
     table.timestamp('deleted_at', { useTz: true })
   })
+}
+
+/** Acquires a secondary test namespace and registers disposal before the caller can use it. */
+export async function createSecondaryConnection(db: Database) {
+  const test = getActiveTest()
+  if (!test) throw new Error('Cannot use "createSecondaryConnection" outside of a Japa test')
+  const primaryConfig = db.config.connections[db.primaryConnectionName]
+  if (!primaryConfig) throw new Error('Primary database connection is missing')
+
+  const secondaryConfig = structuredClone(primaryConfig)
+  const namespace = `lucid_soft_delete_${randomUUID().replaceAll('-', '')}`
+  if (dbClient === 'pg') {
+    await db.rawQuery(`CREATE SCHEMA ${namespace}`).exec()
+    ;(secondaryConfig as PostgreConfig).searchPath = [namespace]
+  } else if (dbClient === 'mysql') {
+    await db.rawQuery(`CREATE DATABASE ${namespace}`).exec()
+    const mysqlConfig = secondaryConfig as { connection: { database?: string } }
+    mysqlConfig.connection = { ...mysqlConfig.connection, database: namespace }
+  } else {
+    const sqliteConfig = secondaryConfig as SqliteConfig
+    if (typeof sqliteConfig.connection === 'string') {
+      throw new Error('Expected SQLite connection options')
+    }
+    sqliteConfig.connection.filename = join(
+      dirname(sqliteConfig.connection.filename),
+      'secondary.sqlite3'
+    )
+  }
+
+  test.cleanup(async () => {
+    await db.manager.close('secondary', true)
+    if (dbClient === 'pg') await db.rawQuery(`DROP SCHEMA ${namespace} CASCADE`).exec()
+    if (dbClient === 'mysql') await db.rawQuery(`DROP DATABASE ${namespace}`).exec()
+  })
+  db.manager.add('secondary', secondaryConfig)
+  db.manager.connect('secondary')
+  return db.connection('secondary')
 }

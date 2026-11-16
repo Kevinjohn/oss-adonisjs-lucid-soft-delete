@@ -19,8 +19,6 @@ import {
 } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import type { PostgreConfig, SqliteConfig } from '@adonisjs/lucid/types/database'
-import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import {
   E_BULK_RECEIPT_DIVERGED,
@@ -30,7 +28,7 @@ import {
 } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { executeWithReceipt } from '../src/receipts.js'
-import { createDatabase, createTables, dbClient } from './helpers.js'
+import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.js'
 import { CustomPost, RelationPost, RelationUser } from './fixtures/models.js'
 import {
   cleanupReceiptLock,
@@ -617,32 +615,7 @@ test.group('Builder receipts', (group) => {
   test('named connections', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const primaryConfig = db.config.connections[db.primaryConnectionName]
-    if (!primaryConfig) throw new Error('Primary database connection is missing')
-    const secondaryConfig = structuredClone(primaryConfig)
-    if (dbClient === 'pg') {
-      await db.rawQuery('DROP SCHEMA IF EXISTS second CASCADE').exec()
-      await db.rawQuery('CREATE SCHEMA second').exec()
-      ;(secondaryConfig as PostgreConfig).searchPath = ['second']
-    } else if (dbClient === 'mysql') {
-      await db.rawQuery('DROP DATABASE IF EXISTS lucid_soft_delete_second').exec()
-      await db.rawQuery('CREATE DATABASE lucid_soft_delete_second').exec()
-      const mysqlConfig = secondaryConfig as { connection: { database?: string } }
-      mysqlConfig.connection = {
-        ...mysqlConfig.connection,
-        database: 'lucid_soft_delete_second',
-      }
-    } else {
-      const sqliteConfig = secondaryConfig as SqliteConfig
-      if (typeof sqliteConfig.connection === 'string')
-        throw new Error('Expected SQLite connection options')
-      sqliteConfig.connection.filename = join(
-        dirname(sqliteConfig.connection.filename),
-        'secondary.sqlite3'
-      )
-    }
-    db.manager.add('secondary', secondaryConfig)
-    await db.manager.connect('secondary')
+    await createSecondaryConnection(db)
     await db.table('users').insert({ id: 10, username: 'secondary', deleted_at: null })
     await db.connection('secondary').schema.createTable('users', (table) => {
       table.increments()
@@ -664,9 +637,6 @@ test.group('Builder receipts', (group) => {
     const primaryRow = await db.from('users').where('username', 'secondary').firstOrFail()
     assert.isNull(primaryRow.deleted_at)
     await trx.rollback()
-    if (dbClient === 'pg') await db.rawQuery('DROP SCHEMA second CASCADE').exec()
-    else if (dbClient === 'mysql')
-      await db.rawQuery('DROP DATABASE lucid_soft_delete_second').exec()
   })
 
   test('database failures propagate and leave no partial receipt', async ({ assert }) => {

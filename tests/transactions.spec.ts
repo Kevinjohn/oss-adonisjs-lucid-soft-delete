@@ -9,13 +9,8 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import type {
-  PostgreConfig,
-  SqliteConfig,
-  TransactionClientContract,
-} from '@adonisjs/lucid/types/database'
-import { dirname, join } from 'node:path'
-import { createDatabase, createTables, dbClient } from './helpers.js'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { createDatabase, createSecondaryConnection, createTables } from './helpers.js'
 import { RelationPost, RelationUser } from './fixtures/models.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
@@ -209,37 +204,7 @@ test.group('Soft-delete transactions', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    const primaryConfig = db.config.connections[db.primaryConnectionName]
-    if (!primaryConfig) throw new Error('Primary database connection is missing')
-
-    let secondaryConfig = structuredClone(primaryConfig)
-    if (dbClient === 'pg') {
-      await db.rawQuery('DROP SCHEMA IF EXISTS second CASCADE').exec()
-      await db.rawQuery('CREATE SCHEMA second').exec()
-      ;(secondaryConfig as PostgreConfig).searchPath = ['second']
-    } else if (dbClient === 'mysql') {
-      await db.rawQuery('DROP DATABASE IF EXISTS lucid_soft_delete_second').exec()
-      await db.rawQuery('CREATE DATABASE lucid_soft_delete_second').exec()
-      const mysqlConfig = secondaryConfig as { connection: { database?: string } }
-      mysqlConfig.connection = {
-        ...mysqlConfig.connection,
-        database: 'lucid_soft_delete_second',
-      }
-    } else {
-      const sqliteConfig = secondaryConfig as SqliteConfig
-      if (typeof sqliteConfig.connection === 'string') {
-        throw new Error('Expected SQLite connection options')
-      }
-      sqliteConfig.connection.filename = join(
-        dirname(sqliteConfig.connection.filename),
-        'secondary.sqlite3'
-      )
-    }
-
-    db.manager.add('secondary', secondaryConfig)
-    db.manager.connect('secondary')
-
-    const secondary = db.connection('secondary')
+    const secondary = await createSecondaryConnection(db)
     await secondary.schema.createTable('users', (table) => {
       table.increments()
       table.string('username')
@@ -302,11 +267,5 @@ test.group('Soft-delete transactions', (group) => {
     assert.equal(await RelationUser.query({ client: secondary }).onlyTrashed().forceDelete(), 1)
     assert.lengthOf(await secondary.from('users'), 0)
     assert.lengthOf(await db.from('users'), 0)
-
-    if (dbClient === 'pg') {
-      await db.rawQuery('DROP SCHEMA second CASCADE').exec()
-    } else if (dbClient === 'mysql') {
-      await db.rawQuery('DROP DATABASE lucid_soft_delete_second').exec()
-    }
   })
 })
