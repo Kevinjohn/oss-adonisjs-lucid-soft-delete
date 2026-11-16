@@ -71,8 +71,8 @@ Knex builder at `query.knexQuery._single.table` so deleted rows do not consume e
 The selected mode is carried on the inner Knex builder because Lucid creates a fresh outer builder
 for group-limited execution. Its table alias is also read from that inner builder when qualifying
 `deletedAt`.
-The package detects that path by inspecting SQL generated from a clone; it never previews the query
-that will execute. This depends on Lucid/Knex internals and is covered by group-limit tests.
+The package detects that path from the inner builder's raw window projection, without rendering a
+clone or matching bound data. This depends on Lucid/Knex internals and is covered by group-limit tests.
 
 On Lucid 22.4.2, the tested has-many and many-to-many group-limit paths group callback OR conditions
 before the relation key and soft-delete filter. Builder `restore()` does not support a prior

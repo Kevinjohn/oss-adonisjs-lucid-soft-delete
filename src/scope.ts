@@ -27,6 +27,7 @@ type KnexRawReference = { toSQL(): unknown }
 
 type KnexBuilderLike = {
   _single?: { table?: unknown }
+  _statements?: { grouping?: string; value?: unknown }[]
   client: { raw(sql: string): KnexRawReference }
   queryContext(): unknown
 }
@@ -41,14 +42,28 @@ type GroupLimit = {
 /**
  * Detect Lucid's group-limit path for has-many, many-to-many and has-many-through relations. Lucid
  * builds a `row_number()` subquery named `adonis_group_limit_counter` and executes a fresh outer
- * builder whose table is the inner Knex builder. The filter must land on that inner builder so
- * trashed rows do not consume a parent's limit. The SQL is read from a clone; the query that will execute
- * is never previewed.
+ * builder whose table is the inner Knex builder. The inner projection carries the window counter;
+ * inspect that structure without rendering the query or reading bound data as SQL.
  */
 function resolveGroupLimit(query: ModelQueryBuilderContract<LucidModel>): GroupLimit | undefined {
-  if (!query.clone().toQuery().includes('adonis_group_limit_counter')) return undefined
   const inner = (query.knexQuery as unknown as KnexBuilderLike)._single?.table
-  if (!inner || typeof inner !== 'object') return undefined
+  if (
+    !inner ||
+    typeof inner !== 'object' ||
+    typeof (inner as KnexBuilderLike).queryContext !== 'function'
+  )
+    return undefined
+  const hasCounter = (inner as KnexBuilderLike)._statements?.some(
+    (statement) =>
+      statement.grouping === 'columns' &&
+      Array.isArray(statement.value) &&
+      statement.value.some(
+        (column: unknown) =>
+          typeof (column as { sql?: unknown })?.sql === 'string' &&
+          /\bas adonis_group_limit_counter\b/i.test((column as { sql: string }).sql)
+      )
+  )
+  if (!hasCounter) return undefined
   return { inner, alias: aliasFromTable((inner as KnexBuilderLike)._single?.table) }
 }
 

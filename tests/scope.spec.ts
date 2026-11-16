@@ -57,6 +57,27 @@ test.group('Read scope', (group) => {
     )
   })
 
+  test('treats a marker-valued alias predicate as ordinary data', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('adonis_group_limit_counter')
+    await createUser('deleted', true)
+    let rendered = 0
+    const query = User.query()
+      .from({ u: 'users' })
+      .where('u.username', 'adonis_group_limit_counter')
+      .where((subquery) => {
+        rendered++
+        subquery.where('u.id', target.id)
+      })
+    const rows = await query
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(rendered, 1)
+  })
+
   test('groups a user OR expression in only-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
