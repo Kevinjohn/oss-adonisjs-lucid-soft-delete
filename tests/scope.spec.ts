@@ -444,6 +444,40 @@ test.group('Read scope', (group) => {
     assert.match(sql, /\)\) and [`"]users[`"]\.[`"]deleted_at[`"] is null$/)
   })
 
+  test('keeps grouped with-trashed predicates through preview, reuse and a write', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('group-target')
+    const bystander = await createUser('group-bystander')
+    const trashed = await createUser('group-trashed', true)
+
+    const query = User.query()
+      .where('id', target.id)
+      .wrapExisting()
+      .where('username', target.username)
+      .withTrashed()
+    query.toQuery()
+    for (let run = 0; run < 2; run++) {
+      const rows = await query
+      assert.deepEqual(
+        rows.map((user) => user.id),
+        [target.id]
+      )
+    }
+    assert.equal(await query.softDelete(), 1)
+    const allRows = await User.query().withTrashed().orderBy('id')
+    assert.deepEqual(
+      allRows.map((user) => [user.id, Boolean(user.deletedAt)]),
+      [
+        [target.id, true],
+        [bystander.id, false],
+        [trashed.id, true],
+      ]
+    )
+  })
+
   test('keeps caller predicates when a builder executes more than once', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)

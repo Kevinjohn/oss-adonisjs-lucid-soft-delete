@@ -110,7 +110,10 @@ export function reapplyScopeFilter(query: ModelQueryBuilderContract<LucidModel>)
       filter.method as 'whereNull' | 'whereNotNull',
       filter.args[0] as string | RawBuilderContract
     )
-  } else if (grouped.whereStack.flat().some((node) => Array.isArray(node[SCOPE_NODE]))) {
+  } else if (
+    grouped.whereStack.length > 1 ||
+    grouped.whereStack.flat().some((node) => Array.isArray(node[SCOPE_NODE]))
+  ) {
     rebuildStack(grouped, collectGroups(grouped))
   }
 }

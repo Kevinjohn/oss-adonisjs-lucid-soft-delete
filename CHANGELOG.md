@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Preserve grouped caller predicates through SQL previews, repeated reads and subsequent writes, including `withTrashed()` builders.
+
 ## 0.1.7 - 2026-11-08
 
 ### Added

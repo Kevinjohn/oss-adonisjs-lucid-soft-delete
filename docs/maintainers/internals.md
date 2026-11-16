@@ -57,7 +57,9 @@ The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's in
 into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
 `applyWhere()` shifts the first predicate off every group when it holds several groups
 (`node_modules/@adonisjs/lucid/build/src/database/query_builder/chainable.js:58-76` on 22.4.2), so a
-builder that runs twice would otherwise lose the caller's predicates. One group keeps them. A Lucid
+builder that runs twice would otherwise lose the caller's predicates. The `applyWhere()` wrapper
+also groups an opted-in builder's multiple caller groups before its first render, including
+`withTrashed()` builders with no scope node. One group keeps them. A Lucid
 change to `whereStack`, `applyWhere()` or `getWrappingMethod()` can break the scope;
 `tests/scope.spec.ts` and `tests/builder_restore.spec.ts` cover it.
 
