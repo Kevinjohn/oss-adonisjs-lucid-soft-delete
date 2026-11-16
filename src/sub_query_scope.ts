@@ -41,7 +41,7 @@ export function installSubQueryScope(builder: { prototype: object }): void {
     value(this: SubQueryLike) {
       if (this.isRelatedSubQuery === true && !this.isChildQuery && hasSoftDeletes(this.model)) {
         applySubQueryScope(this)
-      } else if (!this.isChildQuery) {
+      } else if (!this.isChildQuery && hasSoftDeletes(this.model)) {
         reapplyScopeFilter(this)
       }
       original.call(this)
