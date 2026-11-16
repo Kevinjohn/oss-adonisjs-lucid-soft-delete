@@ -1,23 +1,22 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
-import { softDeleteAdminEmails } from '#services/soft_delete_admins'
 import { InertiaSession } from '../helpers/inertia_session.js'
 
 const password = 'SoftDeletePass123!'
 
 test.group('soft delete', (group) => {
   group.each.setup(async () => {
-    softDeleteAdminEmails.add('admin@example.test')
     const rollback = await testUtils.db().withGlobalTransaction()
     return async () => {
-      softDeleteAdminEmails.clear()
       await rollback()
     }
   })
 
   test('an account deletes itself and an administrator restores it', async ({ assert }) => {
-    await User.create({ email: 'admin@example.test', password })
+    const adminAccount = await User.create({ email: 'admin@example.test', password })
+    adminAccount.isSoftDeleteAdmin = true
+    await adminAccount.save()
     const member = await User.create({ email: 'member@example.test', password })
 
     const session = new InertiaSession()
@@ -65,7 +64,30 @@ test.group('soft delete', (group) => {
     assert.isNull(await User.find(deleted.id))
   })
 
-  test('an address differing only in case is not an administrator', async ({ assert }) => {
+  test('public signup cannot grant deleted-account access', async ({ assert }) => {
+    const deleted = await User.create({ email: 'deleted@example.test', password })
+    await deleted.delete()
+
+    const signup = new InertiaSession()
+    await signup.props('/signup')
+    const created = await signup.request('/signup', {
+      fullName: 'New account',
+      email: 'admin@example.test',
+      password,
+      passwordConfirmation: password,
+      isSoftDeleteAdmin: true,
+    })
+    assert.equal(created.headers.get('location'), '/dashboard')
+    const signedUp = await User.findByOrFail('email', 'admin@example.test')
+    assert.isFalse(signedUp.isSoftDeleteAdmin)
+    const listed = await signup.request('/admin/deleted-users')
+    assert.equal(listed.status, 403)
+    const restored = await signup.request(`/admin/deleted-users/${deleted.id}/restore`, {})
+    assert.equal(restored.status, 403)
+    assert.isNull(await User.find(deleted.id))
+  })
+
+  test('an unselected account is not an administrator', async ({ assert }) => {
     await User.create({ email: 'Admin@example.test', password })
     const lookalike = new InertiaSession()
     await lookalike.login('Admin@example.test', password)

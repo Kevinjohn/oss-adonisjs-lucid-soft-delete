@@ -1,22 +1,21 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
-import { softDeleteAdminEmails } from '#services/soft_delete_admins'
 
 const password = 'SoftDeletePass123!'
 
 test.group('soft delete', (group) => {
   group.each.setup(async () => {
-    softDeleteAdminEmails.add('admin@example.test')
     const rollback = await testUtils.db().withGlobalTransaction()
     return async () => {
-      softDeleteAdminEmails.clear()
       await rollback()
     }
   })
 
   test('an account deletes itself and an administrator restores it', async ({ client, assert }) => {
     const admin = await User.create({ email: 'admin@example.test', password })
+    admin.isSoftDeleteAdmin = true
+    await admin.save()
     const member = await User.create({ email: 'member@example.test', password })
 
     const deleted = await client.delete('/api/v1/account').loginAs(member)
@@ -66,7 +65,31 @@ test.group('soft delete', (group) => {
     guestDelete.assertStatus(401)
   })
 
-  test('an address differing only in case is not an administrator', async ({ client }) => {
+  test('public signup cannot grant deleted-account access', async ({ client, assert }) => {
+    const deleted = await User.create({ email: 'deleted@example.test', password })
+    await deleted.delete()
+
+    const signup = await client.post('/api/v1/auth/signup').json({
+      fullName: 'New account',
+      email: 'admin@example.test',
+      password,
+      passwordConfirmation: password,
+      isSoftDeleteAdmin: true,
+    } as never)
+    signup.assertStatus(200)
+    const signedUp = await User.findByOrFail('email', 'admin@example.test')
+    assert.isFalse(signedUp.isSoftDeleteAdmin)
+
+    const listed = await client.get('/api/v1/admin/deleted-users').loginAs(signedUp)
+    listed.assertStatus(403)
+    const restored = await client
+      .post(`/api/v1/admin/deleted-users/${deleted.id}/restore`)
+      .loginAs(signedUp)
+    restored.assertStatus(403)
+    assert.isNull(await User.find(deleted.id))
+  })
+
+  test('an unselected account is not an administrator', async ({ client }) => {
     const lookalike = await User.create({ email: 'Admin@example.test', password })
     const listed = await client.get('/api/v1/admin/deleted-users').loginAs(lookalike)
     listed.assertStatus(403)

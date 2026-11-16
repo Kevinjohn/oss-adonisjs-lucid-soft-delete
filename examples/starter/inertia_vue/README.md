@@ -14,7 +14,7 @@ with the other packages' examples.
 | `adonisrc.ts`                                                         | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`                                |
 | `database/migrations/*_add_deleted_at_to_users.ts`                    | A nullable `deleted_at` column on `users`                                                                        |
 | `app/models/user.ts`                                                  | `SoftDeletes` composed into the user model                                                                       |
-| `app/services/soft_delete_admins.ts`, `start/env.ts`, `.env.example`  | Administrators come from `SOFT_DELETE_ADMIN_EMAILS`; missing means nobody                                        |
+| `app/services/soft_delete_admins.ts`, `app/models/user.ts`, migration | An operator grants an existing account a database flag; signup defaults to no access                             |
 | `app/controllers/account_deletion_controller.ts`                      | `/account/delete`: confirm, soft delete the signed-in account and sign out                                       |
 | `app/controllers/deleted_users_controller.ts`, `start/routes.ts`      | `/admin/deleted-users`: the deleted accounts, each with a **Restore** button                                     |
 | `inertia/pages/account/delete.vue`, `inertia/pages/deleted_users.vue` | The two pages                                                                                                    |
@@ -41,8 +41,17 @@ pnpm dev
 `kit:pack` builds Lucid Soft Delete from this checkout into `vendor/`. The packed archive's
 checksum changes with every build, so the install does not use a frozen lockfile.
 
-Set `SOFT_DELETE_ADMIN_EMAILS` in `.env` to a comma-separated list of addresses and restart
-the app. Create those accounts, and any others, through signup.
+Create and verify the administrator account first. As a trusted database operator, grant it by
+setting `users.is_soft_delete_admin = true` for its existing numeric `id`. For example, after
+confirming the selected ID belongs to the intended account:
+
+```sql
+UPDATE users SET is_soft_delete_admin = true WHERE id = 123;
+```
+
+Set the flag to `false` to revoke access. New accounts default to `false`; public signup cannot
+set this flag, even if a request includes `isSoftDeleteAdmin`. The retired
+`SOFT_DELETE_ADMIN_EMAILS` setting is ignored and should be removed from existing `.env` files.
 
 ## Checks
 
