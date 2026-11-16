@@ -2,6 +2,7 @@ import Logo from '~/components/logo'
 import { type ReactNode } from 'react'
 import { House, LogOut } from 'lucide-react'
 import { Form } from '@adonisjs/inertia/react'
+import { usePage } from '@inertiajs/react'
 import FlashToasts from '~/components/flash_toasts'
 import ThemeToggle from '~/components/theme_toggle'
 import NavLink, { type NavItem } from '~/components/nav_link'
@@ -10,9 +11,14 @@ import NavLink, { type NavItem } from '~/components/nav_link'
  * Top-level app navigation. Add an entry here for every new area of your
  * app, and it shows up in the navigation bar with its active state handled.
  */
-const nav: NavItem[] = [{ label: 'Dashboard', route: 'dashboard', icon: House }]
+const nav: NavItem[] = [
+  { label: 'Dashboard', route: 'dashboard', icon: House },
+  { label: 'Delete account', route: 'account_deletion.show' },
+]
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  const { props } = usePage()
+
   return (
     <>
       <header className="header header--bar">
@@ -37,6 +43,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               {label}
             </NavLink>
           ))}
+          {props.canManageDeletedUsers && (
+            <NavLink route="deleted_users.index" className="subnav__item">
+              Deleted accounts
+            </NavLink>
+          )}
         </div>
       </nav>
 

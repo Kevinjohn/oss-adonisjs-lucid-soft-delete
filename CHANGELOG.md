@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Starter UI examples: signed-in navigation to account deletion and administrator-only navigation to deleted accounts.
+
 ### Fixed
 
 - Starter examples: deleted-account administration now requires an operator-granted flag on an existing account. Public signup cannot gain access by claiming a configured email address.

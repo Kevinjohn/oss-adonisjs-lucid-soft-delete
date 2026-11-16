@@ -52,6 +52,10 @@ Set the flag to `false` to revoke access. New accounts default to `false`; publi
 set this flag, even if a request includes `isSoftDeleteAdmin`. The retired
 `SOFT_DELETE_ADMIN_EMAILS` setting is ignored and should be removed from existing `.env` files.
 
+The authenticated navigation links to **Delete account**. It shows **Deleted accounts** only when
+the server identifies the signed-in account as an enrolled administrator. The deletion route still
+requires sign-in, and the deleted-account routes still enforce administrator authorization.
+
 ## Checks
 
 ```sh
@@ -63,4 +67,5 @@ pnpm test
 
 `tests/functional/soft_delete.spec.ts` covers deleting your own account, being unable to sign in
 afterwards, an administrator listing and restoring it, and a refused non-administrator and guest.
-`tests/browser/soft_delete.spec.ts` restores an account from the administrator page in Chromium.
+`tests/browser/soft_delete.spec.ts` starts from the dashboard, follows the navigation, and
+covers administrator restoration and member-only deletion access in Chromium.
