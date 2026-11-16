@@ -15,7 +15,7 @@ import { DateTime as LuxonDateTime } from 'luxon'
 import { SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationPost, RelationUser } from './fixtures/models.js'
+import { RelationPost, RelationProfile, RelationUser } from './fixtures/models.js'
 
 class CustomPost extends compose(BaseModel, SoftDeletes) {
   static table = 'posts'
@@ -176,6 +176,23 @@ test.group('Builder restore', (group) => {
     assert.lengthOf(await RelationUser.all(), 2)
   })
 
+  test('count mode accepts cleared windows and aggregate projections', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    for (const username of ['cleared-one', 'cleared-two']) await createUser(username, true)
+
+    for (const shape of ['limit', 'offset', 'aggregate'] as const) {
+      const query = RelationUser.query().where('username', 'cleared-one')
+      if (shape === 'limit') query.limit(1).clearLimit()
+      else if (shape === 'offset') query.offset(1).clearOffset()
+      else query.count('* as total').clearSelect()
+      assert.equal(await query.restore(), 1)
+      const user = await RelationUser.query().where('username', 'cleared-one').firstOrFail()
+      await user.delete()
+    }
+    assert.equal(await RelationUser.query().where('username', 'cleared-two').restore(), 1)
+  })
+
   test('count mode rejects groupLimit on a has-many builder', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
@@ -193,6 +210,26 @@ test.group('Builder restore', (group) => {
       )
     }
     assert.lengthOf(await RelationPost.all(), 3)
+  })
+
+  test('has-one limits cannot widen a lifecycle write across matching foreign keys', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('profile-owner')
+    await RelationProfile.create({ userId: user.id, displayName: 'first' })
+    await RelationProfile.create({ userId: user.id, displayName: 'second' })
+
+    for (const render of [false, true]) {
+      const query = user.related('profile').query().limit(1)
+      if (render) query.toSQL()
+      await assert.rejects(
+        () => query.softDelete(),
+        'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+      )
+    }
+    assert.lengthOf(await RelationProfile.query().where('userId', user.id), 2)
   })
 
   test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({

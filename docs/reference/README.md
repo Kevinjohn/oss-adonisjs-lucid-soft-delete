@@ -279,7 +279,7 @@ The public types are:
 import type { DateTime } from 'luxon'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
-export type PrimaryKeyValue = number | string
+export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
   receipt?: boolean
@@ -308,12 +308,12 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - `ids` and `count` describe the rows the executed statement changed, not the rows selected before it ran.
 - The receipt describes an executed mutation inside the caller's transaction. It is not durable until the caller commits. It is not an audit log and does not authorise an undo.
 - `deletedAt` is not unique per call and is not a recovery-group or ownership token. Two calls in the same second (or millisecond on PostgreSQL) produce equal values.
-- Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. No `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalizing.
+- Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. Binary keys remain `Uint8Array` values (Node buffers on SQLite); no `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalizing.
 - For SQLite integer keys outside JavaScript's safe integer range, configure lossless decoding on every connection before any key read. For `better-sqlite3`, enable `connection.defaultSafeIntegers(true)` in the connection setup; returned `bigint` keys are converted to strings in receipts. Apply this consistently to ordinary reads and transaction connections and verify key round trips in your application. A key already rounded to a JavaScript `number` cannot be recovered by receipt normalization; converting that rounded number to a string does not restore its original digits.
 - Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
 - Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
 - Cost: PostgreSQL runs one statement with `RETURNING`. MySQL and SQLite run a `SELECT … FOR UPDATE` (SQLite ignores `FOR UPDATE`) followed by the write restricted to the selected keys, and hold the row locks until the caller commits. All ids are held in memory and, on MySQL/SQLite, sent back as bind parameters (SQLite's bound-parameter limit is 32766).
-- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, `limit`, `offset`, unions, aggregates, or a raw/sub-query `from`.
+- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
 - A prior `returning()` on the builder is overridden on PostgreSQL and ignored elsewhere.
 - Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
 - Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.

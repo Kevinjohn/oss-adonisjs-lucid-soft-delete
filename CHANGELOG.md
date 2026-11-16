@@ -7,6 +7,11 @@
 - Preserve grouped caller predicates through SQL previews, repeated reads and subsequent writes, including `withTrashed()` builders.
 - Detect relation group limits from their builder structure so bound text cannot be mistaken for the window counter and normal queries are not rendered for detection.
 - Qualify soft-delete filters with the current FROM alias after a builder changes aliases.
+- Receipt primary-key types include binary driver values (`Uint8Array`, including Node buffers).
+
+- Cleared lifecycle query limits, offsets and aggregate projections no longer block count or receipt writes.
+
+- Count-mode lifecycle writes reject has-one limits, including a rendered single-row limit, because a non-unique foreign key could otherwise mutate multiple rows.
 
 ## 0.1.7 - 2026-11-08
 
