@@ -4,6 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 DATA="$ROOT/tmp/pg16"
 LOG="$ROOT/tmp/pg16.log"
 LOCK="$ROOT/tmp/pg16.lock"
+REAPER="$ROOT/tmp/pg16.lock.reaping"
 PORT="${DB_PORT:-55432}"
 COMMAND="${1:-}"
 [ "$#" -eq 0 ] || shift
@@ -109,6 +110,7 @@ stop_cluster() {
 owns_started_cluster=0
 child_group=''
 locked=0
+reaping=0
 terminate_children() {
   [ -n "$child_group" ] || return 0
   if kill -0 -- "-$child_group" 2>/dev/null; then
@@ -128,29 +130,52 @@ cleanup() {
     if stop_cluster; then :; else echo 'cleanup failed: owned PostgreSQL shutdown' >&2; cleanup_result=1; fi
   fi
   if [ "$locked" -eq 1 ]; then
-    if rm "$LOCK/owner" && rmdir "$LOCK"; then :; else echo "cleanup failed: release $LOCK" >&2; cleanup_result=1; fi
+    if read_owner && [ "$owner" = "$$" ] && rm "$LOCK/owner" && rmdir "$LOCK"; then :; else echo "cleanup failed: release $LOCK" >&2; cleanup_result=1; fi
+  fi
+  if [ "$reaping" -eq 1 ]; then
+    if rmdir "$REAPER"; then :; else echo "cleanup failed: release $REAPER" >&2; cleanup_result=1; fi
   fi
   if [ "$result" -eq 0 ] && [ "$cleanup_result" -ne 0 ]; then result=1; fi
   exit "$result"
 }
+read_owner() {
+  local extra size
+  owner=''
+  [ -f "$LOCK/owner" ] && [ ! -L "$LOCK/owner" ] || return 1
+  size="$(wc -c < "$LOCK/owner")" || return 1
+  [ "$size" -le 11 ] || return 1
+  exec 3< "$LOCK/owner" || return 1
+  if ! IFS= read -r owner <&3; then exec 3<&-; return 1; fi
+  extra=''
+  if IFS= read -r extra <&3 || [ -n "$extra" ]; then exec 3<&-; return 1; fi
+  exec 3<&-
+  case "$owner" in ''|0*|*[!0-9]*) return 1;; esac
+  [ "$size" -eq "$((${#owner} + 1))" ] && [ "${#owner}" -le 10 ] && [ "$owner" -le 2147483647 ]
+}
 if [ "$COMMAND" != status ]; then
   mkdir -p "$ROOT/tmp"
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  # Serialize every acquisition, including the initial mkdir. Otherwise a new
+  # taker could create a lock while a stale one is being moved out of the way.
+  mkdir "$REAPER" 2>/dev/null || fail "cluster lock busy: $LOCK"
+  reaping=1
   if ! mkdir "$LOCK" 2>/dev/null; then
-    # A killed run leaves its lock behind; take it over only when the recorded owner is gone.
-    owner="$(cat "$LOCK/owner" 2>/dev/null || true)"
-    if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
-      # Rename first: only one taker can move the stale directory, so none can slip in between
-      # removing the owner file and recreating the lock.
+    if read_owner && ! kill -0 "$owner" 2>/dev/null; then
       stale="$LOCK.stale.$$"
-      mv "$LOCK" "$stale" 2>/dev/null && mkdir "$LOCK" || { rm -rf "$stale"; fail "cluster lock busy: $LOCK"; }
+      [ ! -e "$stale" ] && [ ! -L "$stale" ] || fail "cluster lock busy: $LOCK"
+      mv "$LOCK" "$stale" 2>/dev/null || fail "cluster lock busy: $LOCK"
+      mkdir "$LOCK" 2>/dev/null || fail "cluster lock busy: $LOCK"
       rm -rf "$stale"
     else fail "cluster lock busy: $LOCK"; fi
   fi
   locked=1
-  trap cleanup EXIT
-  trap 'exit 130' INT
-  trap 'exit 143' TERM
-  echo "$$" > "$LOCK/owner"
+  owner_temp="$(mktemp "$LOCK/owner.XXXXXX")"
+  printf '%s\n' "$$" > "$owner_temp"
+  mv "$owner_temp" "$LOCK/owner"
+  rmdir "$REAPER"
+  reaping=0
 fi
 start_cluster() {
   local result actual existing
