@@ -56,8 +56,8 @@ function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   const singleRow = type === 'belongsTo' && single.limit === 1
   if (
-    (single.limit !== undefined && !singleRow) ||
-    single.offset !== undefined ||
+    (single.limit !== undefined && single.limit !== null && !singleRow) ||
+    (single.offset !== undefined && single.offset !== null) ||
     groupLimit !== undefined
   ) {
     throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
