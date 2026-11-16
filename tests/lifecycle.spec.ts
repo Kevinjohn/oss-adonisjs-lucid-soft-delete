@@ -439,7 +439,7 @@ test.group('Soft-delete lifecycle', (group) => {
     await createTables(db)
     const saved = await seedRecord('projected-trashed')
     await saved.delete()
-    const original = saved.deletedAt!.toMillis()
+    const original = await LifecycleRecord.withTrashed().where('id', saved.id).firstOrFail()
 
     for (const quietly of [false, true]) {
       const projected = await LifecycleRecord.withTrashed()
@@ -461,7 +461,7 @@ test.group('Soft-delete lifecycle', (group) => {
         []
       )
       const stored = await LifecycleRecord.withTrashed().where('id', saved.id).firstOrFail()
-      assert.equal(stored.deletedAt!.toMillis(), original)
+      assert.equal(stored.deletedAt!.toMillis(), original.deletedAt!.toMillis())
       assert.equal(stored.username, saved.username)
     }
   })
