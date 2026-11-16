@@ -53,8 +53,8 @@ Set `DB_HOST`, `DB_PORT`, or `DB_PASSWORD` for a non-default local setup.
 
 The managed cluster uses `tmp/pg16.lock` while a lifecycle command runs and
 `tmp/pg16.lock.reaping` briefly while acquiring it. A command can reclaim a
-lock with a recorded dead owner. If a process is interrupted before writing
-the owner, or while holding the acquisition gate, commands fail closed with
+lock with a complete recorded dead owner. If a process is interrupted before
+publishing the owner or while holding the acquisition gate, commands fail closed with
 `cluster lock busy`. Inspect the managed paths and confirm no `pg.sh` command
 is running before removing an ownerless lock or the acquisition gate manually.
 

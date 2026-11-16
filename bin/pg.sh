@@ -130,13 +130,27 @@ cleanup() {
     if stop_cluster; then :; else echo 'cleanup failed: owned PostgreSQL shutdown' >&2; cleanup_result=1; fi
   fi
   if [ "$locked" -eq 1 ]; then
-    if [ "$(cat "$LOCK/owner" 2>/dev/null)" = "$$" ] && rm "$LOCK/owner" && rmdir "$LOCK"; then :; else echo "cleanup failed: release $LOCK" >&2; cleanup_result=1; fi
+    if read_owner && [ "$owner" = "$$" ] && rm "$LOCK/owner" && rmdir "$LOCK"; then :; else echo "cleanup failed: release $LOCK" >&2; cleanup_result=1; fi
   fi
   if [ "$reaping" -eq 1 ]; then
     if rmdir "$REAPER"; then :; else echo "cleanup failed: release $REAPER" >&2; cleanup_result=1; fi
   fi
   if [ "$result" -eq 0 ] && [ "$cleanup_result" -ne 0 ]; then result=1; fi
   exit "$result"
+}
+read_owner() {
+  local extra size
+  owner=''
+  [ -f "$LOCK/owner" ] && [ ! -L "$LOCK/owner" ] || return 1
+  size="$(wc -c < "$LOCK/owner")" || return 1
+  [ "$size" -le 11 ] || return 1
+  exec 3< "$LOCK/owner" || return 1
+  if ! IFS= read -r owner <&3; then exec 3<&-; return 1; fi
+  extra=''
+  if IFS= read -r extra <&3 || [ -n "$extra" ]; then exec 3<&-; return 1; fi
+  exec 3<&-
+  case "$owner" in ''|0*|*[!0-9]*) return 1;; esac
+  [ "${#owner}" -le 10 ] && [ "$owner" -le 2147483647 ]
 }
 if [ "$COMMAND" != status ]; then
   mkdir -p "$ROOT/tmp"
@@ -148,8 +162,7 @@ if [ "$COMMAND" != status ]; then
   mkdir "$REAPER" 2>/dev/null || fail "cluster lock busy: $LOCK"
   reaping=1
   if ! mkdir "$LOCK" 2>/dev/null; then
-    owner="$(cat "$LOCK/owner" 2>/dev/null || true)"
-    if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+    if read_owner && ! kill -0 "$owner" 2>/dev/null; then
       stale="$LOCK.stale.$$"
       [ ! -e "$stale" ] && [ ! -L "$stale" ] || fail "cluster lock busy: $LOCK"
       mv "$LOCK" "$stale" 2>/dev/null || fail "cluster lock busy: $LOCK"
@@ -158,7 +171,9 @@ if [ "$COMMAND" != status ]; then
     else fail "cluster lock busy: $LOCK"; fi
   fi
   locked=1
-  echo "$$" > "$LOCK/owner"
+  owner_temp="$(mktemp "$LOCK/owner.XXXXXX")"
+  printf '%s\n' "$$" > "$owner_temp"
+  mv "$owner_temp" "$LOCK/owner"
   rmdir "$REAPER"
   reaping=0
 fi
