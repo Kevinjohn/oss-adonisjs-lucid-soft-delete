@@ -67,6 +67,11 @@ class BigKey extends compose(BaseModel, SoftDeletes) {
   @column() declare label: string
 }
 
+class BinaryKey extends compose(BaseModel, SoftDeletes) {
+  static table = 'binary_keys'
+  @column({ isPrimary: true }) declare id: Uint8Array
+}
+
 class FetchUser extends LifecycleUser {
   static table = 'users'
   static fetchHooksRun = 0
@@ -290,7 +295,7 @@ test.group('Builder receipts', (group) => {
     assert.lengthOf(await trx.from('users').whereNull('deleted_at'), 2)
     const purged = await LifecycleUser.query({ client: trx })
       .from('users as selected')
-      .whereIn('id', receipt.ids)
+      .whereIn('id', receipt.ids as number[])
       .onlyTrashed()
       .forceDelete({ receipt: true })
     assert.equal(purged.count, 2)
@@ -319,6 +324,23 @@ test.group('Builder receipts', (group) => {
     const trx = await openTransaction(db)
     const receipt = await BigKey.query({ client: trx }).softDelete({ receipt: true })
     assert.deepEqual(receipt.ids, dbClient === 'pg' ? ['9007199254740993'] : [4000000000])
+    await trx.rollback()
+  })
+
+  test('binary primary keys retain their driver representation in receipts', async ({ assert }) => {
+    if (dbClient !== 'sqlite') return
+    const db = await createDatabase()
+    await db.connection().schema.createTable('binary_keys', (table) => {
+      table.binary('id').primary()
+      table.timestamp('deleted_at', { useTz: true })
+    })
+    const key = Buffer.from([1, 2, 3])
+    await db.table('binary_keys').insert({ id: key })
+    const trx = await openTransaction(db)
+    const receipt = await BinaryKey.query({ client: trx }).softDelete({ receipt: true })
+    assert.equal(receipt.count, 1)
+    assert.isTrue(Buffer.isBuffer(receipt.ids[0]))
+    assert.deepEqual(receipt.ids[0], key)
     await trx.rollback()
   })
 

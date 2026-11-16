@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Receipt primary-key types include binary driver values (`Uint8Array`, including Node buffers).
+
 - Cleared lifecycle query limits, offsets and aggregate projections no longer block count or receipt writes.
 
 - Count-mode lifecycle writes reject has-one limits, including a rendered single-row limit, because a non-unique foreign key could otherwise mutate multiple rows.

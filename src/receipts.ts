@@ -18,7 +18,7 @@ import {
 import { aliasFromTable, qualifiedColumnReference } from './table_reference.js'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
-export type PrimaryKeyValue = number | string
+export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
   receipt?: boolean
@@ -166,7 +166,8 @@ export async function executeWithReceipt(
   if (ids.length === 0) return { count: 0, ids }
 
   const target = query.clone()
-  target.whereIn(reference, ids)
+  // Lucid types omit binary bindings, though Knex accepts the raw driver values.
+  target.whereIn(reference, ids as string[])
   const count = normalizeWriteCount(await write(target))
   if (count !== ids.length) throw new E_BULK_RECEIPT_DIVERGED(ids.length, count)
   return { count, ids }
