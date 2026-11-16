@@ -723,8 +723,8 @@ packages:
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
   '@kevinjohn/adonisjs-lucid-soft-delete@file:vendor/kevinjohn-adonisjs-lucid-soft-delete.tgz':
-    resolution: {integrity: sha512-VvRNbuOOTPtsi/Tfz5ibF5DvgiLOcUxqk964ytSzE8ggQVJioHghHvt5xUxybiUNpSmL/kiXUer34rpxQJpKJA==, tarball: file:vendor/kevinjohn-adonisjs-lucid-soft-delete.tgz}
-    version: 0.1.6
+    resolution: {integrity: sha512-tQqoBgt1KF6O4DhZR5HncuNG3CXWbaBXvck2lTRE29112wK157sJCWyJAXcL4Gb5hdYuowmpRTnHzfepM1Bhmg==, tarball: file:vendor/kevinjohn-adonisjs-lucid-soft-delete.tgz}
+    version: 0.2.0
     engines: {node: '>=24.0.0'}
     peerDependencies:
       '@adonisjs/core': ^7.0.0
