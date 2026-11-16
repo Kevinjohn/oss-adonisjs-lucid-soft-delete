@@ -9,14 +9,14 @@ with the other packages' examples.
 
 ## What this example adds
 
-| File                                                                 | Shows                                                                                |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `adonisrc.ts`                                                        | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`    |
-| `database/migrations/1768620765696_add_deleted_at_to_users.ts`       | A nullable `deleted_at` column on `users`                                            |
-| `app/models/user.ts`                                                 | `SoftDeletes` composed into the user model                                           |
-| `app/services/soft_delete_admins.ts`, `start/env.ts`, `.env.example` | Administrators come from `SOFT_DELETE_ADMIN_EMAILS`; missing means nobody            |
-| `app/controllers/account_deletion_controller.ts`                     | `DELETE /api/v1/account` soft deletes the signed-in account                          |
-| `app/controllers/deleted_users_controller.ts`, `start/routes.ts`     | `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore` |
+| File                                                                  | Shows                                                                                |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `adonisrc.ts`                                                         | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`    |
+| `database/migrations/1768620765696_add_deleted_at_to_users.ts`        | A nullable `deleted_at` column on `users`                                            |
+| `app/models/user.ts`                                                  | `SoftDeletes` composed into the user model                                           |
+| `app/services/soft_delete_admins.ts`, `app/models/user.ts`, migration | An operator grants an existing account a database flag; signup defaults to no access |
+| `app/controllers/account_deletion_controller.ts`                      | `DELETE /api/v1/account` soft deletes the signed-in account                          |
+| `app/controllers/deleted_users_controller.ts`, `start/routes.ts`      | `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore` |
 
 A deleted account's access tokens stop authenticating and it cannot log in, because the auth
 guard and `verifyCredentials` query through the model, which leaves deleted rows out. Its tokens are
@@ -40,8 +40,16 @@ pnpm dev
 `kit:pack` builds Lucid Soft Delete from this checkout into `vendor/`. The packed archive's
 checksum changes with every build, so the install does not use a frozen lockfile.
 
-Set `SOFT_DELETE_ADMIN_EMAILS` in `.env` to a comma-separated list of addresses and restart
-the app. Create those accounts, and any others, through signup.
+Create and verify the administrator account first. As a trusted database operator, grant it by
+setting `users.is_soft_delete_admin = true` for its existing numeric `id`. For example, with the default SQLite connection, after confirming the selected ID belongs to the intended account:
+
+```sql
+UPDATE users SET is_soft_delete_admin = true WHERE id = 123;
+```
+
+Set the flag to `false` to revoke access. New accounts default to `false`; public signup cannot
+set this flag, even if a request includes `isSoftDeleteAdmin`. The retired
+`SOFT_DELETE_ADMIN_EMAILS` setting is ignored and should be removed from existing `.env` files.
 
 ## Checks
 

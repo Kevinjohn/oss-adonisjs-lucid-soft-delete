@@ -1,22 +1,21 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
-import { softDeleteAdminEmails } from '#services/soft_delete_admins'
 
 const password = 'SoftDeletePass123!'
 
 test.group('soft delete in the browser', (group) => {
   group.each.setup(async () => {
-    softDeleteAdminEmails.add('admin@example.test')
     const rollback = await testUtils.db().withGlobalTransaction()
     return async () => {
-      softDeleteAdminEmails.clear()
       await rollback()
     }
   })
 
   test('an administrator restores a deleted account', async ({ visit, assert }) => {
-    await User.create({ email: 'admin@example.test', password })
+    const adminAccount = await User.create({ email: 'admin@example.test', password })
+    adminAccount.isSoftDeleteAdmin = true
+    await adminAccount.save()
     const member = await User.create({ email: 'member@example.test', password })
     await member.delete()
 

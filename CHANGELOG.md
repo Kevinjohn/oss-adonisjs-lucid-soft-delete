@@ -14,6 +14,7 @@
 - Count-mode lifecycle writes reject has-one limits, including a rendered single-row limit, because a non-unique foreign key could otherwise mutate multiple rows.
 - Failed deletion of a fetched projection preserves its unknown deletion state.
 - Deleting a fetched projection of an already trashed record preserves its deletion time.
+- Starter examples: deleted-account administration now requires an operator-granted flag on an existing account. Public signup cannot gain access by claiming a configured email address.
 
 ## 0.1.7 - 2026-11-08
 
