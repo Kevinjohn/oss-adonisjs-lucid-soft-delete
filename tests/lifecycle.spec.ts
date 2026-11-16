@@ -101,6 +101,17 @@ class CustomLifecycleRecord extends compose(BaseModel, SoftDeletes) {
   declare deletedAt?: DateTime | null
 }
 
+class SelfAssignedLifecycleRecord extends compose(BaseModel, SoftDeletes) {
+  static table = 'posts'
+  static selfAssignPrimaryKey = true
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare title: string
+}
+
 async function seedRecord(username = 'lifecycle') {
   const record = new LifecycleRecord()
   record.fill({ username, email: `${username}@example.test` })
@@ -504,10 +515,18 @@ test.group('Soft-delete lifecycle', (group) => {
     const past = DateTime.fromISO('2020-01-01T00:00:00Z')
 
     try {
-      await transaction.from('posts').where('id', saved.id).update({ deletedAt: past.toSQL() })
+      const state = await CustomLifecycleRecord.query({ client: transaction })
+        .where('id', saved.id)
+        .firstOrFail()
+      state.deletedAt = past
+      await state.saveQuietly()
+      assert.notProperty(projected.$attributes, 'deletedAt')
       await projected.deleteQuietly()
-      const inTransaction = await transaction.from('posts').where('id', saved.id).firstOrFail()
-      assert.equal(DateTime.fromSQL(inTransaction.deletedAt).toMillis(), past.toMillis())
+      const inTransaction = await CustomLifecycleRecord.withTrashed()
+        .useTransaction(transaction)
+        .where('id', saved.id)
+        .firstOrFail()
+      assert.equal(inTransaction.deletedAt!.toMillis(), past.toMillis())
       assert.notProperty(projected.$attributes, 'deletedAt')
     } finally {
       await transaction.rollback()
@@ -515,6 +534,42 @@ test.group('Soft-delete lifecycle', (group) => {
 
     const persisted = await CustomLifecycleRecord.findOrFail(saved.id)
     assert.isNull(persisted.deletedAt)
+  })
+
+  test('projected delete of a self-assigned key uses the persisted identity', async ({
+    assert,
+  }) => {
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    const saved = new SelfAssignedLifecycleRecord()
+    saved.id = 9001
+    saved.title = 'persisted-title'
+    await saved.save()
+    await saved.delete()
+    const original = await SelfAssignedLifecycleRecord.withTrashed()
+      .where('id', saved.id)
+      .firstOrFail()
+    const projected = await SelfAssignedLifecycleRecord.withTrashed()
+      .select('id', 'title')
+      .where('id', saved.id)
+      .firstOrFail()
+    projected.id = 9002
+    projected.title = 'unsaved-title'
+    statements.length = 0
+
+    await projected.delete()
+
+    assert.isTrue(projected.$isDirty)
+    assert.notProperty(projected.$attributes, 'deletedAt')
+    assert.deepEqual(
+      statements.filter((sql) => /^update\b/i.test(sql)),
+      []
+    )
+    const stored = await SelfAssignedLifecycleRecord.withTrashed().where('id', 9001).firstOrFail()
+    assert.equal(stored.deletedAt!.toMillis(), original.deletedAt!.toMillis())
+    assert.equal(stored.title, 'persisted-title')
+    assert.isNull(await SelfAssignedLifecycleRecord.withTrashed().where('id', 9002).first())
   })
 
   test('delete on a trashed model with an edited deletedAt writes a fresh timestamp', async ({
