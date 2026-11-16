@@ -99,8 +99,9 @@ from silently widening its target selection.
 Count-mode writes read the same `groupConstraints` and the Knex `_single.limit` and `_single.offset`
 fields. `HasOneQueryBuilder.applyConstraints()` and `BelongsToQueryBuilder.applyConstraints()` add
 `limit(1)` for select actions only, so a builder rendered with `toSQL()` before the write carries
-that limit; the guard accepts a limit of exactly `1` on those two relation types. Covered by
-`tests/builder_restore.spec.ts`.
+that limit. The guard accepts a limit of exactly `1` only on belongs-to. Has-one limits are
+rejected because its foreign key need not be unique and a caller limit is indistinguishable
+from the rendered select limit. Covered by `tests/builder_restore.spec.ts`.
 
 The lifecycle macros and builder `restore()` reject many-to-many and has-many-through relation
 builders before writing. Lucid's `ManyToManyQueryBuilder.applyConstraints()` changes the target
