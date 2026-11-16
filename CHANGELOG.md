@@ -12,6 +12,8 @@
 - Cleared lifecycle query limits, offsets and aggregate projections no longer block count or receipt writes.
 
 - Count-mode lifecycle writes reject has-one limits, including a rendered single-row limit, because a non-unique foreign key could otherwise mutate multiple rows.
+- Failed deletion of a fetched projection preserves its unknown deletion state.
+- Deleting a fetched projection of an already trashed record preserves its deletion time.
 
 ## 0.1.7 - 2026-11-08
 
