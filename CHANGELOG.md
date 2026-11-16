@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Starter UI examples: signed-in navigation to account deletion and administrator-only navigation to deleted accounts.
+
 ### Fixed
 
 - Preserve grouped caller predicates through SQL previews, repeated reads and subsequent writes, including `withTrashed()` builders.

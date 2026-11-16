@@ -2,7 +2,7 @@
   Top-level app navigation. Add an entry here for every new area of your
   app, and it shows up in the navigation bar with its active state handled.
 --}}
-@let(nav = [{ label: 'Dashboard', route: 'dashboard', icon: 'lucide:house' }])
+@let(nav = softDeleteNavigation(auth.user))
 @let(pageTitle = $props.get('title'))
 <!DOCTYPE html>
 <html
@@ -30,7 +30,7 @@
           @form({ route: 'session.destroy', method: 'POST' })
             <button type="submit" class="btn btn--secondary btn--sm">
               @svg('lucide:log-out', { width: 15, height: 15 })
-              Log out
+              <span>Log out</span>
             </button>
           @end
         </div>
