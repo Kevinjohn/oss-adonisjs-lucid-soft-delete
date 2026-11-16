@@ -32,16 +32,9 @@ export function aliasFromTable(table: unknown): string | undefined {
 
 export function resolveTableReference(query: ModelQueryBuilderContract<LucidModel>): string {
   const table = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
-  const alias = aliasFromTable(table)
-  if (alias) return alias
-
-  // Lucid retains tableAlias after a later from() replaces the table. The current FROM wins.
-  if (table !== undefined) return query.model.table
-
-  const tableAlias = (query as { tableAlias?: string }).tableAlias
-  if (tableAlias) return tableAlias
-
-  return query.model.table
+  // Lucid's model builder assigns a FROM table in its constructor. Its tableAlias cache can
+  // outlive a later from() call, so the current FROM alone determines the qualifier.
+  return aliasFromTable(table) ?? query.model.table
 }
 
 /**
