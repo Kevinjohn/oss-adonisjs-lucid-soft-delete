@@ -60,5 +60,6 @@ pnpm build
 pnpm test
 ```
 
-`tests/functional/soft_delete.spec.ts` covers deleting your own account, being unable to sign in
-afterwards, an administrator listing and restoring it, and a refused non-administrator and guest.
+`tests/functional/soft_delete.spec.ts` covers deleting your own account, refusal of the same
+bearer token while deleted and its reactivation after restore, an administrator listing and
+restoring an account, and refused non-administrators and guests.
