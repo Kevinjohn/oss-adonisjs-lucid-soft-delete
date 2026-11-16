@@ -6,6 +6,7 @@
 
 - Preserve grouped caller predicates through SQL previews, repeated reads and subsequent writes, including `withTrashed()` builders.
 - Detect relation group limits from their builder structure so bound text cannot be mistaken for the window counter and normal queries are not rendered for detection.
+- Qualify soft-delete filters with the current FROM alias after a builder changes aliases.
 
 ## 0.1.7 - 2026-11-08
 

@@ -55,7 +55,7 @@ test.group('scope modules', (group) => {
     assert.isUndefined(aliasFromTable({ '  ': 'posts' }))
   })
 
-  test('table reference: prefers tableAlias, then the from alias, then the model table', async ({
+  test('table reference: follows current from alias ahead of cached metadata', async ({
     assert,
   }) => {
     const db = await createDatabase()
@@ -66,6 +66,9 @@ test.group('scope modules', (group) => {
     const aliased = RelationUser.query()
     ;(aliased as unknown as { tableAlias?: string }).tableAlias = 'alias'
     assert.equal(resolveTableReference(aliased), 'alias')
+    const changed = RelationUser.query().from({ prior: 'users' }).from('users as current')
+    assert.equal(resolveTableReference(changed), 'current')
+    assert.equal(resolveTableReference(changed.clone()), 'current')
     assert.equal(
       resolveTableReference(RelationUser.query().from('users as user-rows')),
       'user-rows'

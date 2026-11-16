@@ -78,6 +78,25 @@ test.group('Read scope', (group) => {
     assert.equal(rendered, 1)
   })
 
+  test('follows the last alias when a builder replaces its FROM', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const target = await createUser('last-alias')
+    await createUser('deleted', true)
+    const query = User.query().from({ prior: 'users' }).from('users as current')
+    const rows = await query
+    const clonedRows = await query.clone()
+    assert.deepEqual(
+      rows.map((user) => user.id),
+      [target.id]
+    )
+    assert.deepEqual(
+      clonedRows.map((user) => user.id),
+      [target.id]
+    )
+    assert.equal(await query.where('current.id', target.id).softDelete(), 1)
+  })
+
   test('groups a user OR expression in only-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
