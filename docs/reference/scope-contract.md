@@ -27,6 +27,12 @@ Choose a mode independently for the root model and each relation query. Modes su
 
 Builder lifecycle writes have their own rules and should not be inferred from read modes. See [builder lifecycle methods](./#builder-lifecycle-methods) and [the operation chooser](./#choose-an-operation).
 
+### Group-limit client affinity
+
+In the installed Lucid 22.4.2 implementation, `groupLimit()` constructs a fresh outer related-model query without passing the source query client. The has-many, many-to-many and has-many-through builders all take this path. A preload originating on a secondary connection or caller transaction can therefore execute through the related model's default connection instead. Soft-delete filtering inside the ranking subquery does not repair that upstream client selection.
+
+When client affinity matters, avoid relying on a group-limited preload until you have verified the installed Lucid version on that client. For a single parent's has-many rows, use a direct related-model query with the explicit client, parent foreign-key predicate, ordering and ordinary `limit()`; retain application authorization and tenant predicates. Ordinary preloads without `groupLimit()` are a separate path. The default-connection group-limit regressions above establish filter placement, not secondary-connection or transaction affinity.
+
 ## Related model queries
 
 | Query path                                                                                                    | Contract                                                                                                                                                                                         | Regression evidence                                                                                                                                                    |
