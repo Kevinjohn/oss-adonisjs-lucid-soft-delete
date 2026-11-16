@@ -185,11 +185,13 @@ test.group('Soft-delete lifecycle', (group) => {
     await createTables(db)
     const record = await seedRecord()
     const previousDeletedAt = record.deletedAt
+    const hadOwnDeletedAt = Object.hasOwn(record, 'deletedAt')
     LifecycleRecord.failOn = 'beforeSave'
 
     await assert.rejects(() => record.delete(), 'beforeSave failed')
 
     assert.equal(record.deletedAt, previousDeletedAt)
+    assert.equal(Object.hasOwn(record, 'deletedAt'), hadOwnDeletedAt)
     assert.isFalse(record.$isDeleted)
     assert.isFalse(record.$isDirty)
     const stored = await LifecycleRecord.query().where('id', record.id).firstOrFail()
@@ -762,11 +764,13 @@ test.group('Soft-delete lifecycle', (group) => {
       .select('id')
       .where('id', active.id)
       .firstOrFail()
+    const hadOwnDeletedAt = Object.hasOwn(projected, 'deletedAt')
     LifecycleRecord.failOn = 'beforeSave'
 
     await assert.rejects(() => projected.delete(), 'beforeSave failed')
 
     assert.notProperty(projected.$attributes, 'deletedAt')
+    assert.equal(Object.hasOwn(projected, 'deletedAt'), hadOwnDeletedAt)
     await assert.rejects(() => projected.restore(), E_MODEL_UNKNOWN_DELETION_STATE)
     const stored = await LifecycleRecord.findOrFail(active.id)
     assert.isNull(stored.deletedAt)
