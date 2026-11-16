@@ -250,13 +250,13 @@ Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is de
 
 ### Receipts
 
-Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write:
+Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write. Receipt mode requires a caller-owned transaction client; assume `trx` is bound to that transaction in these examples. The comments show the resolved values after `await`:
 
 ```ts
-await User.query().whereIn('id', ids).softDelete() // Promise<number>, unchanged
-await User.query().whereIn('id', ids).softDelete({ receipt: true }) // Promise<SoftDeleteReceipt>
-await User.query().whereIn('id', ids).restore({ receipt: true }) // Promise<RestoreReceipt>
-await User.onlyTrashed().whereIn('id', ids).forceDelete({ receipt: true }) // Promise<ForceDeleteReceipt>
+await User.query({ client: trx }).whereIn('id', ids).softDelete() // number
+await User.query({ client: trx }).whereIn('id', ids).softDelete({ receipt: true }) // SoftDeleteReceipt
+await User.query({ client: trx }).whereIn('id', ids).restore({ receipt: true }) // RestoreReceipt
+await User.query({ client: trx }).onlyTrashed().whereIn('id', ids).forceDelete({ receipt: true }) // ForceDeleteReceipt
 ```
 
 `{}` and `{ receipt: false }` behave exactly like no argument. The count-mode SQL and return values do not change.
