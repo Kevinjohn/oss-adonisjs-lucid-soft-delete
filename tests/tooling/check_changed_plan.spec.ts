@@ -142,6 +142,7 @@ test.group('check:changed plan', () => {
       ['bin/helpers/consumer/fixture.ts', ['tests/tooling/consumer_fixture.spec.ts']],
       ['.github/workflows/checks.yml', ['tests/tooling/check_profiles.spec.ts']],
       ['.github/workflows/compat.yml', ['tests/tooling/check_profiles.spec.ts']],
+      ['.github/workflows/release.yml', ['tests/tooling/release_workflow.spec.ts']],
       [
         '.github/workflows/docs.yml',
         ['tests/docs_workflow.spec.ts', 'tests/tooling/check_profiles.spec.ts'],
@@ -158,6 +159,24 @@ test.group('check:changed plan', () => {
       { path: 'tests/tooling/release_check.spec.ts', deleted: true },
     ])
     assert.deepEqual(plan.tests, [])
+  })
+
+  test('release workflow routing survives deletion without selecting a deleted spec', ({
+    assert,
+  }) => {
+    assert.deepEqual(planChecks([{ path: '.github/workflows/release.yml', deleted: true }]).tests, [
+      'tests/tooling/release_workflow.spec.ts',
+    ])
+    assert.deepEqual(
+      planChecks([
+        { path: '.github/workflows/release.yml', deleted: false },
+        { path: 'tests/tooling/release_workflow.spec.ts', deleted: true },
+      ]).tests,
+      []
+    )
+    assert.deepEqual(planChecks(changed('.github/workflows/release.yml'), true).tests, [
+      'tests/tooling/release_workflow.spec.ts',
+    ])
   })
 
   test('the check itself runs its own spec', ({ assert }) => {
