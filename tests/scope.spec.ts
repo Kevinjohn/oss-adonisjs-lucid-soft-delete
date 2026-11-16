@@ -120,6 +120,18 @@ test.group('Read scope', (group) => {
     activePost.fill({ userId: parent.id, title: 'active-branch' })
     await activePost.save()
 
+    const trashedOnlyParent = new RelationUser()
+    trashedOnlyParent.fill({
+      username: 'trashed-only-parent',
+      email: 'trashed-only-parent@example.test',
+      managerId: null,
+    })
+    await trashedOnlyParent.save()
+    const trashedOnlyPost = new RelationPost()
+    trashedOnlyPost.fill({ userId: trashedOnlyParent.id, title: 'trashed-branch' })
+    await trashedOnlyPost.save()
+    await trashedOnlyPost.delete()
+
     const parents = await RelationUser.query().whereHas('posts', (query) =>
       query.where('title', 'trashed-branch').orWhere('title', 'active-branch')
     )
