@@ -2,16 +2,16 @@
 
 As a soft-delete administrator of the API starter app, I want to list deleted accounts and restore one so that a user who deleted their account can be recovered.
 
-**Status:** Demo; source-reviewed in the API starter example only, not runtime-tested here.
-**Access:** Authenticated account that an operator enrolled after creation by setting `users.is_soft_delete_admin` to true. Public signup cannot set the flag. A signed-in non-administrator receives `403`; a guest receives `401` from `middleware.auth()`.
+**Status:** Demo; source-reviewed in the [v0.13.0 API app](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.13.0/apps/api); the local native-auth contract fixture is retained but was not run for this documentation change.
+**Access:** Account authenticated through the selected API guard and enrolled by an operator after creation by setting `users.is_soft_delete_admin` to true. Public signup cannot set the flag. A signed-in non-administrator receives `403`; a guest receives `401` from the auth middleware.
 **Entry:** `GET /api/v1/admin/deleted-users` and `POST /api/v1/admin/deleted-users/:id/restore`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [Instance lifecycle methods](../../docs/reference/README.md#instance-lifecycle-methods).
-**Source:** [Routes](../../examples/starter/api/start/routes.ts) (lines 40-41), [DeletedUsersController](../../examples/starter/api/app/controllers/deleted_users_controller.ts) (lines 11, 22), [admin check](../../examples/starter/api/app/services/soft_delete_admins.ts), [admin flag migration](../../examples/starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts).
-**Coverage:** [API starter tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
+**Source:** [Routes](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/start/routes.ts) (lines 179-187), [DeletedUsersController](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/app/controllers/deleted_users_controller.ts) (lines 11-26), [admin check](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/app/services/soft_delete_admins.ts), [admin flag migration](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts).
+**Coverage:** [Local API native-auth contract tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
 
 ## Acceptance criteria
 
-- Both routes sit behind `middleware.auth()`; a non-administrator receives `403` with an `errors` message before any query runs.
+- Both routes sit behind `middleware.auth({ guards: [selectedGuardName()] })`; a non-administrator receives `403` with an `errors` message before any query runs.
 - `index` returns `User.onlyTrashed()` ordered by `deleted_at` descending, each as `id`, `email` and ISO `deletedAt`.
 - `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()` and calls `restore()`, returning `id` and `email`. An id that is missing or not trashed fails as not found.
 - The administrator grant comes from the account row, defaults to false for new signups, and can be revoked by clearing the flag.
@@ -39,7 +39,7 @@ Scope: starter routes and controller through `onlyTrashed()` and `restore()`.
 flowchart TD
     P["Operator sets users.is_soft_delete_admin on an existing row"] --> Q["User row stores grant"]
     Q --> C
-    A["router.get and router.post under admin/deleted-users"] --> B["middleware.auth"]
+    A["router.get and router.post under admin/deleted-users"] --> B["middleware.auth with selectedGuardName"]
     B --> C["isSoftDeleteAdmin checks users.is_soft_delete_admin"]
     C -->|No| D["response.forbidden"]
     C -->|Yes| E{"Action"}
@@ -50,4 +50,4 @@ flowchart TD
     H --> J["Return id and email"]
 ```
 
-**Code references:** [routes](../../examples/starter/api/start/routes.ts), [controller](../../examples/starter/api/app/controllers/deleted_users_controller.ts), [admin check](../../examples/starter/api/app/services/soft_delete_admins.ts), [admin flag migration](../../examples/starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts), [operator setup](../../examples/starter/api/README.md#install-and-run), [SoftDeletes mixin](../../src/mixin.ts), [API starter tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
+**Code references:** [routes](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/start/routes.ts), [controller](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/app/controllers/deleted_users_controller.ts), [admin check](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/app/services/soft_delete_admins.ts), [admin flag migration](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts), [operator setup](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/api/README.md#install-and-run), [SoftDeletes mixin](../../src/mixin.ts), [local API native-auth contract tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
