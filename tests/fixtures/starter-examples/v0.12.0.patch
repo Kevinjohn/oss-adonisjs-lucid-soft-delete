@@ -1,4 +1,4 @@
-# Test-only compatibility data for Starter Examples v0.10.0 (a76d812421138169d0cb76374191887c847b37de).
+# Test-only compatibility data for Starter Examples v0.12.0 (6e1991d780a840557d517289a499aee826b253c2).
 # Keep the four consumer kits and their matching native resolutions together in one pinned fixture.
 
 diff --git a/layers/combined/api/database/seeders/demo_seeder.ts b/layers/combined/api/database/seeders/demo_seeder.ts

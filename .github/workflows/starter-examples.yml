@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  STARTER_EXAMPLES_REF: v0.10.0
+  STARTER_EXAMPLES_REF: v0.12.0
 
 jobs:
   combined:
@@ -34,8 +34,8 @@ jobs:
           node-version: 24
       - run: pnpm --dir package install --frozen-lockfile
       - run: pnpm --dir starter-examples install --frozen-lockfile
-      - run: test "$(git -C starter-examples rev-parse HEAD)" = a76d812421138169d0cb76374191887c847b37de
-      - run: git -C starter-examples apply --index "$GITHUB_WORKSPACE/package/tests/fixtures/starter-examples/v0.10.0.patch"
+      - run: test "$(git -C starter-examples rev-parse HEAD)" = 6e1991d780a840557d517289a499aee826b253c2
+      - run: git -C starter-examples apply --index "$GITHUB_WORKSPACE/package/tests/fixtures/starter-examples/v0.12.0.patch"
       - run: pnpm --dir starter-examples assemble --kit ${{ matrix.kit }} --with-local "$GITHUB_WORKSPACE/package" --out "$GITHUB_WORKSPACE/starter-examples/tmp/combined"
       - run: |
           node -e 'const fs = require("node:fs"); const path = require("node:path"); const app = path.join("starter-examples/tmp/combined", process.argv[1]); const asset = "kevinjohn-adonisjs-lucid-soft-delete.tgz"; const manifest = JSON.parse(fs.readFileSync(path.join(app, "package.json"), "utf8")); if (manifest.dependencies["@kevinjohn/adonisjs-lucid-soft-delete"] !== `file:vendor/${asset}` || !fs.existsSync(path.join(app, "vendor", asset))) process.exit(1)' "${{ matrix.kit }}"
