@@ -788,10 +788,10 @@ index 0000000..5f400f4
 +}
 diff --git a/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts b/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts
 new file mode 100644
-index 0000000..2b2323d
+index 0000000..54b6145
 --- /dev/null
 +++ b/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,70 @@
 +import type { HttpContext } from '@adonisjs/core/http'
 +import type { NextFn } from '@adonisjs/core/types/http'
 +import UserTransformer from '#transformers/user_transformer'
@@ -820,6 +820,8 @@ index 0000000..2b2323d
 +     * Data shared with all Inertia pages. Make sure you are using
 +     * transformers for rich data-types like Models.
 +     */
++    if (ctx.session?.flashMessages.get('masqueradeClearHistory')) ctx.inertia.clearHistory()
++
 +    return {
 +      errors: ctx.inertia.always(this.getValidationErrors(ctx)),
 +      user: ctx.inertia.always(auth?.user ? UserTransformer.transform(auth.user) : undefined),
@@ -862,7 +864,7 @@ index 0000000..2b2323d
 +}
 diff --git a/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json b/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json
 new file mode 100644
-index 0000000..1f9357a
+index 0000000..378a051
 --- /dev/null
 +++ b/resolutions/inertia-react/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json
 @@ -0,0 +1,16 @@
@@ -874,7 +876,7 @@ index 0000000..1f9357a
 +  },
 +  "ours": {
 +    "mode": "100644",
-+    "blob": "507344aa51751df53a7ffabb1c6fa9e0d7db6f53"
++    "blob": "55f6a155892e91d4ab06839da9744c5bff12b69e"
 +  },
 +  "theirs": {
 +    "mode": "100644",
@@ -974,10 +976,10 @@ index 0000000..cbf63d3
 +}
 diff --git a/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts b/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts
 new file mode 100644
-index 0000000..2b2323d
+index 0000000..54b6145
 --- /dev/null
 +++ b/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,70 @@
 +import type { HttpContext } from '@adonisjs/core/http'
 +import type { NextFn } from '@adonisjs/core/types/http'
 +import UserTransformer from '#transformers/user_transformer'
@@ -1006,6 +1008,8 @@ index 0000000..2b2323d
 +     * Data shared with all Inertia pages. Make sure you are using
 +     * transformers for rich data-types like Models.
 +     */
++    if (ctx.session?.flashMessages.get('masqueradeClearHistory')) ctx.inertia.clearHistory()
++
 +    return {
 +      errors: ctx.inertia.always(this.getValidationErrors(ctx)),
 +      user: ctx.inertia.always(auth?.user ? UserTransformer.transform(auth.user) : undefined),
@@ -1048,7 +1052,7 @@ index 0000000..2b2323d
 +}
 diff --git a/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json b/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json
 new file mode 100644
-index 0000000..1f9357a
+index 0000000..378a051
 --- /dev/null
 +++ b/resolutions/inertia-vue/lucid-soft-delete/app/middleware/inertia_middleware.ts.inputs.json
 @@ -0,0 +1,16 @@
@@ -1060,7 +1064,7 @@ index 0000000..1f9357a
 +  },
 +  "ours": {
 +    "mode": "100644",
-+    "blob": "507344aa51751df53a7ffabb1c6fa9e0d7db6f53"
++    "blob": "55f6a155892e91d4ab06839da9744c5bff12b69e"
 +  },
 +  "theirs": {
 +    "mode": "100644",
