@@ -275,16 +275,37 @@ test.group('Builder restore', (group) => {
     assert.lengthOf(await RelationUser.onlyTrashed(), 2)
   })
 
+  test('count mode rejects a previewed belongs-to limit after the key predicate is cleared or widened', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    const other = await createUser('other-parent')
+    const post = await RelationPost.create({ userId: user.id, title: 'a' })
+    for (const change of ['clear', 'or'] as const) {
+      const query = post.related('user').query()
+      query.toSQL()
+      if (change === 'clear') query.clearWhere()
+      else query.orWhere('id', other.id)
+      await assert.rejects(
+        () => query.softDelete(),
+        'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+      )
+    }
+    assert.lengthOf(await RelationUser.all(), 2)
+  })
+
   test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
     assert,
   }) => {
     const db = await createDatabase()
     await createTables(db)
     const user = await createUser('parent')
-    await createUser('other-parent')
+    const other = await createUser('other-parent')
     const post = await RelationPost.create({ userId: user.id, title: 'a' })
 
-    const query = post.related('user').query()
+    const query = post.related('user').query().where('id', user.id).orWhere('id', other.id)
     query.toSQL()
 
     assert.equal(await query.softDelete(), 1)
@@ -292,9 +313,7 @@ test.group('Builder restore', (group) => {
     assert.isTrue(trashed.trashed)
     assert.lengthOf(await RelationUser.all(), 1)
 
-    const restore = post.related('user').query()
-    restore.toSQL()
-    assert.equal(await restore.restore(), 1)
+    assert.equal(await post.related('user').query().limit(1).restore(), 1)
     assert.lengthOf(await RelationUser.all(), 2)
   })
 })

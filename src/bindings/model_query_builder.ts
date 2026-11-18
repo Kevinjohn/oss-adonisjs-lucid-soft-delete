@@ -14,7 +14,7 @@ import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
 import { installSubQueryScope } from '../sub_query_scope.js'
 import { qualifiedColumnReference } from '../table_reference.js'
-import { addScopeFilter, groupCallerPredicates } from '../where_stack.js'
+import { addScopeFilter, groupCallerPredicates, hasRequiredEquality } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
@@ -51,13 +51,19 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
 function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   const single = (
     query.knexQuery as unknown as {
-      _single: { limit?: unknown; offset?: unknown; table?: unknown }
+      _single: { limit?: unknown; offset?: unknown; table?: unknown; schema?: unknown }
     }
   )._single
-  const { groupConstraints, parent, relation } = query as unknown as {
+  const { appliedConstraints, groupConstraints, parent, relation } = query as unknown as {
+    appliedConstraints?: boolean
     groupConstraints?: { limit?: unknown }
-    parent?: unknown
-    relation?: { type: string; localKey?: string }
+    parent?: Record<string, unknown> | unknown[]
+    relation?: {
+      type: string
+      localKey: string
+      localKeyColumnName: string
+      foreignKey: string
+    }
   }
   const singleRow =
     single.limit === 1 &&
@@ -65,7 +71,11 @@ function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
     relation.localKey === query.model.primaryKey &&
     !!parent &&
     !Array.isArray(parent) &&
-    single.table === query.model.table
+    single.table === query.model.table &&
+    single.schema === undefined &&
+    // Lucid will not reapply the relation constraint after previewing a builder.
+    (!appliedConstraints ||
+      hasRequiredEquality(query, relation.localKeyColumnName, parent[relation.foreignKey]))
   if (
     (single.limit !== undefined && single.limit !== null && !singleRow) ||
     (single.offset !== undefined && single.offset !== null) ||

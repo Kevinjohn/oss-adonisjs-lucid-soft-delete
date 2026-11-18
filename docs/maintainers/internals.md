@@ -103,6 +103,8 @@ fields. `HasOneQueryBuilder.applyConstraints()` and `BelongsToQueryBuilder.apply
 `limit(1)` for select actions only, so a builder rendered with `toSQL()` before the write carries
 that limit. The guard accepts a limit of exactly `1` on a single-parent belongs-to builder when
 the relation's `localKey` is the related model's primary key and its FROM is the model table.
+Once Lucid has applied the relation constraint, the guard checks the retained where groups for
+a required equality on that key.
 A custom related key or a has-one foreign key may match multiple rows. Covered by
 `tests/builder_restore.spec.ts`.
 
