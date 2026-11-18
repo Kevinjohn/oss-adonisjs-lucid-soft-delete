@@ -8,7 +8,8 @@
  */
 
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
 import { DateTime as LuxonDateTime } from 'luxon'
@@ -232,12 +233,55 @@ test.group('Builder restore', (group) => {
     assert.lengthOf(await RelationProfile.query().where('userId', user.id), 2)
   })
 
+  test('belongs-to limits cannot widen a lifecycle write across a nonunique related key', async ({
+    assert,
+  }) => {
+    class CompanyUser extends RelationUser {
+      static table = 'users'
+      @column()
+      declare companyId: number
+
+      @belongsTo(() => CompanyUser, { localKey: 'companyId', foreignKey: 'companyId' })
+      declare relatedUser: BelongsTo<typeof CompanyUser>
+    }
+
+    const statements: string[] = []
+    const db = await createDatabase((event) => statements.push(event.sql))
+    await createTables(db)
+    await CompanyUser.createMany([
+      { username: 'first', companyId: 1 },
+      { username: 'second', companyId: 1 },
+    ])
+    const parent = new CompanyUser()
+    parent.companyId = 1
+
+    let before = statements.length
+    await assert.rejects(
+      () => parent.related('relatedUser').query().limit(1).softDelete(),
+      'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+    )
+    assert.lengthOf(statements, before)
+    assert.lengthOf(await RelationUser.all(), 2)
+
+    await RelationUser.query().softDelete()
+    const restore = parent.related('relatedUser').query()
+    restore.toSQL()
+    before = statements.length
+    await assert.rejects(
+      () => restore.restore(),
+      'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+    )
+    assert.lengthOf(statements, before)
+    assert.lengthOf(await RelationUser.onlyTrashed(), 2)
+  })
+
   test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
     assert,
   }) => {
     const db = await createDatabase()
     await createTables(db)
     const user = await createUser('parent')
+    await createUser('other-parent')
     const post = await RelationPost.create({ userId: user.id, title: 'a' })
 
     const query = post.related('user').query()
@@ -246,5 +290,11 @@ test.group('Builder restore', (group) => {
     assert.equal(await query.softDelete(), 1)
     const trashed = await RelationUser.withTrashed().where('id', user.id).firstOrFail()
     assert.isTrue(trashed.trashed)
+    assert.lengthOf(await RelationUser.all(), 1)
+
+    const restore = post.related('user').query()
+    restore.toSQL()
+    assert.equal(await restore.restore(), 1)
+    assert.lengthOf(await RelationUser.all(), 2)
   })
 })

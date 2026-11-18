@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Scope model reads and count-mode lifecycle writes to unaliased alternate FROM sources.
+- Reject count-mode lifecycle writes with one-row belongs-to windows when the related key can match multiple rows.
+
 ## 0.2.0 - 2026-11-16
 
 ### Added

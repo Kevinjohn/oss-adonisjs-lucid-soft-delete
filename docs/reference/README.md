@@ -248,6 +248,8 @@ const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDel
 
 Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches.
 
+Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview.
+
 ### Receipts
 
 Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write. Receipt mode requires a caller-owned transaction client; assume `trx` is bound to that transaction in these examples. The comments show the resolved values after `await`:
@@ -329,7 +331,7 @@ On has-many builders, the unsupported limit and ordering shapes also include `gr
 
 ### `delete()` and `del()`
 
-Lucid builder `delete()` and its alias `del()` are physical deletes. They are not soft-delete methods, and `withTrashed()` or `onlyTrashed()` does not constrain these writes. On a fresh builder they operate on all matching active and trashed rows; a builder that has already run keeps that run's soft-delete filter, so start a new query for a bulk write. They run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
+Lucid builder `delete()` and its alias `del()` are physical deletes. On a fresh builder, all matching active and trashed rows are eligible regardless of the selected read mode. A builder reused after a model fetch carries any soft-delete predicate installed during that fetch into ordinary writes, including `delete()`, `update()` and `increment()`. Start a fresh builder for an intentional bulk write and supply the desired predicates. They run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
 
 ```ts
 // Physical deletion, even though onlyTrashed() is a read mode:
