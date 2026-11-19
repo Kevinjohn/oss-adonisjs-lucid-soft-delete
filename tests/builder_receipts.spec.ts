@@ -87,10 +87,15 @@ async function openTransaction(db: Awaited<ReturnType<typeof createDatabase>>) {
   return trx
 }
 
-async function inTransaction<T>(
+async function withTransaction<T>(
   db: Awaited<ReturnType<typeof createDatabase>>,
-  run: (trx: Awaited<ReturnType<typeof db.transaction>>) => Promise<T>,
-  commit = true
+  {
+    run,
+    commit = true,
+  }: {
+    run: (trx: Awaited<ReturnType<typeof db.transaction>>) => Promise<T>
+    commit?: boolean
+  }
 ) {
   const trx = await openTransaction(db)
   try {
@@ -142,55 +147,57 @@ test.group('Builder receipts', (group) => {
   test('zero, one and many rows per operation with ids as a set', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await inTransaction(db, async (trx) => {
-      await trx
-        .table('users')
-        .insert([
-          { username: 'receipt-one' },
-          { username: 'receipt-two' },
-          { username: 'receipt-three' },
-        ])
-      const rows = await LifecycleUser.query({ client: trx }).orderBy('id')
-      const empty = await LifecycleUser.query({ client: trx })
-        .where('id', -1)
-        .softDelete({ receipt: true })
-      assert.deepEqual(empty, { count: 0, ids: [], deletedAt: null })
-      const one = await LifecycleUser.query({ client: trx })
-        .where('id', rows[0].id)
-        .softDelete({ receipt: true })
-      assert.equal(one.count, 1)
-      assert.sameMembers(one.ids, [rows[0].id])
-      assert.isTrue(DateTime.isDateTime(one.deletedAt))
-      assert.equal(one.count, one.ids.length)
-      const many = await LifecycleUser.query({ client: trx })
-        .whereIn('id', [rows[1].id, rows[2].id])
-        .withTrashed()
-        .softDelete({ receipt: true })
-      assert.equal(many.count, 2)
-      assert.sameMembers(many.ids, [rows[1].id, rows[2].id])
-      assert.equal(many.count, many.ids.length)
-      const restored = await LifecycleUser.query({ client: trx })
-        .whereIn(
-          'id',
+    await withTransaction(db, {
+      run: async (trx) => {
+        await trx
+          .table('users')
+          .insert([
+            { username: 'receipt-one' },
+            { username: 'receipt-two' },
+            { username: 'receipt-three' },
+          ])
+        const rows = await LifecycleUser.query({ client: trx }).orderBy('id')
+        const empty = await LifecycleUser.query({ client: trx })
+          .where('id', -1)
+          .softDelete({ receipt: true })
+        assert.deepEqual(empty, { count: 0, ids: [], deletedAt: null })
+        const one = await LifecycleUser.query({ client: trx })
+          .where('id', rows[0].id)
+          .softDelete({ receipt: true })
+        assert.equal(one.count, 1)
+        assert.sameMembers(one.ids, [rows[0].id])
+        assert.isTrue(DateTime.isDateTime(one.deletedAt))
+        assert.equal(one.count, one.ids.length)
+        const many = await LifecycleUser.query({ client: trx })
+          .whereIn('id', [rows[1].id, rows[2].id])
+          .withTrashed()
+          .softDelete({ receipt: true })
+        assert.equal(many.count, 2)
+        assert.sameMembers(many.ids, [rows[1].id, rows[2].id])
+        assert.equal(many.count, many.ids.length)
+        const restored = await LifecycleUser.query({ client: trx })
+          .whereIn(
+            'id',
+            rows.map((row) => row.id)
+          )
+          .restore({ receipt: true })
+        assert.equal(restored.count, 3)
+        assert.sameMembers(
+          restored.ids,
           rows.map((row) => row.id)
         )
-        .restore({ receipt: true })
-      assert.equal(restored.count, 3)
-      assert.sameMembers(
-        restored.ids,
-        rows.map((row) => row.id)
-      )
-      assert.equal(restored.count, restored.ids.length)
-      await LifecycleUser.query({ client: trx })
-        .whereIn('id', [rows[0].id, rows[1].id])
-        .softDelete()
-      const purged = await LifecycleUser.query({ client: trx })
-        .whereIn('id', [rows[0].id, rows[1].id])
-        .onlyTrashed()
-        .forceDelete({ receipt: true })
-      assert.equal(purged.count, 2)
-      assert.sameMembers(purged.ids, [rows[0].id, rows[1].id])
-      assert.equal(purged.count, purged.ids.length)
+        assert.equal(restored.count, restored.ids.length)
+        await LifecycleUser.query({ client: trx })
+          .whereIn('id', [rows[0].id, rows[1].id])
+          .softDelete()
+        const purged = await LifecycleUser.query({ client: trx })
+          .whereIn('id', [rows[0].id, rows[1].id])
+          .onlyTrashed()
+          .forceDelete({ receipt: true })
+        assert.equal(purged.count, 2)
+        assert.sameMembers(purged.ids, [rows[0].id, rows[1].id])
+        assert.equal(purged.count, purged.ids.length)
+      },
     })
   })
 
@@ -829,15 +836,14 @@ test.group('Builder receipts', (group) => {
           (error: unknown) => (outcome = { status: 'rejected', error })
         )
         b = write
-        await waitForReceiptLock(
-          db,
-          dbClient,
+        await waitForReceiptLock(db, {
+          client: dbClient,
           connections,
-          observer,
+          connection: observer,
           marker,
           blockerId,
-          () => outcome !== undefined
-        )
+          hasSettled: () => outcome !== undefined,
+        })
         await connections.wait(trxA.commit())
         const settled = await connections.wait(write)
         if (settled.status === 'rejected') throw settled.error
@@ -918,7 +924,14 @@ test.group('Builder receipts', (group) => {
           return error
         }
       )
-      await waitForReceiptLock(db, dbClient, owner, observer, marker, blockerId, () => settled)
+      await waitForReceiptLock(db, {
+        client: dbClient,
+        connections: owner,
+        connection: observer,
+        marker,
+        blockerId,
+        hasSettled: () => settled,
+      })
       // Expire while the actual driver still has a pending write and an open blocker transaction.
       await assert.rejects(() => owner.wait(new Promise<never>(() => {})), owner.error.message)
     } catch (error) {

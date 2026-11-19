@@ -189,13 +189,20 @@ export async function createTables(db: Database) {
   })
 }
 
-/** Registers disposal only after the namespace CREATE succeeds. */
-export async function acquireOwnedNamespace(
-  create: () => Promise<unknown>,
-  close: () => Promise<unknown>,
-  drop: () => Promise<unknown>,
+type NamespaceOwnershipOptions = {
+  create: () => Promise<unknown>
+  close: () => Promise<unknown>
+  drop: () => Promise<unknown>
   registerCleanup: (cleanup: () => Promise<void>) => void
-) {
+}
+
+/** Registers disposal only after the namespace CREATE succeeds. */
+export async function acquireOwnedNamespace({
+  create,
+  close,
+  drop,
+  registerCleanup,
+}: NamespaceOwnershipOptions) {
   await create()
   registerCleanup(async () => {
     let closeFailed = false
@@ -232,20 +239,20 @@ export async function createSecondaryConnection(db: Database) {
     if (secondaryAdded) await db.manager.close('secondary', true)
   }
   if (dbClient === 'pg') {
-    await acquireOwnedNamespace(
-      () => db.rawQuery(`CREATE SCHEMA ${namespace}`).exec(),
+    await acquireOwnedNamespace({
+      create: () => db.rawQuery(`CREATE SCHEMA ${namespace}`).exec(),
       close,
-      () => db.rawQuery(`DROP SCHEMA ${namespace} CASCADE`).exec(),
-      (cleanup) => test.cleanup(cleanup)
-    )
+      drop: () => db.rawQuery(`DROP SCHEMA ${namespace} CASCADE`).exec(),
+      registerCleanup: (cleanup) => test.cleanup(cleanup),
+    })
     ;(secondaryConfig as PostgreConfig).searchPath = [namespace]
   } else if (dbClient === 'mysql') {
-    await acquireOwnedNamespace(
-      () => db.rawQuery(`CREATE DATABASE ${namespace}`).exec(),
+    await acquireOwnedNamespace({
+      create: () => db.rawQuery(`CREATE DATABASE ${namespace}`).exec(),
       close,
-      () => db.rawQuery(`DROP DATABASE ${namespace}`).exec(),
-      (cleanup) => test.cleanup(cleanup)
-    )
+      drop: () => db.rawQuery(`DROP DATABASE ${namespace}`).exec(),
+      registerCleanup: (cleanup) => test.cleanup(cleanup),
+    })
     const mysqlConfig = secondaryConfig as { connection: { database?: string } }
     mysqlConfig.connection = { ...mysqlConfig.connection, database: namespace }
   } else {

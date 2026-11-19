@@ -15,7 +15,7 @@ type KnexBuilderLike = {
   queryContext(): unknown
 }
 
-export function aliasFromTable(table: unknown): string | undefined {
+export function parseTableAlias(table: unknown): string | undefined {
   if (typeof table === 'string') {
     const separatorIndex = table.search(/ as /i)
     if (separatorIndex === -1) return undefined
@@ -34,7 +34,14 @@ export function resolveTableReference(query: ModelQueryBuilderContract<LucidMode
   const table = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
   // Lucid's model builder assigns a FROM table in its constructor. Its tableAlias cache can
   // outlive a later from() call, so the current FROM alone determines the qualifier.
-  return aliasFromTable(table) ?? (typeof table === 'string' ? table : query.model.table)
+  return parseTableAlias(table) ?? (typeof table === 'string' ? table : query.model.table)
+}
+
+type ColumnReferenceOptions = {
+  column: string
+  tableReference?: string
+  isLiteralAlias?: boolean
+  queryContext?: unknown
 }
 
 /**
@@ -43,18 +50,20 @@ export function resolveTableReference(query: ModelQueryBuilderContract<LucidMode
  * syntax quotes the alias as one identifier. Build a raw reference with the active dialect's
  * identifier wrapper so the two sides of that SQL reference stay consistent.
  */
-export function qualifiedColumnReference(
+export function qualifyColumnReference(
   query: ModelQueryBuilderContract<LucidModel>,
-  column: string,
-  tableReference = resolveTableReference(query),
-  literalAlias = false,
-  queryContext?: unknown
+  {
+    column,
+    tableReference = resolveTableReference(query),
+    isLiteralAlias = false,
+    queryContext,
+  }: ColumnReferenceOptions
 ): string | RawBuilderContract {
   const knexQuery = query.knexQuery as unknown as KnexBuilderLike
   const queryTable = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single
     ?.table
-  const isAlias = literalAlias || aliasFromTable(queryTable) === tableReference
-  if (!tableReference.includes('.') || !isAlias) return `${tableReference}.${column}`
+  const isTableAlias = isLiteralAlias || parseTableAlias(queryTable) === tableReference
+  if (!tableReference.includes('.') || !isTableAlias) return `${tableReference}.${column}`
 
   const knexClient = knexQuery.client
   const context = queryContext ?? knexQuery.queryContext()

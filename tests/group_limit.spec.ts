@@ -45,7 +45,11 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     secondUser.fill({ username: 'second', email: 'second@example.test', managerId: null })
     await secondUser.save()
 
-    async function createPost(userId: number, title: string, trashed = false) {
+    async function createPost(
+      userId: number,
+      title: string,
+      { trashed = false }: { trashed?: boolean } = {}
+    ) {
       const post = new RelationPost()
       post.fill({ userId, title })
       await post.save()
@@ -54,13 +58,17 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     }
 
     const firstActiveOne = await createPost(firstUser.id, 'first-active-one')
-    const firstDeleted = await createPost(firstUser.id, 'first-deleted', true)
+    const firstDeleted = await createPost(firstUser.id, 'first-deleted', { trashed: true })
     const firstActiveTwo = await createPost(firstUser.id, 'first-active-two')
     await createPost(firstUser.id, 'first-active-three')
 
-    const secondDeletedOne = await createPost(secondUser.id, 'second-deleted-one', true)
+    const secondDeletedOne = await createPost(secondUser.id, 'second-deleted-one', {
+      trashed: true,
+    })
     const secondActiveOne = await createPost(secondUser.id, 'second-active-one')
-    const secondDeletedTwo = await createPost(secondUser.id, 'second-deleted-two', true)
+    const secondDeletedTwo = await createPost(secondUser.id, 'second-deleted-two', {
+      trashed: true,
+    })
     const secondActiveTwo = await createPost(secondUser.id, 'second-active-two')
 
     const activeUsers = await RelationUser.query()
@@ -108,7 +116,7 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     secondUser.fill({ username: 'second-m2m', email: 'second-m2m@example.test', managerId: null })
     await secondUser.save()
 
-    async function createIndustry(title: string, trashed = false) {
+    async function createIndustry(title: string, { trashed = false }: { trashed?: boolean } = {}) {
       const industry = new RelationIndustry()
       industry.fill({ title })
       await industry.save()
@@ -117,13 +125,13 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     }
 
     const firstActiveOne = await createIndustry('first-active-one')
-    const firstDeleted = await createIndustry('first-deleted', true)
+    const firstDeleted = await createIndustry('first-deleted', { trashed: true })
     const firstActiveTwo = await createIndustry('first-active-two')
     const firstActiveThree = await createIndustry('first-active-three')
 
-    const secondDeletedOne = await createIndustry('second-deleted-one', true)
+    const secondDeletedOne = await createIndustry('second-deleted-one', { trashed: true })
     const secondActiveOne = await createIndustry('second-active-one')
-    const secondDeletedTwo = await createIndustry('second-deleted-two', true)
+    const secondDeletedTwo = await createIndustry('second-deleted-two', { trashed: true })
     const secondActiveTwo = await createIndustry('second-active-two')
 
     await firstUser
@@ -187,7 +195,11 @@ test.group('Soft-delete scope with relation group limits', (group) => {
       return { user, post }
     }
 
-    async function createComment(postId: number, body: string, trashed = false) {
+    async function createComment(
+      postId: number,
+      body: string,
+      { trashed = false }: { trashed?: boolean } = {}
+    ) {
       const comment = new RelationComment()
       comment.fill({ postId, body })
       await comment.save()
@@ -199,13 +211,17 @@ test.group('Soft-delete scope with relation group limits', (group) => {
     const second = await createUser('second-hmt')
 
     const firstActiveOne = await createComment(first.post.id, 'first-active-one')
-    const firstDeleted = await createComment(first.post.id, 'first-deleted', true)
+    const firstDeleted = await createComment(first.post.id, 'first-deleted', { trashed: true })
     const firstActiveTwo = await createComment(first.post.id, 'first-active-two')
     await createComment(first.post.id, 'first-active-three')
 
-    const secondDeletedOne = await createComment(second.post.id, 'second-deleted-one', true)
+    const secondDeletedOne = await createComment(second.post.id, 'second-deleted-one', {
+      trashed: true,
+    })
     const secondActiveOne = await createComment(second.post.id, 'second-active-one')
-    const secondDeletedTwo = await createComment(second.post.id, 'second-deleted-two', true)
+    const secondDeletedTwo = await createComment(second.post.id, 'second-deleted-two', {
+      trashed: true,
+    })
     const secondActiveTwo = await createComment(second.post.id, 'second-active-two')
 
     queries.length = 0

@@ -2,10 +2,10 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 
 import type { BulkReceiptOptions } from '../receipts.js'
 import {
-  parseReceiptOptions,
-  ensureReceiptSupport,
-  deletionTimestamp,
-  normalizeWriteCount,
+  requireValidReceiptMode,
+  assertReceiptSupported,
+  readDeletionTimestamp,
+  countAffectedRows,
   executeWithReceipt,
 } from '../receipts.js'
 import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.js'
@@ -13,13 +13,13 @@ import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
 import { installSubQueryScope } from '../sub_query_scope.js'
-import { qualifiedColumnReference } from '../table_reference.js'
+import { qualifyColumnReference } from '../table_reference.js'
 import { addScopeFilter, groupCallerPredicates, hasRequiredEquality } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
  */
-function ensureModelWithSoftDeletes(model: LucidModel) {
+function assertSoftDeleteModel(model: LucidModel) {
   if (!hasSoftDeletes(model)) {
     throw new E_MODEL_SOFT_DELETE(model.name)
   }
@@ -29,8 +29,8 @@ function ensureModelWithSoftDeletes(model: LucidModel) {
  * Lucid redirects many-to-many writes to the pivot, and builds has-many-through writes with a
  * `select *` sub-query that no supported database accepts.
  */
-function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
-  ensureModelWithSoftDeletes(query.model)
+function assertLifecycleWriteSupported(query: ModelQueryBuilderContract<LucidModel>) {
+  assertSoftDeleteModel(query.model)
   if (!query.model.$getColumn('deletedAt')) throw new E_MODEL_SOFT_DELETE(query.model.name)
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   if (type === 'manyToMany' || type === 'hasManyThrough') {
@@ -48,7 +48,7 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
  * keeps Lucid's own `limit(1)`. Only allow the limit for a single-parent belongs-to targeting
  * the related model's own table by primary key.
  */
-function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
+function assertSupportedRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   const single = (
     query.knexQuery as unknown as {
       _single: { limit?: unknown; offset?: unknown; table?: unknown; schema?: unknown }
@@ -96,15 +96,15 @@ export function extendModelQueryBuilder(builder: any) {
   builder.macro(
     'restore',
     async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
-      const receipt = parseReceiptOptions(options)
-      ensureLifecycleWrite(this)
-      if (receipt) ensureReceiptSupport(this)
-      else ensureNoRowWindow(this)
+      const receipt = requireValidReceiptMode(options)
+      assertLifecycleWriteSupported(this)
+      if (receipt) assertReceiptSupported(this)
+      else assertSupportedRowWindow(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
-      addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
+      addScopeFilter(this, 'whereNotNull', qualifyColumnReference(this, { column }))
       const write = (target: ModelQueryBuilderContract<LucidModel>) =>
         target.update({ [column]: null })
-      if (!receipt) return normalizeWriteCount(await write(this))
+      if (!receipt) return countAffectedRows(await write(this))
       return executeWithReceipt(this, write)
     }
   )
@@ -112,49 +112,49 @@ export function extendModelQueryBuilder(builder: any) {
   builder.macro(
     'softDelete',
     async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
-      const receipt = parseReceiptOptions(options)
-      ensureLifecycleWrite(this)
-      if (receipt) ensureReceiptSupport(this)
-      else ensureNoRowWindow(this)
+      const receipt = requireValidReceiptMode(options)
+      assertLifecycleWriteSupported(this)
+      if (receipt) assertReceiptSupported(this)
+      else assertSupportedRowWindow(this)
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only')
         return receipt ? { count: 0, ids: [], deletedAt: null } : 0
-      addScopeFilter(this, 'whereNull', qualifiedColumnReference(this, column))
-      const deletedAt = deletionTimestamp(this)
+      addScopeFilter(this, 'whereNull', qualifyColumnReference(this, { column }))
+      const deletedAt = readDeletionTimestamp(this)
       const values = { [column]: deletedAt.toFormat(this.client.dialect.dateTimeFormat) }
       const write = (target: ModelQueryBuilderContract<LucidModel>) => target.update(values)
-      if (!receipt) return normalizeWriteCount(await write(this))
-      const { count, ids } = await executeWithReceipt(this, write)
-      return { count, ids, deletedAt: count === 0 ? null : deletedAt }
+      if (!receipt) return countAffectedRows(await write(this))
+      const { count: affectedRowCount, ids } = await executeWithReceipt(this, write)
+      return { count: affectedRowCount, ids, deletedAt: affectedRowCount === 0 ? null : deletedAt }
     }
   )
 
   builder.macro(
     'forceDelete',
     async function (this: ModelQueryBuilderContract<LucidModel>, options?: BulkReceiptOptions) {
-      const receipt = parseReceiptOptions(options)
-      ensureLifecycleWrite(this)
-      if (receipt) ensureReceiptSupport(this)
-      else if (ensureNoRowWindow(this)) this.clearLimit()
+      const receipt = requireValidReceiptMode(options)
+      assertLifecycleWriteSupported(this)
+      if (receipt) assertReceiptSupported(this)
+      else if (assertSupportedRowWindow(this)) this.clearLimit()
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only') {
-        addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
+        addScopeFilter(this, 'whereNotNull', qualifyColumnReference(this, { column }))
       } else {
         groupCallerPredicates(this)
       }
       const write = (target: ModelQueryBuilderContract<LucidModel>) => target.delete()
-      if (!receipt) return normalizeWriteCount(await write(this))
+      if (!receipt) return countAffectedRows(await write(this))
       return executeWithReceipt(this, write)
     }
   )
 
   builder.macro('withTrashed', function (this: ModelQueryBuilderContract<SoftDeletesModel>) {
-    ensureModelWithSoftDeletes(this.model)
+    assertSoftDeleteModel(this.model)
     return setSoftDeletesMode(this, 'with')
   })
 
   builder.macro('onlyTrashed', function (this: ModelQueryBuilderContract<SoftDeletesModel>) {
-    ensureModelWithSoftDeletes(this.model)
+    assertSoftDeleteModel(this.model)
 
     return setSoftDeletesMode(this, 'only')
   })

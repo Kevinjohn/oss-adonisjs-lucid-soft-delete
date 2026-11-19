@@ -15,7 +15,7 @@ import {
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
 } from './errors.js'
-import { aliasFromTable, qualifiedColumnReference } from './table_reference.js'
+import { parseTableAlias, qualifyColumnReference } from './table_reference.js'
 
 /** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
 export type PrimaryKeyValue = number | string | Uint8Array
@@ -55,7 +55,7 @@ const SUPPORTED_DIALECTS = new Set(['postgres', 'mysql', 'sqlite3', 'better-sqli
 const REJECTED_GROUPINGS = new Set(['join', 'group', 'having', 'order', 'union'])
 
 /** Returns true for receipt mode. Throws InvalidArgumentsException for malformed options. */
-export function parseReceiptOptions(options: unknown): boolean {
+export function requireValidReceiptMode(options: unknown): boolean {
   if (options === undefined) return false
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     throw new InvalidArgumentsException('Bulk lifecycle options must be an object')
@@ -72,7 +72,7 @@ export function parseReceiptOptions(options: unknown): boolean {
 }
 
 /** Dialect, transaction, relation-type and query-shape checks. Runs on `this` before any clone or statement. */
-export function ensureReceiptSupport(query: Query): void {
+export function assertReceiptSupported(query: Query): void {
   const dialect = query.client.dialect.name
   if (!SUPPORTED_DIALECTS.has(dialect))
     throw new E_BULK_RECEIPT_UNSUPPORTED(`the ${dialect} dialect`)
@@ -117,23 +117,23 @@ export function ensureReceiptSupport(query: Query): void {
     throw new E_BULK_RECEIPT_UNSUPPORTED('limit or offset clauses')
   }
   const table = knexQuery._single.table
-  if (typeof table !== 'string' && !aliasFromTable(table)) {
+  if (typeof table !== 'string' && !parseTableAlias(table)) {
     throw new E_BULK_RECEIPT_UNSUPPORTED('raw or sub-query from clauses')
   }
 }
 
 /** Current local time truncated to what the dialect format can store. Count mode writes the same literal. */
-export function deletionTimestamp(query: Query): DateTime {
+export function readDeletionTimestamp(query: Query): DateTime {
   const now = DateTime.local()
   return /S/.test(query.client.dialect.dateTimeFormat) ? now : now.startOf('second')
 }
 
 /** The existing count normalization, shared by both modes. */
-export function normalizeWriteCount(result: unknown[]): number {
+export function countAffectedRows(result: unknown[]): number {
   return typeof result[0] === 'number' ? result[0] : result.length
 }
 
-function normalizeId(value: unknown): PrimaryKeyValue {
+function convertDriverPrimaryKey(value: unknown): PrimaryKeyValue {
   return typeof value === 'bigint' ? value.toString() : (value as PrimaryKeyValue)
 }
 
@@ -145,30 +145,34 @@ export async function executeWithReceipt(
   query: Query,
   write: (target: Query) => Promise<unknown[]>
 ): Promise<BulkReceipt> {
-  const pkAttribute = query.model.primaryKey
-  const pkColumn = query.model.$getColumn(pkAttribute)!.columnName
+  const primaryKeyAttribute = query.model.primaryKey
+  const primaryKeyColumn = query.model.$getColumn(primaryKeyAttribute)!.columnName
   const dialect = query.client.dialect.name
 
   if (dialect === 'postgres') {
     const target = query.clone()
-    target.returning(pkAttribute) // Lucid resolves the attribute to its column; row keys use the column name
+    target.returning(primaryKeyAttribute) // Lucid resolves the attribute to its column; row keys use the column name
     const rows = (await write(target)) as Record<string, unknown>[]
-    return { count: rows.length, ids: rows.map((row) => normalizeId(row[pkColumn])) }
+    return {
+      count: rows.length,
+      ids: rows.map((row) => convertDriverPrimaryKey(row[primaryKeyColumn])),
+    }
   }
 
-  const reference = qualifiedColumnReference(query, pkColumn)
+  const reference = qualifyColumnReference(query, { column: primaryKeyColumn })
   const selector = query.clone()
   ;(selector.knexQuery as unknown as KnexLike)._method = 'select' // a builder reused after count mode is still an update/del
   selector.pojo().clearSelect().select(reference).orderBy(reference, 'asc')
   if (dialect === 'mysql') selector.forUpdate()
   const rows = (await selector.exec()) as unknown as Record<string, unknown>[]
-  const ids = rows.map((row) => normalizeId(row[pkColumn]))
+  const ids = rows.map((row) => convertDriverPrimaryKey(row[primaryKeyColumn]))
   if (ids.length === 0) return { count: 0, ids }
 
   const target = query.clone()
   // Lucid types omit binary bindings, though Knex accepts the raw driver values.
   target.whereIn(reference, ids as string[])
-  const count = normalizeWriteCount(await write(target))
-  if (count !== ids.length) throw new E_BULK_RECEIPT_DIVERGED(ids.length, count)
-  return { count, ids }
+  const affectedRowCount = countAffectedRows(await write(target))
+  if (affectedRowCount !== ids.length)
+    throw new E_BULK_RECEIPT_DIVERGED(ids.length, affectedRowCount)
+  return { count: affectedRowCount, ids }
 }

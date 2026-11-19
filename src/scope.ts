@@ -12,8 +12,8 @@ import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
 import { E_MODEL_SOFT_DELETE } from './errors.js'
 import { getSoftDeletesMode } from './mode.js'
 import {
-  aliasFromTable,
-  qualifiedColumnReference,
+  parseTableAlias,
+  qualifyColumnReference,
   resolveTableReference,
 } from './table_reference.js'
 import { addScopeFilter, removeScopeFilter } from './where_stack.js'
@@ -64,10 +64,10 @@ function resolveGroupLimit(query: ModelQueryBuilderContract<LucidModel>): GroupL
       )
   )
   if (!hasCounter) return undefined
-  return { inner, alias: aliasFromTable((inner as KnexBuilderLike)._single?.table) }
+  return { inner, alias: parseTableAlias((inner as KnexBuilderLike)._single?.table) }
 }
 
-function deletedAtColumn(query: ModelQueryBuilderContract<LucidModel>): string {
+function requireDeletedAtColumnName(query: ModelQueryBuilderContract<LucidModel>): string {
   const column = query.model.$getColumn('deletedAt')?.columnName
   if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
   return column
@@ -78,14 +78,13 @@ export function applyScope(query: ModelQueryBuilderContract<LucidModel>): void {
   const mode = getSoftDeletesMode(groupLimit?.inner ?? query)
   if (mode === 'with') return removeScopeFilter(query)
 
-  const column = deletedAtColumn(query)
-  const reference = qualifiedColumnReference(
-    query,
+  const column = requireDeletedAtColumnName(query)
+  const reference = qualifyColumnReference(query, {
     column,
-    groupLimit?.alias ?? resolveTableReference(query),
-    groupLimit?.alias !== undefined,
-    groupLimit ? (groupLimit.inner as KnexBuilderLike).queryContext() : undefined
-  )
+    tableReference: groupLimit?.alias ?? resolveTableReference(query),
+    isLiteralAlias: groupLimit?.alias !== undefined,
+    queryContext: groupLimit ? (groupLimit.inner as KnexBuilderLike).queryContext() : undefined,
+  })
   const filter = mode === 'only' ? 'whereNotNull' : 'whereNull'
 
   if (groupLimit && filter in groupLimit.inner) {
@@ -114,6 +113,6 @@ export function applySubQueryScope(query: ModelQueryBuilderContract<LucidModel>)
   const mode = getSoftDeletesMode(query)
   if (mode === 'with') return removeScopeFilter(query)
 
-  const reference = qualifiedColumnReference(query, deletedAtColumn(query))
+  const reference = qualifyColumnReference(query, { column: requireDeletedAtColumnName(query) })
   addScopeFilter(query, mode === 'only' ? 'whereNotNull' : 'whereNull', reference)
 }

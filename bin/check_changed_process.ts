@@ -24,13 +24,21 @@ export function updateActiveChild(
   return currentPid === ownerPid ? undefined : currentPid
 }
 
-export function resolveStepCommand(
-  command: string,
-  platform: NodeJS.Platform,
-  nodeExecutable: string,
-  pnpmEntry: string | undefined,
+type StepCommandOptions = {
+  command: string
   args: string[]
-): StepCommand {
+  platform: NodeJS.Platform
+  nodeExecutable: string
+  pnpmEntry?: string
+}
+
+export function resolveStepCommand({
+  command,
+  platform,
+  nodeExecutable,
+  pnpmEntry,
+  args,
+}: StepCommandOptions): StepCommand {
   if (platform !== 'win32' || command !== 'pnpm') return { executable: command, args }
   if (!pnpmEntry) {
     return { error: 'Could not locate the pnpm JavaScript entry point (npm_execpath).' }
@@ -41,7 +49,8 @@ export function resolveStepCommand(
 type Taskkill = (args: string[]) => { status: number | null; error?: string }
 type Kill = (pid: number, signal: NodeJS.Signals) => void
 type Terminate = typeof terminateStep
-type RunStepOptions = {
+type RunStepOptions = StepCommandOptions & {
+  setActiveChild: SetActiveChild
   timeoutMs?: number
   terminationGraceMs?: number
   terminate?: Terminate
@@ -53,11 +62,18 @@ export type TerminationResult =
   | { success: true; tree: false; detail: string }
   | { success: false; tree: false; detail: string }
 
+type TerminateStepOptions = {
+  pid: number
+  platform: NodeJS.Platform
+  taskkill?: Taskkill
+  kill?: Kill
+}
+
 /** Windows process-tree cleanup uses the built-in taskkill.exe command with a finite timeout. */
-export function terminateStep(
-  pid: number,
-  platform: NodeJS.Platform,
-  taskkill: Taskkill = (args) => {
+export function terminateStep({
+  pid,
+  platform,
+  taskkill = (args) => {
     const result = spawnSync('taskkill.exe', args, {
       stdio: 'ignore',
       timeout: TERMINATION_TIMEOUT_MS,
@@ -66,8 +82,8 @@ export function terminateStep(
     })
     return { status: result.status, error: result.error?.message }
   },
-  kill: Kill = (target, signal) => process.kill(target, signal)
-): TerminationResult {
+  kill = (target, signal) => process.kill(target, signal),
+}: TerminateStepOptions): TerminationResult {
   if (platform === 'win32') {
     const taskkillResult = taskkill(['/pid', String(pid), '/t', '/f'])
     if (taskkillResult.status === 0) return { success: true, tree: true }
@@ -107,34 +123,41 @@ export function terminateStep(
   }
 }
 
-export function terminateStepForSignal(
-  pid: number,
-  platform: NodeJS.Platform,
-  terminate: typeof terminateStep = terminateStep,
-  report: (message: string) => void = (message) => console.error(message)
-): void {
-  const result = terminate(pid, platform)
+type SignalTerminationOptions = {
+  pid: number
+  platform: NodeJS.Platform
+  terminate?: Terminate
+  report?: (message: string) => void
+}
+
+export function terminateStepForSignal({
+  pid,
+  platform,
+  terminate = terminateStep,
+  report = (message) => console.error(message),
+}: SignalTerminationOptions): void {
+  const result = terminate({ pid, platform })
   if (!result.success || !result.tree) {
     report(`Could not fully terminate check step process tree: ${result.detail}`)
   }
 }
 
-export function runStep(
-  command: string,
-  args: string[],
-  platform: NodeJS.Platform,
-  nodeExecutable: string,
-  pnpmEntry: string | undefined,
-  setActiveChild: SetActiveChild,
-  options: RunStepOptions = {}
-): Promise<{ code: number; output: string }> {
-  const invocation = resolveStepCommand(command, platform, nodeExecutable, pnpmEntry, args)
+export function runStep({
+  command,
+  args,
+  platform,
+  nodeExecutable,
+  pnpmEntry,
+  setActiveChild,
+  timeoutMs = STEP_TIMEOUT_MS,
+  terminationGraceMs = TERMINATION_GRACE_MS,
+  terminate = terminateStep,
+  killChild = (child) => child.kill('SIGKILL'),
+}: RunStepOptions): Promise<{ code: number; output: string }> {
+  const invocation = resolveStepCommand({ command, platform, nodeExecutable, pnpmEntry, args })
   if ('error' in invocation) {
     return Promise.resolve({ code: 1, output: invocation.error })
   }
-  const timeoutMs = options.timeoutMs ?? STEP_TIMEOUT_MS
-  const terminationGraceMs = options.terminationGraceMs ?? TERMINATION_GRACE_MS
-  const killChild = options.killChild ?? ((child: ChildProcess) => child.kill('SIGKILL'))
 
   return new Promise((resolve) => {
     const child = spawn(invocation.executable, invocation.args, {
@@ -166,7 +189,7 @@ export function runStep(
       timedOut = true
       output += `\nStopped after ${timeoutMs / 1000}s`
       // A still-open child has a PID; spawn failures emit close and clear this timer first.
-      const result = (options.terminate ?? terminateStep)(child.pid!, platform)
+      const result = terminate({ pid: child.pid!, platform })
       if (!result.success || !result.tree) output += `\n${result.detail}`
       terminationTimer = setTimeout(() => {
         output += '\nStep did not close after termination; closing its output streams'

@@ -62,7 +62,7 @@ async function waitForGroupExit(groupId: number): Promise<void> {
 }
 
 async function stopFixtureGroup(groupId: number): Promise<void> {
-  const result = terminateStep(groupId, process.platform)
+  const result = terminateStep({ pid: groupId, platform: process.platform })
   if (!result.success || !result.tree) throw new Error(result.detail)
   await waitForGroupExit(groupId)
 }
@@ -86,7 +86,7 @@ async function waitForClose<T>(closed: Promise<T>, timeoutMs = 2000): Promise<T>
 
 function terminateFixtureChild(child: ChildProcess): string | undefined {
   if (!child.pid) return
-  const result = terminateStep(child.pid, process.platform)
+  const result = terminateStep({ pid: child.pid, platform: process.platform })
   if (!result.success || !result.tree) return result.detail
 }
 
@@ -116,7 +116,7 @@ async function terminateFixtureGroup(groupFile: string): Promise<string | undefi
   try {
     const groupId = Number(await readFile(groupFile, 'utf8'))
     if (!Number.isInteger(groupId) || groupId <= 0) return
-    const result = terminateStep(groupId, process.platform)
+    const result = terminateStep({ pid: groupId, platform: process.platform })
     if (!result.success || !result.tree) return result.detail
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
@@ -394,17 +394,17 @@ test.group('check:changed runner test outcome', () => {
   }) => {
     let taskkillCalls = 0
     const children = fixtureChildren((child) => {
-      const result = terminateStep(
-        child.pid!,
-        'win32',
-        () => {
+      const result = terminateStep({
+        pid: child.pid!,
+        platform: 'win32',
+        taskkill: () => {
           taskkillCalls += 1
           return { status: 1 }
         },
-        () => {
+        kill: () => {
           throw Object.assign(new Error('already exited'), { code: 'ESRCH' })
-        }
-      )
+        },
+      })
       if (!result.success || !result.tree) return result.detail
     })
     children.track({ pid: 42 } as ChildProcess, Promise.resolve())
@@ -515,23 +515,55 @@ test.group('check:changed runner test outcome', () => {
 
   test('selects the package script pnpm entry point on Windows', ({ assert }) => {
     assert.deepEqual(
-      resolveStepCommand('pnpm', 'win32', 'node.exe', 'C:/pnpm/pnpm.js', ['typecheck']),
+      resolveStepCommand({
+        command: 'pnpm',
+        platform: 'win32',
+        nodeExecutable: 'node.exe',
+        pnpmEntry: 'C:/pnpm/pnpm.js',
+        args: ['typecheck'],
+      }),
       { executable: 'node.exe', args: ['C:/pnpm/pnpm.js', 'typecheck'] }
     )
-    assert.deepEqual(resolveStepCommand('pnpm', 'win32', 'node.exe', undefined, ['build']), {
-      error: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
-    })
-    assert.deepEqual(resolveStepCommand('git', 'win32', 'node.exe', 'pnpm.js', ['status']), {
-      executable: 'git',
-      args: ['status'],
-    })
+    assert.deepEqual(
+      resolveStepCommand({
+        command: 'pnpm',
+        platform: 'win32',
+        nodeExecutable: 'node.exe',
+        args: ['build'],
+      }),
+      {
+        error: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
+      }
+    )
+    assert.deepEqual(
+      resolveStepCommand({
+        command: 'git',
+        platform: 'win32',
+        nodeExecutable: 'node.exe',
+        pnpmEntry: 'pnpm.js',
+        args: ['status'],
+      }),
+      {
+        executable: 'git',
+        args: ['status'],
+      }
+    )
   })
 
   test('returns a clear failure if Windows has no pnpm script entry point', async ({ assert }) => {
-    assert.deepEqual(await runStep('pnpm', ['build'], 'win32', 'node.exe', undefined, () => {}), {
-      code: 1,
-      output: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
-    })
+    assert.deepEqual(
+      await runStep({
+        command: 'pnpm',
+        args: ['build'],
+        platform: 'win32',
+        nodeExecutable: 'node.exe',
+        setActiveChild: () => {},
+      }),
+      {
+        code: 1,
+        output: 'Could not locate the pnpm JavaScript entry point (npm_execpath).',
+      }
+    )
   })
 
   if (process.platform !== 'win32')
@@ -543,35 +575,32 @@ test.group('check:changed runner test outcome', () => {
       ]) {
         let childGroup: number | undefined
         try {
-          const result = await runStep(
-            process.execPath,
-            [
+          const result = await runStep({
+            command: process.execPath,
+            args: [
               '-e',
               "const { spawn } = require('node:child_process'); spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'inherit'] }); process.exit(0)",
             ],
-            'darwin',
-            process.execPath,
-            undefined,
-            (pid) => {
+            platform: 'darwin',
+            nodeExecutable: process.execPath,
+            setActiveChild: (pid) => {
               if (pid !== undefined) childGroup = pid
             },
-            {
-              timeoutMs: 250,
-              terminationGraceMs: 25,
-              ...(killFailure !== undefined
-                ? {
-                    killChild: () => {
-                      throw killFailure
-                    },
-                  }
-                : {}),
-              terminate: () => ({
-                success: false,
-                tree: false,
-                detail: 'test process-tree termination failure',
-              }),
-            }
-          )
+            timeoutMs: 250,
+            terminationGraceMs: 25,
+            ...(killFailure !== undefined
+              ? {
+                  killChild: () => {
+                    throw killFailure
+                  },
+                }
+              : {}),
+            terminate: () => ({
+              success: false,
+              tree: false,
+              detail: 'test process-tree termination failure',
+            }),
+          })
           assert.equal(result.code, 1)
           assert.include(result.output, 'test process-tree termination failure')
           assert.include(result.output, 'Step did not close after termination')
@@ -606,48 +635,44 @@ test.group('check:changed runner test outcome', () => {
       let secondPid: number | undefined
       let secondStep: ReturnType<typeof runStep> | undefined
       try {
-        const timedOut = await runStep(
-          process.execPath,
-          ['-e', 'setInterval(() => {}, 1000)'],
-          'darwin',
-          process.execPath,
-          undefined,
-          (pid, ownerPid) => {
+        const timedOut = await runStep({
+          command: process.execPath,
+          args: ['-e', 'setInterval(() => {}, 1000)'],
+          platform: 'darwin',
+          nodeExecutable: process.execPath,
+          setActiveChild: (pid, ownerPid) => {
             if (pid !== undefined) firstPid = pid
             activePid = updateActiveChild(activePid, pid, ownerPid)
             if (pid === undefined && ownerPid === firstPid) {
               clearCount += 1
             }
           },
-          {
-            timeoutMs: 25,
-            terminationGraceMs: 25,
-            terminate: () => ({
-              success: false,
-              tree: false,
-              detail: 'controlled termination failure',
-            }),
-            killChild: (child) => {
-              child.once('close', resolveLateClose)
-              return false
-            },
-          }
-        )
+          timeoutMs: 25,
+          terminationGraceMs: 25,
+          terminate: () => ({
+            success: false,
+            tree: false,
+            detail: 'controlled termination failure',
+          }),
+          killChild: (child) => {
+            child.once('close', resolveLateClose)
+            return false
+          },
+        })
         assert.equal(timedOut.code, 1)
         assert.equal(clearCount, 1)
         assert.isDefined(firstPid)
 
-        secondStep = runStep(
-          process.execPath,
-          ['-e', 'setInterval(() => {}, 1000)'],
-          'darwin',
-          process.execPath,
-          undefined,
-          (pid, ownerPid) => {
+        secondStep = runStep({
+          command: process.execPath,
+          args: ['-e', 'setInterval(() => {}, 1000)'],
+          platform: 'darwin',
+          nodeExecutable: process.execPath,
+          setActiveChild: (pid, ownerPid) => {
             if (pid !== undefined) secondPid = pid
             activePid = updateActiveChild(activePid, pid, ownerPid)
-          }
-        )
+          },
+        })
         assert.isDefined(secondPid)
 
         process.kill(-firstPid!, 'SIGKILL')
@@ -668,14 +693,14 @@ test.group('check:changed runner test outcome', () => {
 
   test('reports non-Error process-group termination failures', ({ assert }) => {
     assert.deepEqual(
-      terminateStep(
-        49,
-        'darwin',
-        () => ({ status: 0 }),
-        () => {
+      terminateStep({
+        pid: 49,
+        platform: 'darwin',
+        taskkill: () => ({ status: 0 }),
+        kill: () => {
           throw 'permission denied'
-        }
-      ),
+        },
+      }),
       {
         success: false,
         tree: false,
@@ -689,36 +714,44 @@ test.group('check:changed runner test outcome', () => {
     const originalError = console.error
     try {
       console.error = (message: string) => reported.push(message)
-      terminateStepForSignal(50, 'darwin', () => ({
-        success: false,
-        tree: false,
-        detail: 'default reporter',
-      }))
+      terminateStepForSignal({
+        pid: 50,
+        platform: 'darwin',
+        terminate: () => ({
+          success: false,
+          tree: false,
+          detail: 'default reporter',
+        }),
+      })
     } finally {
       console.error = originalError
     }
     assert.deepEqual(reported.splice(0), [
       'Could not fully terminate check step process tree: default reporter',
     ])
-    terminateStepForSignal(
-      50,
-      'darwin',
-      () => ({ success: true, tree: true }),
-      (message) => reported.push(message)
-    )
+    terminateStepForSignal({
+      pid: 50,
+      platform: 'darwin',
+      terminate: () => ({ success: true, tree: true }),
+      report: (message) => reported.push(message),
+    })
     assert.deepEqual(reported, [])
-    terminateStepForSignal(
-      50,
-      'darwin',
-      () => ({ success: false, tree: false, detail: 'process group termination failed: EPERM' }),
-      (message) => reported.push(message)
-    )
-    terminateStepForSignal(
-      51,
-      'win32',
-      () => ({ success: true, tree: false, detail: 'descendants may remain' }),
-      (message) => reported.push(message)
-    )
+    terminateStepForSignal({
+      pid: 50,
+      platform: 'darwin',
+      terminate: () => ({
+        success: false,
+        tree: false,
+        detail: 'process group termination failed: EPERM',
+      }),
+      report: (message) => reported.push(message),
+    })
+    terminateStepForSignal({
+      pid: 51,
+      platform: 'win32',
+      terminate: () => ({ success: true, tree: false, detail: 'descendants may remain' }),
+      report: (message) => reported.push(message),
+    })
     assert.deepEqual(reported, [
       'Could not fully terminate check step process tree: process group termination failed: EPERM',
       'Could not fully terminate check step process tree: descendants may remain',
@@ -728,24 +761,24 @@ test.group('check:changed runner test outcome', () => {
   test('uses taskkill and direct process termination fallbacks', ({ assert }) => {
     const calls: Array<{ pid: number; signal: NodeJS.Signals }> = []
     let taskkillArgs: string[] = []
-    terminateStep(
-      42,
-      'win32',
-      (args) => {
+    terminateStep({
+      pid: 42,
+      platform: 'win32',
+      taskkill: (args) => {
         taskkillArgs = args
         return { status: 0 }
       },
-      (pid, signal) => calls.push({ pid, signal })
-    )
+      kill: (pid, signal) => calls.push({ pid, signal }),
+    })
     assert.deepEqual(taskkillArgs, ['/pid', '42', '/t', '/f'])
     assert.deepEqual(calls, [])
 
-    const fallback = terminateStep(
-      43,
-      'win32',
-      () => ({ status: 1, error: 'timeout' }),
-      (pid, signal) => calls.push({ pid, signal })
-    )
+    const fallback = terminateStep({
+      pid: 43,
+      platform: 'win32',
+      taskkill: () => ({ status: 1, error: 'timeout' }),
+      kill: (pid, signal) => calls.push({ pid, signal }),
+    })
     assert.deepEqual(fallback, {
       success: true,
       tree: false,
@@ -753,14 +786,14 @@ test.group('check:changed runner test outcome', () => {
         'taskkill failed (timeout); terminated the step process directly, but descendants may remain',
     })
     assert.deepEqual(
-      terminateStep(
-        48,
-        'win32',
-        () => ({ status: 1, error: 'timeout' }),
-        () => {
+      terminateStep({
+        pid: 48,
+        platform: 'win32',
+        taskkill: () => ({ status: 1, error: 'timeout' }),
+        kill: () => {
           throw Object.assign(new Error('access denied'), { code: 'EPERM' })
-        }
-      ),
+        },
+      }),
       {
         success: false,
         tree: false,
@@ -768,48 +801,48 @@ test.group('check:changed runner test outcome', () => {
       }
     )
     const exitedError = Object.assign(new Error('already exited'), { code: 'ESRCH' })
-    const exited = terminateStep(
-      44,
-      'win32',
-      () => ({ status: null }),
-      () => {
+    const exited = terminateStep({
+      pid: 44,
+      platform: 'win32',
+      taskkill: () => ({ status: null }),
+      kill: () => {
         throw exitedError
-      }
-    )
+      },
+    })
     assert.deepEqual(exited, {
       success: true,
       tree: false,
       detail: 'taskkill failed; the step process already exited, but descendants may remain',
     })
-    terminateStep(
-      45,
-      'darwin',
-      () => ({ status: 0 }),
-      (pid, signal) => calls.push({ pid, signal })
-    )
-    terminateStep(2_147_483_647, 'win32')
+    terminateStep({
+      pid: 45,
+      platform: 'darwin',
+      taskkill: () => ({ status: 0 }),
+      kill: (pid, signal) => calls.push({ pid, signal }),
+    })
+    terminateStep({ pid: 2_147_483_647, platform: 'win32' })
     const noGroup = Object.assign(new Error('group already exited'), { code: 'ESRCH' })
     assert.deepEqual(
-      terminateStep(
-        46,
-        'darwin',
-        () => ({ status: 0 }),
-        () => {
+      terminateStep({
+        pid: 46,
+        platform: 'darwin',
+        taskkill: () => ({ status: 0 }),
+        kill: () => {
           throw noGroup
-        }
-      ),
+        },
+      }),
       { success: true, tree: true }
     )
     const denied = Object.assign(new Error('permission denied'), { code: 'EPERM' })
     assert.deepEqual(
-      terminateStep(
-        47,
-        'darwin',
-        () => ({ status: 0 }),
-        () => {
+      terminateStep({
+        pid: 47,
+        platform: 'darwin',
+        taskkill: () => ({ status: 0 }),
+        kill: () => {
           throw denied
-        }
-      ),
+        },
+      }),
       {
         success: false,
         tree: false,

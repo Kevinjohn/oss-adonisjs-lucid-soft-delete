@@ -36,22 +36,22 @@ async function isTrashed(id: number) {
   return record.trashed
 }
 
-async function deletedTimestamp(id: number) {
+async function readDeletedTimestamp(id: number) {
   const record = await TestRecord.withTrashed().where('id', id).firstOrFail()
   return record.deletedAt!.toUTC().toISO()
 }
 
-async function recoveryStatus(groupId: string) {
+async function getRecoveryStatus(groupId: string) {
   const group = await db.from('recovery_groups').where('id', groupId).first()
   return group.status
 }
 
-async function currentGroupFor(id: number) {
+async function getCurrentGroup(id: number) {
   const association = await db.from('recovery_records').where('record_id', id).first()
   return association.group_id
 }
 
-async function capturedDeletedAt(groupId: string, id: number) {
+async function readCapturedDeletedAt(groupId: string, id: number) {
   const association = await db
     .from('recovery_records')
     .where('group_id', groupId)
@@ -96,7 +96,7 @@ test.group('Application-owned group recovery', (group) => {
     assert.isTrue(await isTrashed(alreadyDeleted.id))
     assert.isFalse(await isTrashed(otherTenant.id))
     assert.isFalse(await isTrashed(unselected.id))
-    assert.equal(await deletedTimestamp(alreadyDeleted.id), '2026-01-03T00:00:00.000Z')
+    assert.equal(await readDeletedTimestamp(alreadyDeleted.id), '2026-01-03T00:00:00.000Z')
   })
 
   test('restores a group once with original IDs and timestamps, then creates a fresh group on re-delete', async ({
@@ -127,8 +127,8 @@ test.group('Application-owned group recovery', (group) => {
         label: 'restore',
       })
     })
-    const deletedAt = await deletedTimestamp(first.id)
-    const capturedTimestamp = await capturedDeletedAt(originalGroup, first.id)
+    const deletedAt = await readDeletedTimestamp(first.id)
+    const capturedTimestamp = await readCapturedDeletedAt(originalGroup, first.id)
     assert.equal(new Date(capturedTimestamp).getTime(), Date.parse(deletedAt!))
     await db.transaction((trx) => restoreGroup(trx, { tenantId: 7, groupId: originalGroup }))
 
@@ -141,7 +141,7 @@ test.group('Application-owned group recovery', (group) => {
     )
     assert.isTrue(restored.every((row) => !row.trashed))
     assert.isTrue(restored.every((row) => row.archivedAt!.toISO() === originalTimestamp.toISO()))
-    assert.equal(await recoveryStatus(originalGroup), 'consumed')
+    assert.equal(await getRecoveryStatus(originalGroup), 'consumed')
     assert.isEmpty(await db.from('recovery_records').where('group_id', originalGroup))
     await assert.rejects(
       () => db.transaction((trx) => restoreGroup(trx, { tenantId: 7, groupId: originalGroup })),
@@ -170,8 +170,8 @@ test.group('Application-owned group recovery', (group) => {
     )
     const newerDeletion = await TestRecord.withTrashed().where('id', first.id).firstOrFail()
     assert.equal(newerDeletion.deletedAt!.toUTC().toISO(), deletedAt)
-    assert.equal(await currentGroupFor(first.id), nextGroup)
-    assert.equal(await recoveryStatus(nextGroup), 'usable')
+    assert.equal(await getCurrentGroup(first.id), nextGroup)
+    assert.equal(await getRecoveryStatus(nextGroup), 'usable')
   })
 
   test('restoring one usable group preserves another usable group in the same tenant', async ({
@@ -192,20 +192,20 @@ test.group('Application-owned group recovery', (group) => {
     )
     assert.equal(restored, 1)
     assert.isFalse(await isTrashed(first.id))
-    assert.equal(await recoveryStatus(firstGroup), 'consumed')
+    assert.equal(await getRecoveryStatus(firstGroup), 'consumed')
     assert.isEmpty(await db.from('recovery_records').where('group_id', firstGroup))
     assert.deepEqual(await db.from('lifecycle_parents').where('id', second.id), secondBefore)
     assert.deepEqual(
       await db.from('recovery_records').where('group_id', secondGroup),
       associationBefore
     )
-    assert.equal(await recoveryStatus(secondGroup), 'usable')
+    assert.equal(await getRecoveryStatus(secondGroup), 'usable')
     assert.equal(
       await db.transaction((trx) => restoreGroup(trx, { tenantId: 8, groupId: secondGroup })),
       1
     )
     assert.isFalse(await isTrashed(second.id))
-    assert.equal(await recoveryStatus(secondGroup), 'consumed')
+    assert.equal(await getRecoveryStatus(secondGroup), 'consumed')
   })
 
   test('purges only invalidated, currently owned rows and rejects wrong-tenant or consumed groups', async ({
@@ -227,7 +227,7 @@ test.group('Application-owned group recovery', (group) => {
     )
     await db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id] }))
     assert.isNull(await TestRecord.withTrashed().where('id', row.id).first())
-    assert.equal(await recoveryStatus(groupId), 'consumed')
+    assert.equal(await getRecoveryStatus(groupId), 'consumed')
     await assert.rejects(
       () => db.transaction((trx) => purgeGroup(trx, { tenantId: 9, groupId, ids: [row.id] })),
       'Recovery group is missing or is not invalidated'
@@ -265,7 +265,7 @@ test.group('Application-owned group recovery', (group) => {
         ),
       'Selected rows are not currently owned by this group'
     )
-    assert.equal(await currentGroupFor(row.id), currentGroup)
+    assert.equal(await getCurrentGroup(row.id), currentGroup)
     assert.isTrue(await isTrashed(row.id))
     await db.transaction(async (trx) => {
       await invalidateGroup(trx, { tenantId: 12, groupId: currentGroup })
@@ -296,18 +296,18 @@ test.group('Application-owned group recovery', (group) => {
       await invalidateGroup(trx, { tenantId: 15, groupId })
     })
 
-    assert.equal(await recoveryStatus(groupId), 'invalidated')
+    assert.equal(await getRecoveryStatus(groupId), 'invalidated')
     await db.transaction((trx) => purgeGroup(trx, { tenantId: 15, groupId, ids: [first.id] }))
     assert.isNull(await TestRecord.withTrashed().where('id', first.id).first())
     assert.isTrue(await isTrashed(second.id))
     assert.isFalse(await isTrashed(unselected.id))
     assert.isFalse(await isTrashed(otherActive.id))
     assert.isTrue(await isTrashed(otherTrashed.id))
-    assert.equal(await recoveryStatus(groupId), 'invalidated')
+    assert.equal(await getRecoveryStatus(groupId), 'invalidated')
 
     await db.transaction((trx) => purgeGroup(trx, { tenantId: 15, groupId, ids: [second.id] }))
     assert.isNull(await TestRecord.withTrashed().where('id', second.id).first())
-    assert.equal(await recoveryStatus(groupId), 'consumed')
+    assert.equal(await getRecoveryStatus(groupId), 'consumed')
   })
 
   test('cleanup preserves an active row even when a legacy restore left its association', async ({
@@ -328,8 +328,8 @@ test.group('Application-owned group recovery', (group) => {
       'Selected rows are not currently trashed for this tenant'
     )
     assert.deepEqual(await db.from('lifecycle_parents').where('id', row.id), before)
-    assert.equal(await currentGroupFor(row.id), groupId)
-    assert.equal(await recoveryStatus(groupId), 'invalidated')
+    assert.equal(await getCurrentGroup(row.id), groupId)
+    assert.equal(await getRecoveryStatus(groupId), 'invalidated')
   })
 
   test('rolls row changes and recovery bookkeeping back together on delete and restore', async ({

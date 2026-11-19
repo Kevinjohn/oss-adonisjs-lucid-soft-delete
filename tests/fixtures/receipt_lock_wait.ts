@@ -116,15 +116,19 @@ export async function cleanupReceiptLock(
   if (errors.length === 1) throw errors[0]
 }
 
+type ReceiptLockWaitOptions = {
+  client: Client
+  connections: ReceiptLockConnections
+  connection: ReceiptConnection
+  marker: string
+  blockerId: number
+  hasSettled: () => boolean
+}
+
 /** Waits until the marked write is observed waiting on the supplied transaction. */
 export async function waitForReceiptLock(
   db: Database,
-  client: Client,
-  connections: ReceiptLockConnections,
-  connection: ReceiptConnection,
-  marker: string,
-  blockerId: number,
-  hasSettled: () => boolean
+  { client, connections, connection, marker, blockerId, hasSettled }: ReceiptLockWaitOptions
 ) {
   const deadline = Date.now() + OBSERVATION_TIMEOUT_MS
   const query =
