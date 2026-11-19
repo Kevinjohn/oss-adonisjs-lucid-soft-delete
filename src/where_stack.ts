@@ -57,6 +57,14 @@ function collectGroups(grouped: GroupedQuery): WhereNode[][] {
   return groups
 }
 
+/** Recognise bound equalities whose operands cannot add SQL to the conjunction. */
+function isBoundEquality({ method, args }: WhereNode): boolean {
+  if (method !== 'where' || typeof args[0] !== 'string') return false
+  if (args.length !== 2 && !(args.length === 3 && args[1] === '=')) return false
+  const value = args.at(-1)
+  return value === null || ['string', 'number', 'boolean', 'bigint'].includes(typeof value)
+}
+
 /** Whether the SQL must satisfy a direct caller equality, even in the presence of OR groups. */
 export function hasRequiredEquality(
   query: ModelQueryBuilderContract<LucidModel>,
@@ -68,12 +76,12 @@ export function hasRequiredEquality(
   return (
     groups.every(([first]) => !isOrPredicate(first)) &&
     groups.some(
-      ([{ method, args }, ...rest]) =>
-        rest.length === 0 &&
-        method === 'where' &&
-        args.length === 2 &&
-        args[0] === column &&
-        args[1] === value
+      (group) =>
+        group.some(
+          ({ method, args }) =>
+            method === 'where' && args.length === 2 && args[0] === column && args[1] === value
+        ) &&
+        (group.length === 1 || group.every(isBoundEquality))
     )
   )
 }

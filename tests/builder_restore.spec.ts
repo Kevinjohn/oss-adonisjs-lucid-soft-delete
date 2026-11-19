@@ -276,6 +276,46 @@ test.group('Builder restore', (group) => {
     assert.lengthOf(await RelationUser.onlyTrashed(), 2)
   })
 
+  test('count mode applies a belongs-to AND filter before and after SQL preview', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const user = await createUser('parent')
+    const other = await createUser('other-parent')
+    const post = await RelationPost.create({ userId: user.id, title: 'a' })
+
+    const beforePreview = post.related('user').query().where('username', user.username)
+    beforePreview.toSQL()
+    assert.equal(await beforePreview.softDelete(), 1)
+    const activeAfterDelete = await RelationUser.all()
+    assert.deepEqual(
+      activeAfterDelete.map(({ id }) => id),
+      [other.id]
+    )
+    assert.equal(await post.related('user').query().restore(), 1)
+
+    const afterPreview = post.related('user').query()
+    afterPreview.toSQL()
+    afterPreview.where('username', user.username)
+    assert.equal(await afterPreview.softDelete(), 1)
+    const activeAfterPreviewDelete = await RelationUser.all()
+    assert.deepEqual(
+      activeAfterPreviewDelete.map(({ id }) => id),
+      [other.id]
+    )
+
+    const mismatchedFilter = post.related('user').query()
+    mismatchedFilter.toSQL()
+    mismatchedFilter.where('username', '=', other.username)
+    assert.equal(await mismatchedFilter.restore(), 0)
+    const stillTrashed = await RelationUser.onlyTrashed()
+    assert.deepEqual(
+      stillTrashed.map(({ id }) => id),
+      [user.id]
+    )
+  })
+
   test('count mode rejects a previewed belongs-to limit after the key predicate is cleared or widened', async ({
     assert,
   }) => {
@@ -295,6 +335,36 @@ test.group('Builder restore', (group) => {
       )
     }
     assert.lengthOf(await RelationUser.all(), 2)
+  })
+
+  test('force-deletes only the related row after a belongs-to SQL preview', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const freshUser = await createUser('fresh-parent')
+    const previewedUser = await createUser('previewed-parent')
+    const other = await createUser('other-parent')
+    const freshPost = await RelationPost.create({ userId: freshUser.id, title: 'fresh' })
+    const previewedPost = await RelationPost.create({
+      userId: previewedUser.id,
+      title: 'previewed',
+    })
+
+    assert.equal(await freshPost.related('user').query().forceDelete(), 1)
+    const rowsBeforePreviewDelete = await RelationUser.withTrashed()
+    assert.sameMembers(
+      rowsBeforePreviewDelete.map(({ id }) => id),
+      [previewedUser.id, other.id]
+    )
+
+    const query = previewedPost.related('user').query()
+    query.toSQL()
+
+    assert.equal(await query.forceDelete(), 1)
+    const rowsAfterPreviewDelete = await RelationUser.withTrashed()
+    assert.deepEqual(
+      rowsAfterPreviewDelete.map(({ id }) => id),
+      [other.id]
+    )
   })
 
   test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
