@@ -12,15 +12,15 @@
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { runFresh } from './helpers/consumer/fresh.js'
-import { run } from './helpers/consumer/harness.js'
+import { runCommand } from './helpers/consumer/harness.js'
 import { runMinimum } from './helpers/consumer/minimum.js'
 import { compatibility, database, repoRoot, tempRoot } from './helpers/consumer/settings.js'
 
 async function packCandidate() {
-  run('pnpm', ['build'], repoRoot)
+  runCommand({ command: 'pnpm', args: ['build'], cwd: repoRoot })
   const destination = join(tempRoot, 'package')
   await mkdir(destination)
-  run('pnpm', ['pack', '--pack-destination', destination], repoRoot)
+  runCommand({ command: 'pnpm', args: ['pack', '--pack-destination', destination], cwd: repoRoot })
   const destinationEntries = await readdir(destination)
   const archives = destinationEntries.filter((name) => name.endsWith('.tgz'))
   if (archives.length !== 1) {

@@ -26,7 +26,7 @@ export const checkProfiles: Record<CheckProfile, CheckStep[]> = {
   ],
 }
 
-export function selectedSteps(flags: string[]): CheckStep[] {
+export function listSelectedSteps(flags: string[]): CheckStep[] {
   const unknown = flags.filter((flag) => flag !== '--full')
   if (unknown.length > 0) throw new Error(`Use pnpm check [--full]; got ${unknown}`)
   return [...checkProfiles.quick, ...(flags.includes('--full') ? checkProfiles.full : [])]

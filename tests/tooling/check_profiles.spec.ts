@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { test } from '@japa/runner'
-import { checkProfiles, selectedSteps } from '../../bin/check_profiles.js'
+import { checkProfiles, listSelectedSteps } from '../../bin/check_profiles.js'
 
 const root = join(import.meta.dirname, '../..')
 const allSteps = Object.values(checkProfiles).flat()
@@ -41,9 +41,12 @@ test('profiles cover the check workflows except for the dedicated docs site buil
 })
 
 test('full adds to the quick profile and unknown flags are rejected', ({ assert }) => {
-  assert.deepEqual(selectedSteps([]), checkProfiles.quick)
-  assert.lengthOf(selectedSteps(['--full']), checkProfiles.quick.length + checkProfiles.full.length)
-  assert.throws(() => selectedSteps(['--fast']), /pnpm check/)
+  assert.deepEqual(listSelectedSteps([]), checkProfiles.quick)
+  assert.lengthOf(
+    listSelectedSteps(['--full']),
+    checkProfiles.quick.length + checkProfiles.full.length
+  )
+  assert.throws(() => listSelectedSteps(['--fast']), /pnpm check/)
 })
 
 test('format:check covers tracked files only and tolerates an unstaged deletion', ({ assert }) => {

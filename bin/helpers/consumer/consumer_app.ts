@@ -11,10 +11,10 @@ import assert from 'node:assert/strict'
 import { readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { join, sep } from 'node:path'
 import { copyFixture } from './fixture.js'
-import { run } from './harness.js'
+import { runCommand } from './harness.js'
 import { verifyAppPostgresSchema, verifyPostgresMigration, withPostgresSchema } from './postgres.js'
 import {
-  appEnvironment,
+  readConsumerEnvironment,
   compatibility,
   fixtureRoot,
   packageName,
@@ -42,7 +42,7 @@ async function installPackedPackage(appRoot: string, archive: string) {
   if (compatibility === 'latest') {
     await rm(join(appRoot, 'pnpm-lock.yaml'))
   }
-  run('pnpm', ['install', '--no-frozen-lockfile'], appRoot)
+  runCommand({ command: 'pnpm', args: ['install', '--no-frozen-lockfile'], cwd: appRoot })
 }
 
 async function inspectInstalledPackage(appRoot: string) {
@@ -86,25 +86,30 @@ async function verifyPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) 
     `import type { SoftDeleteReceipt } from '${packageName}/types'\n\nexport type ConsumerSoftDeleteReceipt = SoftDeleteReceipt\n`
   )
 
-  run(
-    process.execPath,
-    [
+  runCommand({
+    command: process.execPath,
+    args: [
       '--input-type=module',
       '-e',
       `import assert from 'node:assert/strict'; import { E_MODEL_SOFT_DELETE, errors } from '${packageName}'; assert.equal(errors.E_MODEL_SOFT_DELETE, E_MODEL_SOFT_DELETE)`,
     ],
-    appRoot,
-    environment
-  )
+    cwd: appRoot,
+    environment,
+  })
 }
 
-function ace(
+function runAceCommand(
   appRoot: string,
   environment: NodeJS.ProcessEnv,
   command: string,
   ...arguments_: string[]
 ) {
-  run(process.execPath, ['ace', command, ...arguments_], appRoot, environment)
+  runCommand({
+    command: process.execPath,
+    args: ['ace', command, ...arguments_],
+    cwd: appRoot,
+    environment,
+  })
 }
 
 async function configureTwice(appRoot: string, environment: NodeJS.ProcessEnv) {
@@ -115,9 +120,9 @@ async function configureTwice(appRoot: string, environment: NodeJS.ProcessEnv) {
   }
 
   assert.equal(await countRegistrations(), 0, 'The fixture must start without the package provider')
-  ace(appRoot, environment, 'configure', packageName)
+  runAceCommand(appRoot, environment, 'configure', packageName)
   assert.equal(await countRegistrations(), 1, 'Configure must register the provider once')
-  ace(appRoot, environment, 'configure', packageName)
+  runAceCommand(appRoot, environment, 'configure', packageName)
   assert.equal(await countRegistrations(), 1, 'Repeated configure must not duplicate the provider')
 }
 
@@ -128,16 +133,16 @@ async function verifyConfiguredProviderResolves(appRoot: string, environment: No
     /@kevinjohn\/adonisjs-lucid-soft-delete\/lucid_soft_delete_provider/,
     'Configure must register the renamed provider export'
   )
-  run(
-    process.execPath,
-    [
+  runCommand({
+    command: process.execPath,
+    args: [
       '--input-type=module',
       '-e',
       "await import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider'); try { await import('@kevinjohn/adonisjs-lucid-soft-delete/provider'); throw new Error('The old provider subpath must not be exported') } catch (error) { if (error.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') throw error }",
     ],
-    appRoot,
-    environment
-  )
+    cwd: appRoot,
+    environment,
+  })
 }
 
 async function verifyGeneratedSchema(appRoot: string) {
@@ -151,19 +156,22 @@ export async function runConsumerApp(archive: string, runName: string) {
   await copyFixture(fixtureRoot, appRoot)
   await installPackedPackage(appRoot, archive)
   const installed = await inspectInstalledPackage(appRoot)
-  return withPostgresSchema(appEnvironment(appRoot), async (environment, schema, client) => {
-    await verifyPublicApi(appRoot, environment)
-    if (schema) await verifyAppPostgresSchema(appRoot, environment, schema)
-    await configureTwice(appRoot, environment)
-    await verifyConfiguredProviderResolves(appRoot, environment)
-    ace(appRoot, environment, 'schema:generate')
-    ace(appRoot, environment, 'migration:run')
-    if (schema && client) await verifyPostgresMigration(client, schema)
-    await verifyGeneratedSchema(appRoot)
-    run('pnpm', ['exec', 'tsc', '--noEmit'], appRoot, environment)
-    ace(appRoot, environment, 'build')
-    ace(appRoot, environment, 'test')
+  return withPostgresSchema(
+    readConsumerEnvironment(appRoot),
+    async (environment, schema, client) => {
+      await verifyPublicApi(appRoot, environment)
+      if (schema) await verifyAppPostgresSchema(appRoot, environment, schema)
+      await configureTwice(appRoot, environment)
+      await verifyConfiguredProviderResolves(appRoot, environment)
+      runAceCommand(appRoot, environment, 'schema:generate')
+      runAceCommand(appRoot, environment, 'migration:run')
+      if (schema && client) await verifyPostgresMigration(client, schema)
+      await verifyGeneratedSchema(appRoot)
+      runCommand({ command: 'pnpm', args: ['exec', 'tsc', '--noEmit'], cwd: appRoot, environment })
+      runAceCommand(appRoot, environment, 'build')
+      runAceCommand(appRoot, environment, 'test')
 
-    return { appRoot, ...installed }
-  })
+      return { appRoot, ...installed }
+    }
+  )
 }

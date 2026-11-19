@@ -40,10 +40,10 @@ Scope: provider-installed builder macro through Lucid execution; route authoriza
 
 ```mermaid
 flowchart TD
-    A["extendModelQueryBuilder installs softDelete"] --> B["parseReceiptOptions and ensureLifecycleWrite"]
+    A["extendModelQueryBuilder installs softDelete"] --> B["requireValidReceiptMode and assertLifecycleWriteSupported"]
     B --> C{"receipt requested?"}
-    C -->|Yes| D["ensureReceiptSupport"]
-    C -->|No| E["ensureNoRowWindow"]
+    C -->|Yes| D["assertReceiptSupported"]
+    C -->|No| E["assertSupportedRowWindow"]
     D --> L{"getSoftDeletesMode is only?"}
     E --> L
     L -->|Yes| M["Return 0 or empty receipt with deletedAt null; no write"]
@@ -52,7 +52,7 @@ flowchart TD
     G -->|Yes| H["executeWithReceipt selects IDs and performs write"]
     G -->|No| I["update with deletionTimestamp(query)"]
     H --> J["Return receipt or propagate divergence/write error"]
-    I --> K["normalizeWriteCount returns count"]
+    I --> K["countAffectedRows returns count"]
 ```
 
 **Code references:** [Macro and validation](../../src/bindings/model_query_builder.ts), [executeWithReceipt and option parsing](../../src/receipts.ts), [receipt contract](../../docs/reference/README.md#receipts), [lifecycle tests](../../tests/builder_lifecycle.spec.ts).

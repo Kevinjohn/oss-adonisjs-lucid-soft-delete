@@ -33,16 +33,16 @@ test.group('fixture ownership', () => {
 
     await assert.rejects(
       () =>
-        acquireOwnedNamespace(
-          async () => {
+        acquireOwnedNamespace({
+          create: async () => {
             if (namespaces.has('existing')) throw new Error('namespace already exists')
           },
-          async () => {},
-          async () => {
+          close: async () => {},
+          drop: async () => {
             namespaces.delete('existing')
           },
-          (cleanup) => cleanups.push(cleanup)
-        ),
+          registerCleanup: (cleanup) => cleanups.push(cleanup),
+        }),
       /namespace already exists/
     )
     assert.deepEqual([...namespaces], ['existing'])
@@ -57,20 +57,20 @@ test.group('fixture ownership', () => {
     const events: string[] = []
 
     await assert.rejects(async () => {
-      await acquireOwnedNamespace(
-        async () => {
+      await acquireOwnedNamespace({
+        create: async () => {
           namespaces.add('owned')
           events.push('create')
         },
-        async () => {
+        close: async () => {
           events.push('close')
         },
-        async () => {
+        drop: async () => {
           events.push('drop')
           namespaces.delete('owned')
         },
-        (cleanup) => cleanups.push(cleanup)
-      )
+        registerCleanup: (cleanup) => cleanups.push(cleanup),
+      })
       throw new Error('downstream assertion failed')
     }, /downstream assertion failed/)
 
@@ -88,17 +88,17 @@ test.group('fixture ownership', () => {
     const cleanups: Array<() => Promise<void>> = []
     let dropAttempted = false
 
-    await acquireOwnedNamespace(
-      async () => {},
-      async () => {
+    await acquireOwnedNamespace({
+      create: async () => {},
+      close: async () => {
         throw closeFailure
       },
-      async () => {
+      drop: async () => {
         dropAttempted = true
         throw dropFailure
       },
-      (cleanup) => cleanups.push(cleanup)
-    )
+      registerCleanup: (cleanup) => cleanups.push(cleanup),
+    })
 
     try {
       await cleanups[0]()
@@ -115,16 +115,16 @@ test.group('fixture ownership', () => {
     const cleanups: Array<() => Promise<void>> = []
     let dropped = false
 
-    await acquireOwnedNamespace(
-      async () => {},
-      async () => {
+    await acquireOwnedNamespace({
+      create: async () => {},
+      close: async () => {
         throw closeFailure
       },
-      async () => {
+      drop: async () => {
         dropped = true
       },
-      (cleanup) => cleanups.push(cleanup)
-    )
+      registerCleanup: (cleanup) => cleanups.push(cleanup),
+    })
 
     try {
       await cleanups[0]()

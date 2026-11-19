@@ -24,16 +24,15 @@ export interface SoftDeletesInstance {
 /** Restore the previous value only when Lucid did not complete its write. */
 async function persistDeletedAt(
   model: InstanceType<typeof BaseModel> & { deletedAt?: DateTime | null },
-  value: DateTime | null,
-  quietly = false
+  { deletedAt, skipHooks = false }: { deletedAt: DateTime | null; skipHooks?: boolean }
 ): Promise<void> {
   const previous = model.deletedAt
   const hadDeletedAt = Object.hasOwn(model.$attributes, 'deletedAt')
   const hadOwnDeletedAt = Object.hasOwn(model, 'deletedAt')
   const originalsBeforeSave = model.$original
-  model.deletedAt = value
+  model.deletedAt = deletedAt
   try {
-    if (quietly) await model.saveQuietly()
+    if (skipHooks) await model.saveQuietly()
     else await model.save()
   } catch (error) {
     if (model.$original === originalsBeforeSave) {
@@ -48,7 +47,7 @@ async function persistDeletedAt(
 type DeleteAction = 'physical' | 'skip' | 'soft'
 
 /** Shared guard for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
-async function deleteActionFor(
+async function resolveDeleteAction(
   model: InstanceType<typeof BaseModel> & { $forceDelete: boolean; trashed: boolean }
 ): Promise<DeleteAction> {
   if (!model.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
@@ -183,7 +182,8 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
       /**
        * Soft Delete
        */
-      const softDelete = (): Promise<void> => persistDeletedAt(this, DateTime.local())
+      const softDelete = (): Promise<void> =>
+        persistDeletedAt(this, { deletedAt: DateTime.local() })
 
       if (action === 'delete' && !this.$forceDelete) {
         return { del: softDelete, delete: softDelete }
@@ -197,7 +197,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      * Override default delete method
      */
     async delete(): Promise<void> {
-      const action = await deleteActionFor(this)
+      const action = await resolveDeleteAction(this)
       if (action === 'skip') return
       if (action === 'physical') return super.delete()
       try {
@@ -208,10 +208,10 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
     }
 
     async deleteQuietly(): Promise<void> {
-      const action = await deleteActionFor(this)
+      const action = await resolveDeleteAction(this)
       if (action === 'skip') return
       if (action === 'physical') return super.deleteQuietly()
-      await persistDeletedAt(this, DateTime.local(), true)
+      await persistDeletedAt(this, { deletedAt: DateTime.local(), skipHooks: true })
     }
 
     /**
@@ -228,7 +228,7 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
       if (!this.trashed) {
         return this
       }
-      await persistDeletedAt(this, null)
+      await persistDeletedAt(this, { deletedAt: null })
 
       return this
     }

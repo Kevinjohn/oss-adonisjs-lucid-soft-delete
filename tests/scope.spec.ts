@@ -27,7 +27,7 @@ class User extends compose(BaseModel, SoftDeletes) {
   declare email: string
 }
 
-async function createUser(username: string, trashed = false) {
+async function createUser(username: string, { trashed = false }: { trashed?: boolean } = {}) {
   const user = new User()
   user.username = username
   user.email = `${username}@example.test`
@@ -44,7 +44,7 @@ test.group('Read scope', (group) => {
   test('groups a user OR expression before applying the default scope', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed-first', true)
+    await createUser('trashed-first', { trashed: true })
     const active = await createUser('active-second')
 
     const rows = await User.query()
@@ -61,7 +61,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const target = await createUser('adonis_group_limit_counter')
-    await createUser('deleted', true)
+    await createUser('deleted', { trashed: true })
     let rendered = 0
     const query = User.query()
       .from({ u: 'users' })
@@ -82,7 +82,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     await createUser('view-active')
-    await createUser('view-trashed', true)
+    await createUser('view-trashed', { trashed: true })
 
     const client = db.connection()
     await client.rawQuery('create view archived_users as select * from users')
@@ -103,7 +103,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const target = await createUser('last-alias')
-    await createUser('deleted', true)
+    await createUser('deleted', { trashed: true })
     const query = User.query().from({ prior: 'users' }).from('users as current')
     const rows = await query
     const clonedRows = await query.clone()
@@ -124,7 +124,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const target = await createUser('alias-removed')
-    await createUser('deleted', true)
+    await createUser('deleted', { trashed: true })
     const query = User.query().from({ prior: 'users' }).from('users')
     const rows = await query
     const clonedRows = await query.clone()
@@ -142,7 +142,7 @@ test.group('Read scope', (group) => {
   test('groups a user OR expression in only-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('trashed-first', true)
+    const trashed = await createUser('trashed-first', { trashed: true })
     await createUser('active-second')
 
     const rows = await User.onlyTrashed()
@@ -158,7 +158,7 @@ test.group('Read scope', (group) => {
   test('groups nested OR expressions before applying the default scope', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('nested-trashed', true)
+    const trashed = await createUser('nested-trashed', { trashed: true })
     const active = await createUser('nested-active')
 
     const rows = await User.query().where((query) =>
@@ -174,7 +174,7 @@ test.group('Read scope', (group) => {
   test('with-trashed mode preserves both branches of an OR expression', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('with-trashed-branch', true)
+    const trashed = await createUser('with-trashed-branch', { trashed: true })
     const active = await createUser('with-active-branch')
 
     const rows = (await User.withTrashed()
@@ -227,7 +227,7 @@ test.group('Read scope', (group) => {
   test('with-trashed mode adds no filter and survives a clone', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('trashed', true)
+    const trashed = await createUser('trashed', { trashed: true })
     const active = await createUser('active')
 
     const rows = (await User.withTrashed().orderBy('id').clone()) as User[]
@@ -241,7 +241,7 @@ test.group('Read scope', (group) => {
   test('only-trashed mode survives a clone', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('trashed', true)
+    const trashed = await createUser('trashed', { trashed: true })
     await createUser('active')
 
     const rows = await User.onlyTrashed().clone()
@@ -256,7 +256,7 @@ test.group('Read scope', (group) => {
     const statements: string[] = []
     const db = await createDatabase((event) => statements.push(event.sql))
     await createTables(db)
-    const trashed = await createUser('only-clone-trashed', true)
+    const trashed = await createUser('only-clone-trashed', { trashed: true })
     await createUser('only-clone-active')
     statements.length = 0
 
@@ -275,7 +275,7 @@ test.group('Read scope', (group) => {
     const statements: string[] = []
     const db = await createDatabase((event) => statements.push(event.sql))
     await createTables(db)
-    await createUser('sql-trashed', true)
+    await createUser('sql-trashed', { trashed: true })
     const active = await createUser('sql-active')
     statements.length = 0
 
@@ -299,7 +299,7 @@ test.group('Read scope', (group) => {
   test('pagination count inherits with-trashed mode', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed', true)
+    await createUser('trashed', { trashed: true })
     await createUser('active')
 
     const page = await User.withTrashed().paginate(1, 10)
@@ -313,7 +313,7 @@ test.group('Read scope', (group) => {
   }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('trashed', true)
+    const trashed = await createUser('trashed', { trashed: true })
     const active = await createUser('active')
 
     const objectAlias = await User.query()
@@ -409,7 +409,7 @@ test.group('Read scope', (group) => {
   test('qualifies the base table in a self join', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed', true)
+    await createUser('trashed', { trashed: true })
     const active = await createUser('active')
 
     const rows = await User.query()
@@ -426,7 +426,7 @@ test.group('Read scope', (group) => {
   test('refreshes an existing trashed instance by identity', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    const trashed = await createUser('trashed', true)
+    const trashed = await createUser('trashed', { trashed: true })
 
     await trashed.refresh()
 
@@ -484,7 +484,7 @@ test.group('Read scope', (group) => {
   test('does not mutate a builder when SQL is previewed before execution', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    await createUser('trashed', true)
+    await createUser('trashed', { trashed: true })
     const active = await createUser('active')
     const query = User.query().where('username', 'trashed').orWhere('username', 'active')
 
@@ -504,7 +504,7 @@ test.group('Read scope', (group) => {
     await createTables(db)
     await createUser('group-a')
     const b = await createUser('group-b')
-    await createUser('group-trashed', true)
+    await createUser('group-trashed', { trashed: true })
     await createUser('group-outside')
 
     const query = User.query()
@@ -533,7 +533,7 @@ test.group('Read scope', (group) => {
     await createTables(db)
     const target = await createUser('group-target')
     const bystander = await createUser('group-bystander')
-    const trashed = await createUser('group-trashed', true)
+    const trashed = await createUser('group-trashed', { trashed: true })
 
     const query = User.query()
       .where('id', target.id)
@@ -565,7 +565,7 @@ test.group('Read scope', (group) => {
     await createTables(db)
     const owner = await createUser('owner')
     const other = await createUser('other')
-    await createUser('trashed-owner', true)
+    await createUser('trashed-owner', { trashed: true })
     const ownPost = await RelationPost.create({ userId: owner.id, title: 'own' })
     await RelationPost.create({ userId: other.id, title: 'other' })
 
@@ -617,7 +617,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const active = await createUser('switch-active')
-    const trashed = await createUser('switch-trashed', true)
+    const trashed = await createUser('switch-trashed', { trashed: true })
     const query = User.query().whereIn('id', [active.id, trashed.id])
 
     const scoped = await query
@@ -640,7 +640,7 @@ test.group('Read scope', (group) => {
     const db = await createDatabase()
     await createTables(db)
     const active = await createUser('switch-active')
-    const trashed = await createUser('switch-trashed', true)
+    const trashed = await createUser('switch-trashed', { trashed: true })
     const query = User.query().whereIn('id', [active.id, trashed.id])
 
     await query

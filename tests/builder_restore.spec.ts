@@ -31,7 +31,7 @@ class CustomPost extends compose(BaseModel, SoftDeletes) {
   declare deletedAt: DateTime | null
 }
 
-async function createUser(username: string, trashed = false) {
+async function createUser(username: string, { trashed = false }: { trashed?: boolean } = {}) {
   const user = new RelationUser()
   user.fill({ username, email: `${username}@example.test`, managerId: null })
   await user.save()
@@ -55,9 +55,9 @@ test.group('Builder restore', (group) => {
     await createTables(db)
 
     const active = await createUser('active')
-    const trashedOne = await createUser('one', true)
-    const trashedManyA = await createUser('many-a', true)
-    const trashedManyB = await createUser('many-b', true)
+    const trashedOne = await createUser('one', { trashed: true })
+    const trashedManyA = await createUser('many-a', { trashed: true })
+    const trashedManyB = await createUser('many-b', { trashed: true })
 
     assert.equal(await restoreAndGetCount(RelationUser.query().where('id', -1)), 0)
     assert.equal(await restoreAndGetCount(RelationUser.query().where('id', trashedOne.id)), 1)
@@ -80,7 +80,7 @@ test.group('Builder restore', (group) => {
     await createTables(db)
 
     const active = await createUser('active-first')
-    const trashed = await createUser('trashed-second', true)
+    const trashed = await createUser('trashed-second', { trashed: true })
 
     const changed = await restoreAndGetCount(
       RelationUser.query().where('username', active.username).orWhere('username', trashed.username)
@@ -114,7 +114,7 @@ test.group('Builder restore', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    const user = await createUser('transactional', true)
+    const user = await createUser('transactional', { trashed: true })
     const seededUpdatedAt = LuxonDateTime.fromISO('2020-01-02T03:04:05.000Z')
     await db.from('users').where('id', user.id).update({ updated_at: seededUpdatedAt.toJSDate() })
 
@@ -143,8 +143,8 @@ test.group('Builder restore', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    const target = await createUser('target', true)
-    const bystander = await createUser('bystander', true)
+    const target = await createUser('target', { trashed: true })
+    const bystander = await createUser('bystander', { trashed: true })
     const query = RelationUser.query().where('username', 'target')
 
     assert.equal(await restoreAndGetCount(query), 1)
@@ -180,7 +180,8 @@ test.group('Builder restore', (group) => {
   test('count mode accepts cleared windows and aggregate projections', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
-    for (const username of ['cleared-one', 'cleared-two']) await createUser(username, true)
+    for (const username of ['cleared-one', 'cleared-two'])
+      await createUser(username, { trashed: true })
 
     for (const shape of ['limit', 'offset', 'aggregate'] as const) {
       const query = RelationUser.query().where('username', 'cleared-one')

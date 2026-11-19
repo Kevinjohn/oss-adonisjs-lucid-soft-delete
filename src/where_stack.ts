@@ -64,9 +64,9 @@ export function hasRequiredEquality(
   value: unknown
 ): boolean {
   const groups = collectGroups(query as unknown as GroupedQuery)
-  const isOr = (node: WhereNode) => node.method.startsWith('or')
+  const isOrPredicate = (node: WhereNode) => node.method.startsWith('or')
   return (
-    groups.every(([first]) => !isOr(first)) &&
+    groups.every(([first]) => !isOrPredicate(first)) &&
     groups.some(
       ([{ method, args }, ...rest]) =>
         rest.length === 0 &&

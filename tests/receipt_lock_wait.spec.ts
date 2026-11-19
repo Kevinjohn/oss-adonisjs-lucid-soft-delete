@@ -234,7 +234,14 @@ for (const phase of ['observer response', 'BEGIN', 'COMMIT', 'ROLLBACK'] as cons
             ? transaction!.commit()
             : phase === 'ROLLBACK'
               ? transaction!.rollback()
-              : waitForReceiptLock(db, dbClient, owner, native, 'stalled_observer', 1, () => false)
+              : waitForReceiptLock(db, {
+                  client: dbClient,
+                  connections: owner,
+                  connection: native,
+                  marker: 'stalled_observer',
+                  blockerId: 1,
+                  hasSettled: () => false,
+                })
       try {
         await owner.wait<unknown>(operation)
       } catch (error) {
