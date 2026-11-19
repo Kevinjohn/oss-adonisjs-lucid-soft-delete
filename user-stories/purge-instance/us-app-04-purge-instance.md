@@ -12,8 +12,8 @@ As application code using a `SoftDeletes` model, I want to permanently delete on
 ## Acceptance criteria
 
 - `forceDelete()` stores the prior `$forceDelete` flag, sets it to `true`, calls `delete()`, then restores the prior flag in `finally` even when Lucid throws.
-- The `deleteActionFor()` decision uses the force flag to choose Lucid's physical-delete path for persisted active or trashed instances; the operation is not limited to trashed records.
-- An unsaved instance is refused with `E_MODEL_NOT_PERSISTED` before `deleteActionFor()` checks the force flag to select the physical path.
+- The `resolveDeleteAction()` decision uses the force flag to choose Lucid's physical-delete path for persisted active or trashed instances; the operation is not limited to trashed records.
+- An unsaved instance is refused with `E_MODEL_NOT_PERSISTED` before `resolveDeleteAction()` checks the force flag to select the physical path.
 - The physical delete follows Lucid hooks and database constraints. The row is removed; related rows follow database rules, not automatic package cascades.
 - A failed operation propagates. If an enclosing caller-owned transaction later rolls back, the database row returns but the retained model instance remains marked deleted; fetch a new instance.
 
@@ -40,7 +40,7 @@ flowchart TD
     B --> C["ModelWithSoftDeletes.delete"]
     C --> U{"Persisted?"}
     U -->|"No"| V["Throw E_MODEL_NOT_PERSISTED"]
-    U -->|"Yes"| D["deleteActionFor chooses physical"]
+    U -->|"Yes"| D["resolveDeleteAction chooses physical"]
     D --> E["super.delete()"]
     E --> F["$getQueryFor delegates to BaseModel query"]
     F --> G["Lucid executes DELETE and hooks"]
@@ -50,4 +50,4 @@ flowchart TD
     I -->|No| K["Row remains removed"]
 ```
 
-**Code references:** [forceDelete, deleteActionFor and $getQueryFor](../../src/mixin.ts), [instance API contract](../../docs/reference/README.md#instance-forcedelete), [lifecycle tests](../../tests/lifecycle.spec.ts).
+**Code references:** [forceDelete, resolveDeleteAction and $getQueryFor](../../src/mixin.ts), [instance API contract](../../docs/reference/README.md#instance-forcedelete), [lifecycle tests](../../tests/lifecycle.spec.ts).

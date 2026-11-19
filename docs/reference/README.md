@@ -188,7 +188,7 @@ Physically deletes one persisted model through Lucid's instance delete path.
 - **Hooks:** Runs `beforeDelete` → physical delete → `afterDelete`; it does not run update/save hooks. Hook and database errors propagate. An `afterDelete` error can follow a completed physical delete.
 - **Dirty fields and timestamps:** Other dirty attributes are not saved. `updatedAt` is not advanced and column `prepare` does not run for a model update because no model update occurs.
 - **Client:** Uses the instance's client, including an attached caller transaction.
-- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `deleteActionFor` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
+- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `resolveDeleteAction` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
 
 ```ts
 const user = await User.withTrashed().where('id', userId).firstOrFail()
@@ -315,7 +315,7 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
 - Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
 - Cost: PostgreSQL runs one statement with `RETURNING`. MySQL and SQLite run a `SELECT … FOR UPDATE` (SQLite ignores `FOR UPDATE`) followed by the write restricted to the selected keys, and hold the row locks until the caller commits. All ids are held in memory and, on MySQL/SQLite, sent back as bind parameters (SQLite's bound-parameter limit is 32766).
-- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
+- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `assertLifecycleWriteSupported`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
 - A prior `returning()` on the builder is overridden on PostgreSQL and ignored elsewhere.
 - Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
 - Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.
