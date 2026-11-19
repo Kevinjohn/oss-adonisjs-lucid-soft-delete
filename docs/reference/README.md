@@ -250,6 +250,8 @@ Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is de
 
 Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview, while the relation key remains required by the query.
 
+Count-mode lifecycle methods do not support a preceding `returning()` modifier. Use [receipt mode](#receipts) when you need the primary keys of the affected rows.
+
 ### Receipts
 
 Pass `{ receipt: true }` to a builder lifecycle method to return the primary keys of rows changed by the executed write. Receipt mode requires a caller-owned transaction client; assume `trx` is bound to that transaction in these examples. The comments show the resolved values after `await`:
