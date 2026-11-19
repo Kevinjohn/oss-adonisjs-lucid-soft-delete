@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.1 - 2026-11-19
+
 ### Fixed
 
 - Preserve count-mode physical deletion after previewing a single-row belongs-to query.
