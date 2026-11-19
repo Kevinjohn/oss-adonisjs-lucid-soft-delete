@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Preserve count-mode physical deletion after previewing a single-row belongs-to query.
+
 - Scope model reads and count-mode lifecycle writes to unaliased alternate FROM sources.
 - Reject count-mode lifecycle writes with one-row belongs-to windows when the related key can match multiple rows.
 
