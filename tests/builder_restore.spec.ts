@@ -296,6 +296,36 @@ test.group('Builder restore', (group) => {
     assert.lengthOf(await RelationUser.all(), 2)
   })
 
+  test('force-deletes only the related row after a belongs-to SQL preview', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const freshUser = await createUser('fresh-parent')
+    const previewedUser = await createUser('previewed-parent')
+    const other = await createUser('other-parent')
+    const freshPost = await RelationPost.create({ userId: freshUser.id, title: 'fresh' })
+    const previewedPost = await RelationPost.create({
+      userId: previewedUser.id,
+      title: 'previewed',
+    })
+
+    assert.equal(await freshPost.related('user').query().forceDelete(), 1)
+    const rowsBeforePreviewDelete = await RelationUser.withTrashed()
+    assert.sameMembers(
+      rowsBeforePreviewDelete.map(({ id }) => id),
+      [previewedUser.id, other.id]
+    )
+
+    const query = previewedPost.related('user').query()
+    query.toSQL()
+
+    assert.equal(await query.forceDelete(), 1)
+    const rowsAfterPreviewDelete = await RelationUser.withTrashed()
+    assert.deepEqual(
+      rowsAfterPreviewDelete.map(({ id }) => id),
+      [other.id]
+    )
+  })
+
   test('count mode accepts the single-row limit Lucid leaves on a rendered belongs-to builder', async ({
     assert,
   }) => {

@@ -246,7 +246,7 @@ Physically removes matching model rows.
 const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDelete()
 ```
 
-Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches.
+Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches. For an accepted single-row belongs-to query, `forceDelete()` removes the redundant limit before compiling the physical delete.
 
 Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview, while the relation key remains required by the query.
 

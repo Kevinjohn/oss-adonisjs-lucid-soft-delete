@@ -83,6 +83,7 @@ function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
   ) {
     throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
   }
+  return singleRow
 }
 
 /**
@@ -134,7 +135,7 @@ export function extendModelQueryBuilder(builder: any) {
       const receipt = parseReceiptOptions(options)
       ensureLifecycleWrite(this)
       if (receipt) ensureReceiptSupport(this)
-      else ensureNoRowWindow(this)
+      else if (ensureNoRowWindow(this)) this.clearLimit()
       const column = this.model.$getColumn('deletedAt')!.columnName
       if (getSoftDeletesMode(this) === 'only') {
         addScopeFilter(this, 'whereNotNull', qualifiedColumnReference(this, column))
