@@ -6,6 +6,7 @@
 
 - Scope model reads and count-mode lifecycle writes to unaliased alternate FROM sources.
 - Reject count-mode lifecycle writes with one-row belongs-to windows when the related key can match multiple rows.
+- Keep count-mode belongs-to writes working when a bound equality filter is added after a SQL preview.
 
 ## 0.2.0 - 2026-11-16
 
