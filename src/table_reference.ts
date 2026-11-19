@@ -34,7 +34,7 @@ export function resolveTableReference(query: ModelQueryBuilderContract<LucidMode
   const table = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single?.table
   // Lucid's model builder assigns a FROM table in its constructor. Its tableAlias cache can
   // outlive a later from() call, so the current FROM alone determines the qualifier.
-  return aliasFromTable(table) ?? query.model.table
+  return aliasFromTable(table) ?? (typeof table === 'string' ? table : query.model.table)
 }
 
 /**
@@ -53,10 +53,7 @@ export function qualifiedColumnReference(
   const knexQuery = query.knexQuery as unknown as KnexBuilderLike
   const queryTable = (query.knexQuery as unknown as { _single?: { table?: unknown } })._single
     ?.table
-  const isAlias =
-    literalAlias ||
-    (query as { tableAlias?: string }).tableAlias === tableReference ||
-    aliasFromTable(queryTable) === tableReference
+  const isAlias = literalAlias || aliasFromTable(queryTable) === tableReference
   if (!tableReference.includes('.') || !isAlias) return `${tableReference}.${column}`
 
   const knexClient = knexQuery.client

@@ -65,6 +65,8 @@ and `performance_schema.threads`, so Performance Schema must be enabled and the 
 `SELECT` access to those tables. The named-connection tests create and drop a uniquely named
 secondary database; the test account needs `CREATE DATABASE` and `DROP DATABASE` privileges.
 
+The test runner fails when no selected test executes. Skipped and TODO tests do not count; expected failures count as executed. A suite can still include skipped tests when other tests run.
+
 `pnpm test` runs the SQLite suite under c8 after linting. CI also runs the suite on PostgreSQL 16
 and MySQL 8.4, and tests the minimum and latest supported peer versions. The packed consumer gate
 runs `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum`; both pack this package,

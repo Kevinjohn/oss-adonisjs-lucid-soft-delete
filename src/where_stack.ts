@@ -57,6 +57,27 @@ function collectGroups(grouped: GroupedQuery): WhereNode[][] {
   return groups
 }
 
+/** Whether the SQL must satisfy a direct caller equality, even in the presence of OR groups. */
+export function hasRequiredEquality(
+  query: ModelQueryBuilderContract<LucidModel>,
+  column: string,
+  value: unknown
+): boolean {
+  const groups = collectGroups(query as unknown as GroupedQuery)
+  const isOr = (node: WhereNode) => node.method.startsWith('or')
+  return (
+    groups.every(([first]) => !isOr(first)) &&
+    groups.some(
+      ([{ method, args }, ...rest]) =>
+        rest.length === 0 &&
+        method === 'where' &&
+        args.length === 2 &&
+        args[0] === column &&
+        args[1] === value
+    )
+  )
+}
+
 /** Keep the caller's groups in one non-draining where group. */
 function rebuildStack(grouped: GroupedQuery, groups: WhereNode[][]): void {
   grouped.whereStack = [[]]

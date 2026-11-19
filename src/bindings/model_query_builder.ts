@@ -14,7 +14,7 @@ import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
 import { installSubQueryScope } from '../sub_query_scope.js'
 import { qualifiedColumnReference } from '../table_reference.js'
-import { addScopeFilter, groupCallerPredicates } from '../where_stack.js'
+import { addScopeFilter, groupCallerPredicates, hasRequiredEquality } from '../where_stack.js'
 
 /**
  * Raises exception when model not with soft delete
@@ -45,20 +45,41 @@ function ensureLifecycleWrite(query: ModelQueryBuilderContract<LucidModel>) {
  * offset and MySQL honours. Reject them so the affected rows never depend on the dialect. A
  * has-many builder's `groupLimit()` becomes a plain limit only inside Lucid's `exec()`, so it is
  * read from `groupConstraints` here. A belongs-to builder rendered with `toSQL()` first
- * keeps Lucid's own `limit(1)`; its related key identifies one row. A has-one limit
- * is ambiguous because its foreign key may match multiple rows.
+ * keeps Lucid's own `limit(1)`. Only allow the limit for a single-parent belongs-to targeting
+ * the related model's own table by primary key.
  */
 function ensureNoRowWindow(query: ModelQueryBuilderContract<LucidModel>) {
-  const single = (query.knexQuery as unknown as { _single: { limit?: unknown; offset?: unknown } })
-    ._single
-  const groupLimit = (query as unknown as { groupConstraints?: { limit?: unknown } })
-    .groupConstraints?.limit
-  const type = (query as unknown as { relation?: { type?: string } }).relation?.type
-  const singleRow = type === 'belongsTo' && single.limit === 1
+  const single = (
+    query.knexQuery as unknown as {
+      _single: { limit?: unknown; offset?: unknown; table?: unknown; schema?: unknown }
+    }
+  )._single
+  const { appliedConstraints, groupConstraints, parent, relation } = query as unknown as {
+    appliedConstraints?: boolean
+    groupConstraints?: { limit?: unknown }
+    parent?: Record<string, unknown> | unknown[]
+    relation?: {
+      type: string
+      localKey: string
+      localKeyColumnName: string
+      foreignKey: string
+    }
+  }
+  const singleRow =
+    single.limit === 1 &&
+    relation?.type === 'belongsTo' &&
+    relation.localKey === query.model.primaryKey &&
+    !!parent &&
+    !Array.isArray(parent) &&
+    single.table === query.model.table &&
+    single.schema === undefined &&
+    // Lucid will not reapply the relation constraint after previewing a builder.
+    (!appliedConstraints ||
+      hasRequiredEquality(query, relation.localKeyColumnName, parent[relation.foreignKey]))
   if (
     (single.limit !== undefined && single.limit !== null && !singleRow) ||
     (single.offset !== undefined && single.offset !== null) ||
-    groupLimit !== undefined
+    groupConstraints?.limit !== undefined
   ) {
     throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
   }

@@ -13,7 +13,7 @@ import { test } from '@japa/runner'
 import { SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { applySubQueryScope } from '../src/scope.js'
-import { createDatabase, createTables } from './helpers.js'
+import { createDatabase, createTables, dbClient } from './helpers.js'
 import { RelationPost, RelationUser } from './fixtures/models.js'
 
 class User extends compose(BaseModel, SoftDeletes) {
@@ -77,6 +77,27 @@ test.group('Read scope', (group) => {
     )
     assert.equal(rendered, 1)
   })
+
+  test('scopes an unaliased view to its exposed deletion column', async ({ assert, cleanup }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    await createUser('view-active')
+    await createUser('view-trashed', true)
+
+    const client = db.connection()
+    await client.rawQuery('create view archived_users as select * from users')
+    cleanup(() => client.rawQuery('drop view archived_users'))
+    const active = await User.query().from('archived_users')
+    const trashed = await User.onlyTrashed().from('archived_users')
+    assert.deepEqual(
+      active.map((row) => row.username),
+      ['view-active']
+    )
+    assert.deepEqual(
+      trashed.map((row) => row.username),
+      ['view-trashed']
+    )
+  }).skip(dbClient !== 'sqlite', 'SQLite view regression')
 
   test('follows the last alias when a builder replaces its FROM', async ({ assert }) => {
     const db = await createDatabase()

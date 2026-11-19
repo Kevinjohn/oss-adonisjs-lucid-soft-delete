@@ -10,11 +10,30 @@
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from './helpers.js'
+import { createDatabase, createTables, dbClient } from './helpers.js'
 import { RelationUser } from './fixtures/models.js'
 
 test.group('Punctuation alias lifecycle writes', (group) => {
   group.setup(() => extendModelQueryBuilder(ModelQueryBuilder))
+
+  test('count-mode writes scope an unaliased alternate table', async ({ assert }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    const active = await RelationUser.create({ username: 'alternate-active' })
+    const trashed = await RelationUser.create({ username: 'alternate-trashed' })
+    await trashed.delete()
+    await db.connection().rawQuery('create table archived_users as select * from users')
+
+    assert.equal(await RelationUser.query().from('archived_users').softDelete(), 1)
+    assert.lengthOf(await RelationUser.onlyTrashed().from('archived_users'), 2)
+    assert.lengthOf(await RelationUser.query(), 1)
+
+    assert.equal(await RelationUser.query().from('archived_users').restore(), 2)
+    assert.lengthOf(await RelationUser.query().from('archived_users'), 2)
+    assert.lengthOf(await RelationUser.onlyTrashed(), 1)
+    const originalActive = await RelationUser.query().firstOrFail()
+    assert.equal(originalActive.id, active.id)
+  }).skip(dbClient !== 'sqlite', 'SQLite alternate-table regression')
 
   test('receipt writes select and change only the aliased row in a caller transaction', async ({
     assert,
