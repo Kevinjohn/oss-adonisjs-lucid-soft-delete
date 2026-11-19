@@ -248,7 +248,7 @@ const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDel
 
 Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches. For an accepted single-row belongs-to query, `forceDelete()` removes the redundant limit before compiling the physical delete.
 
-Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview, while the relation key remains required by the query.
+Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview, while the relation key remains required by the query. After a SQL preview, the relation key may share its predicate group with additional `where(column, value)` or `where(column, '=', value)` filters that bind scalar values. Add other predicates before previewing the query.
 
 Count-mode lifecycle methods do not support a preceding `returning()` modifier. Use [receipt mode](#receipts) when you need the primary keys of the affected rows.
 
