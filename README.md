@@ -26,6 +26,11 @@ pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/do
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
+The configure command uses the host application's `@adonisjs/assembler` for codemods; install
+it as a development dependency when it is not already present. It is not required by runtime
+model operations. The installed-consumer gate exercises configure twice and compiles the
+installed declarations with TypeScript 5.9.3 and 6.0.3.
+
 Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
 [getting started guide](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 

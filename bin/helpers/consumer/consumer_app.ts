@@ -32,6 +32,8 @@ async function installPackedPackage(appRoot: string, archive: string) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
   manifest.dependencies ??= {}
   manifest.dependencies[packageName] = `file:${archive}`
+  // Compile the same freshly installed declarations with both advertised compiler versions.
+  manifest.devDependencies.typescript6 = 'npm:typescript@6.0.3'
   if (compatibility === 'minimum') {
     for (const [name, version] of Object.entries(minimumPeers)) {
       delete manifest.devDependencies?.[name]
@@ -83,7 +85,23 @@ async function inspectInstalledPackage(appRoot: string) {
 async function verifyPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) {
   await writeFile(
     join(appRoot, 'package_exports.ts'),
-    `import type { SoftDeleteReceipt } from '${packageName}/types'\n\nexport type ConsumerSoftDeleteReceipt = SoftDeleteReceipt\n`
+    `import { compose } from '@adonisjs/core/helpers'
+import { BaseModel } from '@adonisjs/lucid/orm'
+import { SoftDeletes, hasSoftDeletes } from '${packageName}'
+import type { SoftDeleteReceipt, BulkReceiptOptions, SoftDeletesInstance } from '${packageName}/types'
+import type {} from '${packageName}/types/querybuilder'
+import Provider from '${packageName}/lucid_soft_delete_provider'
+import { extendModelQueryBuilder } from '${packageName}/bindings'
+
+class Example extends compose(BaseModel, SoftDeletes) {}
+export function verifyContract(model: unknown, example: Example, options: BulkReceiptOptions) {
+  const instance: SoftDeletesInstance = example
+  const receipt: Promise<SoftDeleteReceipt> = Example.query().onlyTrashed().softDelete({ receipt: true })
+  const count: Promise<number> = Example.query().withTrashed().restore()
+  if (hasSoftDeletes(model)) model.query()
+  return [instance, receipt, count, options, Provider, extendModelQueryBuilder]
+}
+`
   )
 
   runCommand({
@@ -96,6 +114,31 @@ async function verifyPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) 
     cwd: appRoot,
     environment,
   })
+}
+
+/** Exercise distinct compiler executables, even if pnpm's shared tsc shim selects one. */
+function typecheckPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) {
+  for (const [name, version] of [
+    ['typescript', '5.9.3'],
+    ['typescript6', '6.0.3'],
+  ]) {
+    const compiler = `node_modules/${name}/bin/tsc`
+    assert.equal(
+      runCommand({
+        command: process.execPath,
+        args: [compiler, '--version'],
+        cwd: appRoot,
+        environment,
+      }).trim(),
+      `Version ${version}`
+    )
+    runCommand({
+      command: process.execPath,
+      args: [compiler, '--noEmit'],
+      cwd: appRoot,
+      environment,
+    })
+  }
 }
 
 function runAceCommand(
@@ -167,7 +210,7 @@ export async function runConsumerApp(archive: string, runName: string) {
       runAceCommand(appRoot, environment, 'migration:run')
       if (schema && client) await verifyPostgresMigration(client, schema)
       await verifyGeneratedSchema(appRoot)
-      runCommand({ command: 'pnpm', args: ['exec', 'tsc', '--noEmit'], cwd: appRoot, environment })
+      typecheckPublicApi(appRoot, environment)
       runAceCommand(appRoot, environment, 'build')
       runAceCommand(appRoot, environment, 'test')
 

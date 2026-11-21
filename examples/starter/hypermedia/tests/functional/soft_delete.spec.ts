@@ -1,17 +1,13 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import User from '#models/user'
+import db from '@adonisjs/lucid/services/db'
 import { FormSession } from '#tests/helpers/form_session'
 
 const password = 'SoftDeletePass123!'
 
 test.group('soft delete', (group) => {
-  group.each.setup(async () => {
-    const rollback = await testUtils.db().withGlobalTransaction()
-    return async () => {
-      await rollback()
-    }
-  })
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('an account deletes itself and an administrator restores it', async ({ assert }) => {
     const adminAccount = await User.create({ email: 'admin@example.test', password })
@@ -60,6 +56,85 @@ test.group('soft delete', (group) => {
     const guestRestore = await guest.request(`/admin/deleted-users/${deleted.id}/restore`, {})
     assert.equal(guestRestore.headers.get('location'), '/login')
     assert.isNull(await User.find(deleted.id))
+  })
+
+  test('recycle bin projects a stable bounded page and handles empty pages', async ({ assert }) => {
+    const adminAccount = await User.create({
+      email: 'admin@example.test',
+      password,
+      isSoftDeleteAdmin: true,
+    })
+    const deletedAt = '2026-01-01 00:00:00'
+    await db.table('users').multiInsert(
+      Array.from({ length: 27 }, (_, index) => ({
+        email: `deleted-${index}@example.test`,
+        password: adminAccount.password,
+        created_at: deletedAt,
+        deleted_at: deletedAt,
+      }))
+    )
+    const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
+    const admin = new FormSession()
+    await admin.login(adminAccount.email, password)
+    const first = await admin.request('/admin/deleted-users')
+    assert.equal(first.status, 200)
+    assert.deepEqual(
+      [...new Set(admin.html.match(/deleted-[0-9]+@example[.]test/g) ?? [])],
+      expected.slice(0, 25)
+    )
+    assert.include(admin.html, 'Next page')
+    const second = await admin.request('/admin/deleted-users?page=2')
+    assert.equal(second.status, 200)
+    assert.deepEqual(
+      [...new Set(admin.html.match(/deleted-[0-9]+@example[.]test/g) ?? [])],
+      expected.slice(25)
+    )
+    assert.include(admin.html, 'Previous page')
+    const empty = await admin.request('/admin/deleted-users?page=3')
+    assert.equal(empty.status, 200)
+    assert.include(admin.html, 'No deleted accounts on this page.')
+  })
+
+  test('restore validates the identifier and leaves rows unchanged on failure', async ({
+    assert,
+  }) => {
+    const adminAccount = await User.create({
+      email: 'admin@example.test',
+      password,
+      isSoftDeleteAdmin: true,
+    })
+    const member = await User.create({ email: 'member@example.test', password })
+    await member.delete()
+    const before = await User.onlyTrashed().where('id', member.id).firstOrFail()
+    const admin = new FormSession()
+    await admin.login(adminAccount.email, password)
+    await admin.request('/admin/deleted-users')
+
+    for (const id of [
+      'not-an-id',
+      '0',
+      '-1',
+      '1.5',
+      '1e0',
+      '1.00000000000000001',
+      '9007199254740992',
+    ]) {
+      const result = await admin.request(
+        `/admin/deleted-users/${id}/restore`,
+        {},
+        'application/json'
+      )
+      assert.equal(result.status, 422)
+    }
+    const missing = await admin.request('/admin/deleted-users/9007199254740991/restore', {})
+    assert.equal(missing.status, 404)
+    const active = await admin.request(`/admin/deleted-users/${adminAccount.id}/restore`, {})
+    assert.equal(active.status, 404)
+    assert.equal(
+      (await User.onlyTrashed().where('id', member.id).firstOrFail()).deletedAt?.toISO(),
+      before.deletedAt?.toISO()
+    )
+    assert.isNotNull(await User.find(adminAccount.id))
   })
 
   test('public signup cannot grant deleted-account access', async ({ assert }) => {

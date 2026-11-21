@@ -5,12 +5,7 @@ import User from '#models/user'
 const password = 'SoftDeletePass123!'
 
 test.group('soft delete in the browser', (group) => {
-  group.each.setup(async () => {
-    const rollback = await testUtils.db().withGlobalTransaction()
-    return async () => {
-      await rollback()
-    }
-  })
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('an administrator restores a deleted account', async ({ visit, assert }) => {
     const adminAccount = await User.create({ email: 'admin@example.test', password })

@@ -34,7 +34,7 @@ const corsConfig = defineConfig({
   /**
    * Response headers exposed to the browser.
    */
-  exposeHeaders: [],
+  exposeHeaders: ['X-Total-Count', 'X-Current-Page', 'X-Last-Page'],
 
   /**
    * Allow cookies/authorization headers on cross-origin requests.

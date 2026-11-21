@@ -5,8 +5,10 @@ source checkout, configure a fixture app, migrate its database, and exercise cre
 restore, and permanent purge. It uses the installed-consumer app under `examples/app/`, which also
 serves as the packed-package test fixture for `pnpm test:consumer`.
 
-This page keeps focused examples of the public methods for reference. It is not a complete method
-catalog; the [API reference](../docs/reference/README.md) describes the full lifecycle contract.
+For an HTTP application, start with the [maintained native-authentication examples](starter/README.md),
+especially the API fixture's administrator-only recycle bin. The standalone consumer above exercises
+the library API, not an HTTP authorisation policy. The [API reference](../docs/reference/README.md)
+describes the full lifecycle contract.
 
 ## 1. Migration
 
@@ -50,100 +52,47 @@ export default class User extends compose(BaseModel, SoftDeletes) {
 
 The mixin declares `deletedAt` and the `trashed` getter. Add nothing else for the default column name.
 
-## 3. Controller
+## 3. Authorised administrator recycle bin
 
-```ts
-// app/controllers/users_controller.ts
-import type { HttpContext } from '@adonisjs/core/http'
-import User from '#models/user'
+Use the complete [API starter fixture](starter/api/README.md) rather than mounting unauthenticated
+lifecycle endpoints. Its [User model](starter/api/app/models/user.ts) combines native authentication
+with `SoftDeletes`, and its [administrator migration](starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts)
+adds `is_soft_delete_admin`, defaulting to false. Only operators grant that flag to an existing
+account; the [signup validator](starter/api/app/validators/user.ts) does not allow callers to grant it.
 
-export default class UsersController {
-  /** Active users only. The default scope adds `deleted_at IS NULL`. */
-  async index() {
-    return User.query().orderBy('email')
-  }
+The [routes](starter/api/start/routes.ts) put both operations behind AdonisJS authentication.
+The [controller](starter/api/app/controllers/deleted_users_controller.ts) checks the administrator
+capability on every request, before querying the recycle bin. The [restore validator](starter/api/app/validators/deleted_user.ts)
+requires a positive, safe integer route identifier, then the controller selects only trashed
+accounts by that validated identifier. An active or missing account returns not found without writing.
 
-  /** Trashed users only, for an admin "bin" view. */
-  async trashed() {
-    return User.query().onlyTrashed().orderBy('deleted_at', 'desc')
-  }
-
-  /** Active and trashed together. */
-  async everyone() {
-    return User.withTrashed().orderBy('email')
-  }
-
-  /** Soft delete: sets `deleted_at`, keeps the row. */
-  async destroy({ params, response }: HttpContext) {
-    const user = await User.findOrFail(params.id)
-    await user.delete()
-    return response.noContent()
-  }
-
-  /** Soft delete without running model hooks, for example from a bulk import. */
-  async destroyQuietly({ params, response }: HttpContext) {
-    const user = await User.findOrFail(params.id)
-    await user.deleteQuietly()
-    return response.noContent()
-  }
-
-  /** Restore one trashed user. `findOrFail` would not see it, so read with `withTrashed()`. */
-  async restore({ params }: HttpContext) {
-    const user = await User.withTrashed().where('id', params.id).firstOrFail()
-    await user.restore()
-    return user
-  }
-
-  /** Restore every trashed user matching a filter. Returns the affected row count. */
-  async restoreMany({ request }: HttpContext) {
-    const domain = request.input('domain')
-    const restored = await User.query()
-      .onlyTrashed()
-      .where('email', 'like', `%@${domain}`)
-      .restore()
-    return { restored }
-  }
-
-  /** Physical DELETE. Works on active and trashed rows. */
-  async purge({ params, response }: HttpContext) {
-    const user = await User.withTrashed().where('id', params.id).firstOrFail()
-    await user.forceDelete()
-    return response.noContent()
-  }
-}
-```
-
-## 4. Routes
-
-```ts
-// start/routes.ts
-import router from '@adonisjs/core/services/router'
-const UsersController = () => import('#controllers/users_controller')
-
-router.get('/users', [UsersController, 'index'])
-router.get('/users/trashed', [UsersController, 'trashed'])
-router.get('/users/everyone', [UsersController, 'everyone'])
-router.delete('/users/:id', [UsersController, 'destroy'])
-router.delete('/users/:id/quietly', [UsersController, 'destroyQuietly'])
-router.post('/users/:id/restore', [UsersController, 'restore'])
-router.post('/users/restore', [UsersController, 'restoreMany'])
-router.delete('/users/:id/purge', [UsersController, 'purge'])
-```
+The maintained files are the complete example, including authentication, administrator grants,
+validation, account self-deletion, and the necessary framework configuration. Do not implement
+public mutation endpoints merely by copying library method names into routes.
 
 ## What to expect
 
-| Call                      | Rows touched                                              |
-| ------------------------- | --------------------------------------------------------- |
-| `DELETE /users/1`         | `UPDATE users SET deleted_at = now WHERE id = 1`          |
-| `DELETE /users/1/quietly` | the same `UPDATE`, without model hooks                    |
-| `GET /users`              | `WHERE users.deleted_at IS NULL`                          |
-| `GET /users/trashed`      | `WHERE users.deleted_at IS NOT NULL`                      |
-| `GET /users/everyone`     | no `deleted_at` predicate                                 |
-| `POST /users/1/restore`   | `UPDATE users SET deleted_at = NULL WHERE id = 1`         |
-| `POST /users/restore`     | one `UPDATE` with the filter and `deleted_at IS NOT NULL` |
-| `DELETE /users/1/purge`   | `DELETE FROM users WHERE id = 1`                          |
+| Call                                           | Successful result                                              |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| `DELETE /api/v1/account`                       | Authenticated account deletes itself; 204                      |
+| `GET /api/v1/admin/deleted-users`              | Administrator sees projected id, email and deletion time       |
+| `POST /api/v1/admin/deleted-users/:id/restore` | Administrator restores a trashed account; returns id and email |
 
-Relations, pagination, transactions and the cases the scope does not cover are in the
+Guests are unauthenticated, authenticated non-administrators are forbidden, invalid identifiers
+fail validation, and missing or active identifiers return 404. The
+[functional tests](starter/api/tests/functional/soft_delete.spec.ts) also prove token reactivation
+after restoration and that public signup cannot grant administrator access. The Hypermedia and
+Inertia fixtures use the same preconditions while preserving their browser redirects and flash
+messages.
+
+The fixtures project only the required fields and use Lucid `paginate(page, perPage)` with a
+validated `page` query parameter (default 1), a fixed page size of 25, and descending deletion
+time and ID ordering. The API retains the array response with `X-Total-Count`, `X-Current-Page`,
+and `X-Last-Page` headers. Browser pages offer navigation and an empty-page state. The
+administrator check and read filter apply on every page; restore remains independent of the
+listing page.
+
+Relations, pagination, transactions and the cases the read filter does not cover are in the
 [scope contract](../docs/reference/scope-contract.md).
 
 ## Caller-owned transaction service
@@ -177,7 +126,7 @@ From the repository root, run `pnpm test:consumer` and
 package, install it into a clean fixture app, migrate, typecheck, build, and run the consumer
 suite, including `examples/app/tests/lifecycle.spec.ts`.
 
-- The package owns deletion timestamps, lifecycle methods, read scopes, and use of the supplied client.
+- The package owns deletion timestamps, lifecycle methods, soft-delete read filters, and use of the supplied client.
 - The application owns tenant predicates, authorization, archive state, bookkeeping, and transaction boundaries.
 - `withTrashed()` on a root query does not change related queries. Choose it separately for each preload or aggregate callback that needs deleted rows.
 - These fictional fixture tables establish package behavior only. They do not establish an application's service integration, policies, or migration status.
