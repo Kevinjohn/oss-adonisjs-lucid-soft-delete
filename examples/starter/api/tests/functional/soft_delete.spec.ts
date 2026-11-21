@@ -177,10 +177,8 @@ test.group('soft delete', (group) => {
       .post(`/api/v1/admin/deleted-users/${admin.id}/restore`)
       .loginAs(admin)
     active.assertStatus(404)
-    assert.equal(
-      (await User.onlyTrashed().where('id', member.id).firstOrFail()).deletedAt?.toISO(),
-      before.deletedAt?.toISO()
-    )
+    const after = await User.onlyTrashed().where('id', member.id).firstOrFail()
+    assert.equal(after.deletedAt?.toISO(), before.deletedAt?.toISO())
     assert.isNotNull(await User.find(admin.id))
   })
 

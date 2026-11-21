@@ -130,10 +130,8 @@ test.group('soft delete', (group) => {
     assert.equal(missing.status, 404)
     const active = await admin.request(`/admin/deleted-users/${adminAccount.id}/restore`, {})
     assert.equal(active.status, 404)
-    assert.equal(
-      (await User.onlyTrashed().where('id', member.id).firstOrFail()).deletedAt?.toISO(),
-      before.deletedAt?.toISO()
-    )
+    const after = await User.onlyTrashed().where('id', member.id).firstOrFail()
+    assert.equal(after.deletedAt?.toISO(), before.deletedAt?.toISO())
     assert.isNotNull(await User.find(adminAccount.id))
   })
 
