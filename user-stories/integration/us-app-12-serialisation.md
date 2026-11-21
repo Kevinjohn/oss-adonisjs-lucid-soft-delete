@@ -18,14 +18,17 @@ As an application developer, I want to choose how to expose deletion state so cl
 
 ```mermaid
 flowchart TD
-    A["Choose fields"] --> B["Load deletion timestamp"] --> C["Return representation"]
+    A["Choose projection and representation"] --> B{"Need deletion state?"}
+    B -->|Yes| C["Select deletedAt; optionally derive trashed"] --> D["Return representation"]
+    B -->|No| D
 ```
 
 ## Code flow
 
 ```mermaid
 flowchart TD
-    A["Read mapped attribute"] --> B["Evaluate trashed getter"] --> C["Serialise configured fields"]
+    A["Loaded model"] --> B["Caller reads trashed getter"] --> D["Getter checks deletedAt is neither null nor undefined"]
+    A --> C["Ordinary Lucid serialisation uses configured fields without trashed getter"]
 ```
 
 **Code references:** [src/mixin.ts](../../src/mixin.ts).

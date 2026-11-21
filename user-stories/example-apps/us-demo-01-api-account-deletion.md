@@ -20,11 +20,11 @@ As a signed-in user of the API starter app, I want to delete my account so that 
 
 ```mermaid
 flowchart TD
-    A["Signed-in user sends DELETE /api/v1/account"] --> B{"Valid access token?"}
-    B -->|No| C["Receive authentication failure"]
-    B -->|Yes| D["Account is soft-deleted"]
-    D --> E["Receive 204 No Content"]
-    E --> F["Token and login no longer find the account"]
+    A["Send DELETE /api/v1/account"] --> B{"Valid token?"}
+    B -->|No| C["Receive auth failure"]
+    B -->|Yes| D{"Soft-delete succeeds?"}
+    D -->|No| E["Receive error"]
+    D -->|Yes| F["Receive 204; later token and login attempts fail while deleted"]
 ```
 
 ## Code flow
@@ -33,12 +33,11 @@ Scope: starter route through the package's instance `delete()`; token issuing an
 
 ```mermaid
 flowchart TD
-    A["router.delete under the account group"] --> B["middleware.auth using the default api token guard"]
-    B -->|Rejected| C["Auth failure response"]
-    B -->|Accepted| D["AccountDeletionController.destroy"]
-    D --> E["auth.getUserOrFail"]
-    E --> F["user.delete soft-deletes via SoftDeletes mixin"]
-    F --> G["response.noContent"]
+    A["DELETE /api/v1/account"] --> B{"middleware.auth accepts token?"}
+    B -->|No| C["Auth failure"]
+    B -->|Yes| D["AccountDeletionController.destroy: auth.getUserOrFail"] --> E["user.delete"]
+    E -->|Failure| F["Propagate error"]
+    E -->|Success| G["response.noContent"]
 ```
 
 **Code references:** [routes](../../examples/starter/api/start/routes.ts), [controller](../../examples/starter/api/app/controllers/account_deletion_controller.ts), [SoftDeletes mixin](../../src/mixin.ts), [local API native-auth contract tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).

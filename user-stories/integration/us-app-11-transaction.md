@@ -18,14 +18,21 @@ As an application service, I want to bind writes to one transaction so a failed 
 
 ```mermaid
 flowchart TD
-    A["Begin transaction"] --> B["Change record and bookkeeping"] --> C["Commit or roll back"]
+    A["Begin transaction"] --> B["Change record and bookkeeping"] --> C{"Succeeded?"}
+    C -->|No| D["Roll back; discard or reload instance"]
+    C -->|Yes| E["Commit or roll back according to application policy"]
 ```
 
 ## Code flow
 
 ```mermaid
 flowchart TD
-    A["Attach client"] --> B["Perform lifecycle write"] --> C["Complete transaction"] --> D["Fetch durable state"]
+    A["Attach transaction client or fetch through it"] --> B["Perform lifecycle write and bookkeeping"]
+    B -->|Failure| E["Caller rolls back"]
+    B -->|Success| C{"Caller commits?"}
+    C -->|No| E
+    C -->|Yes| D["Fetch durable state"]
+    E --> F["Discard or reload retained instance"] --> D
 ```
 
 **Code references:** [src/mixin.ts](../../src/mixin.ts).

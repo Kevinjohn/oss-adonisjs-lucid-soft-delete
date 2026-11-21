@@ -18,14 +18,19 @@ As an application developer, I want to identify participating models so shared s
 
 ```mermaid
 flowchart TD
-    A["Receive constructor"] --> B["Check capability"] --> C["Choose supported operation"]
+    A["Receive candidate model"] --> B{"hasSoftDeletes?"}
+    B -->|Yes| C["Choose lifecycle operation"]
+    B -->|No| D["Choose alternative or refuse operation"]
 ```
 
 ## Code flow
 
 ```mermaid
 flowchart TD
-    A["Check value type"] --> B["Read shared symbol"] --> C["Return type predicate"]
+    A{"Non-null object or function?"} -->|No| D["Return false"]
+    A -->|Yes| B{"Shared symbol exactly true?"}
+    B -->|No| D
+    B -->|Yes| C["Return true and narrow type"]
 ```
 
 **Code references:** [index.ts](../../index.ts), [src/guard.ts](../../src/guard.ts), [src/mixin.ts](../../src/mixin.ts).

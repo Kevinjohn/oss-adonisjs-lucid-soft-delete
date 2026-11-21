@@ -14,7 +14,7 @@ As application code using a `SoftDeletes` model, I want to clear a deleted model
 - `restore()` requires a persisted model. It rejects with `E_MODEL_NOT_PERSISTED` when unsaved and `E_MODEL_FORCE_DELETED` when Lucid marks the instance physically deleted.
 - A persisted non-local model whose loaded attributes omit `deletedAt` is rejected with `E_MODEL_UNKNOWN_DELETION_STATE`; load the column before attempting restoration.
 - An active instance is returned without a write. A trashed instance sets `deletedAt` to `null` through `persistDeletedAt()` and normal `save()` hooks.
-- On write failure, the error propagates; in-memory restoration depends on Lucid's saved-original state. A caller rollback does not rewind the retained model instance, so discard or refresh it before reuse.
+- On write or hook failure, the error propagates; the previous timestamp is reinstated only if Lucid's saved-original state has not advanced. A post-write hook can fail after the restoration was written. A caller rollback does not rewind the retained model instance, so discard or refresh it before reuse.
 - A unique constraint conflict can prevent restoration when an active row already owns a unique value; resolve the conflict before retrying.
 
 ## User flow

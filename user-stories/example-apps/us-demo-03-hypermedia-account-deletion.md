@@ -20,13 +20,13 @@ As a signed-in user of the hypermedia starter app, I want to confirm and delete 
 
 ```mermaid
 flowchart TD
-    A["Signed-in user opens the dashboard"] --> N["Follow Delete account navigation"]
-    N --> B["Read the confirmation page"]
-    B --> C{"Press Delete my account?"}
-    C -->|No| D["Leave the page; nothing changes"]
-    C -->|Yes| E["Account is soft-deleted and session ends"]
-    E --> F["Redirected to the login page"]
-    F --> G["Sign-in no longer finds the account"]
+    A["Open account deletion page"] --> B{"Signed in?"}
+    B -->|No| C["Redirect to login"]
+    B -->|Yes| D["Read confirmation"] --> E{"Submit deletion?"}
+    E -->|No| F["Leave without changing account"]
+    E -->|Yes| G{"Deletion succeeds?"}
+    G -->|No| H["Receive error"]
+    G -->|Yes| I["Account hidden; session ends and login page opens"]
 ```
 
 ## Code flow
@@ -35,14 +35,13 @@ Scope: starter routes and controller through the package's instance `delete()`; 
 
 ```mermaid
 flowchart TD
-    N["layouts/app.edge renders Delete account navigation"] --> A
-    A["router.get and router.post account/delete"] --> B["middleware.auth with web guard"]
-    B --> C{"Method"}
-    C -->|GET| D["AccountDeletionController.show renders pages/account/delete"]
-    C -->|POST| E["AccountDeletionController.destroy"]
-    E --> F["auth.getUserOrFail then user.delete"]
-    F --> G["auth.use web logout"]
-    G --> H["redirect to session.create"]
+    A["GET or POST /account/delete"] --> B{"Authenticated web session?"}
+    B -->|No| C["Redirect to login"]
+    B -->|Yes| D{"Method?"}
+    D -->|GET| E["view.render pages/account/delete"]
+    D -->|POST| F["auth.getUserOrFail then user.delete"]
+    F -->|Failure| X["Propagate error"]
+    F -->|Success| G["web.logout"] --> H["Redirect session.create"]
 ```
 
 **Code references:** [routes](../../examples/starter/hypermedia/start/routes.ts), [controller](../../examples/starter/hypermedia/app/controllers/account_deletion_controller.ts), [view](../../examples/starter/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge), [SoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts).

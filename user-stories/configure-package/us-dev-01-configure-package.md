@@ -32,12 +32,8 @@ Scope: configure hook registers provider; provider boot extends Lucid builder; m
 
 ```mermaid
 flowchart TD
-    A["configure(command)"] --> B["codemods.updateRcFile"]
-    B --> C["rcFile.addProvider"]
-    C --> D["LucidSoftDeletesProvider.boot"]
-    D --> E["extendModelQueryBuilder(ModelQueryBuilder)"]
-    D --> F["Application model composes SoftDeletes"]
-    F --> G["ModelWithSoftDeletes.ignoreDeleted"]
+    A["configure command"] --> B["createCodemods"] --> C["updateRcFile and addProvider"] --> D["Provider boot on application startup"] --> E["extendModelQueryBuilder"]
+    F["Developer separately composes SoftDeletes"] --> G["Declare hooks and lifecycle methods"]
 ```
 
 **Code references:** [configure](../../configure.ts), [provider boot](../../providers/lucid_soft_delete_provider.ts), [builder extension](../../src/bindings/model_query_builder.ts), [mixin hooks](../../src/mixin.ts), [getting started](../../docs/guide/getting-started.md).

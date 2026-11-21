@@ -11,7 +11,7 @@ As a soft-delete administrator of the hypermedia starter app, I want to see dele
 
 ## Acceptance criteria
 
-- The dashboard navigation shows **Deleted accounts** only when the server evaluates the signed-in account as an enrolled administrator. Both routes sit behind `middleware.auth()`; a non-administrator receives `403` before the recycle-bin query runs.
+- The dashboard navigation shows **Deleted accounts** only when the server evaluates the signed-in account as an enrolled administrator. Both routes sit behind `middleware.auth()`; a non-administrator receives `403` before validation or the recycle-bin query runs.
 - `index` renders `pages/deleted_users` with `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and an ISO-date `deletedAt`.
 - `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()`, calls `restore()`, flashes "`<email>` is restored." and redirects to `deleted_users.index`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and unsafe integer IDs before lookup.
 - Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set is empty. The view receives current and last page numbers.
@@ -21,16 +21,20 @@ As a soft-delete administrator of the hypermedia starter app, I want to see dele
 
 ```mermaid
 flowchart TD
-    O["Operator enrolls a verified existing account"] --> A
-    R["Operator revokes the account grant"] --> B
-    A["Administrator opens the dashboard"] --> N["Follow Deleted accounts navigation"]
-    N --> B{"Signed in and operator-enrolled as administrator?"}
-    B -->|No| C["Redirected to sign in or receive 403"]
-    B -->|Yes| D["See deleted accounts, newest deletion first"]
-    D --> E["Submit restore for one account"]
-    E --> F{"Account is deleted?"}
-    F -->|No| G["Receive not found"]
-    F -->|Yes| H["Account is restored; list shows a success message"]
+    A["Request deleted accounts"] --> B{"Authenticated and administrator?"}
+    B -->|No| C["Login redirect or 403"]
+    B -->|Yes| D{"Valid page?"}
+    D -->|No| E["Receive validation failure"]
+    D -->|Yes| F["Inspect up to 25 deleted accounts"]
+    F --> G["Submit restore request"] --> H{"Still authenticated and administrator?"}
+    H -->|No| C
+    H -->|Yes| I{"Valid ID?"}
+    I -->|No| E
+    I -->|Yes| J{"Deleted account exists?"}
+    J -->|No| K["Receive 404"]
+    J -->|Yes| L{"Restore succeeds?"}
+    L -->|No| M["Receive error"]
+    L -->|Yes| N["Redirect to list with success message"]
 ```
 
 ## Code flow
@@ -39,18 +43,22 @@ Scope: starter routes and controller through `onlyTrashed()` and `restore()`; vi
 
 ```mermaid
 flowchart TD
-    P["Operator sets users.is_soft_delete_admin on an existing row"] --> Q["User row stores grant"]
-    Q --> C
-    N["layouts/app.edge uses server softDeleteNavigation for nav"] --> A
-    A["router.get and router.post under admin/deleted-users"] --> B["middleware.auth"]
-    B --> C["isSoftDeleteAdmin checks users.is_soft_delete_admin"]
-    C -->|No| D["response.forbidden"]
-    C -->|Yes| E{"Action"}
-    E -->|index| F["User.onlyTrashed ordered by deleted_at desc"]
-    F --> G["view.render pages/deleted_users"]
-    E -->|restore| H["User.onlyTrashed where id firstOrFail"]
-    H --> I["user.restore"]
-    I --> J["session.flash success and redirect to deleted_users.index"]
+    A["Request index or restore"] --> B{"Authenticated?"}
+    B -->|No| C["Redirect to login"]
+    B -->|Yes| D{"isSoftDeleteAdmin?"}
+    D -->|No| E["403 Forbidden"]
+    D -->|Yes| F{"Action?"}
+    F -->|index| L["Validate page; default 1"]
+    F -->|restore| R["Validate ID"]
+    L -->|Invalid| V["Validation failure"]
+    L -->|Valid| P["onlyTrashed, select fields, order deleted_at and id descending, paginate 25"]
+    R -->|Invalid| V
+    R -->|Valid| Q["onlyTrashed by ID firstOrFail"]
+    P --> W["Render deleted_users with mapped users and pagination"]
+    Q -->|Missing or active| N["404 Not Found"]
+    Q -->|Found| T["user.restore"]
+    T -->|Failure| X["Propagate error"]
+    T -->|Success| Z["Flash success and redirect to deleted_users.index"]
 ```
 
 **Code references:** [routes](../../examples/starter/hypermedia/start/routes.ts), [controller](../../examples/starter/hypermedia/app/controllers/deleted_users_controller.ts), [admin check](../../examples/starter/hypermedia/app/services/soft_delete_admins.ts), [admin flag migration](../../examples/starter/hypermedia/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts), [operator setup](../../examples/starter/hypermedia/README.md#install-and-run), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge), [navigation service](../../examples/starter/hypermedia/app/services/soft_delete_navigation.ts), [view helper](../../examples/starter/hypermedia/start/view.ts), [SoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts), [local browser tests](../../examples/starter/hypermedia/tests/browser/soft_delete.spec.ts).

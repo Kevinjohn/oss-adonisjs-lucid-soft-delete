@@ -36,17 +36,13 @@ Scope: model method through Lucid physical delete and caller transaction boundar
 
 ```mermaid
 flowchart TD
-    A["ModelWithSoftDeletes.forceDelete"] --> B["Set $forceDelete = true"]
-    B --> C["ModelWithSoftDeletes.delete"]
-    C --> U{"Persisted?"}
-    U -->|"No"| V["Throw E_MODEL_NOT_PERSISTED"]
-    U -->|"Yes"| D["resolveDeleteAction chooses physical"]
-    D --> E["super.delete()"]
-    E --> F["$getQueryFor delegates to BaseModel query"]
-    F --> G["Lucid executes DELETE and hooks"]
-    G --> H["finally restores previous $forceDelete"]
-    G --> I{"Caller transaction rolls back later?"}
-    I -->|Yes| J["Database row returns; model instance stays marked deleted"]
+    A["forceDelete saves previous flag; sets true"] --> B["Call delete and resolveDeleteAction"] --> C{"Persisted?"}
+    C -->|No| D["Throw E_MODEL_NOT_PERSISTED"] --> F["finally restores previous flag"]
+    C -->|Yes| E["Delegate super.delete to Lucid physical query and hooks"] --> F
+    F --> G{"Call succeeded?"}
+    G -->|No| H["Propagate error; afterDelete can fail after write"]
+    G -->|Yes| I{"Caller transaction rolls back later?"}
+    I -->|Yes| J["Database row returns; retained instance remains deleted"]
     I -->|No| K["Row remains removed"]
 ```
 

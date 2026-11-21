@@ -6,13 +6,13 @@ As application code in the example app, I want to soft-delete selected rows as o
 **Access:** Application code holding a caller-owned transaction and a `tenantId` it has chosen and authorised; the service filters every query by that `tenantId`. Authorization and write serialisation are the caller's.
 **Entry:** `deleteGroup(trx, { tenantId, ids, label })` in the example service.
 **Documentation:** [Recipes](../../docs/recipes/index.md), [Builder lifecycle methods](../../docs/reference/README.md#builder-lifecycle-methods).
-**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`deleteGroup` line 40).
+**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`deleteGroup`).
 **Coverage:** [Group recovery tests](../../examples/app/tests/group_recovery.spec.ts), [example tests](../../examples/app/tests/group_recovery_example.spec.ts).
 
 ## Acceptance criteria
 
 - `deleteGroup` removes duplicate ids and rejects an empty id list before any write.
-- It locks the tenant's active rows among the ids, creates a `usable` group, and calls `softDelete()` for each row. Only rows where `softDelete()` reports one update join the group, with their recorded `deletedAt`; any older association for that row is replaced.
+- It locks the tenant's active rows among the ids, creates a `usable` group, and calls `softDelete()` for each row. Only rows where `softDelete()` reports one update join the group, with their recorded `deletedAt`; a missing timestamp or row fails the operation. Any older association for that row is replaced.
 - If no row was soft-deleted, it throws. It returns the new group id otherwise.
 - It runs inside the caller's transaction and never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
 - [US-DEMO-06](us-demo-06-restore-recovery-group.md) restores the group; [US-DEMO-07](us-demo-07-purge-recovery-group.md) invalidates and purges it.
@@ -21,12 +21,11 @@ As application code in the example app, I want to soft-delete selected rows as o
 
 ```mermaid
 flowchart TD
-    A["Application selects tenant rows to remove together"] --> B{"Any ids supplied?"}
+    A["Supply selected tenant IDs"] --> B{"Any distinct IDs?"}
     B -->|No| C["Receive error"]
-    B -->|Yes| D["deleteGroup creates a usable group"]
-    D --> E{"Rows actually soft-deleted?"}
-    E -->|None| F["Receive error; caller rolls back"]
-    E -->|Some| G["Rows are hidden and recorded against the group; receive group id"]
+    B -->|Yes| D["Create group and try to delete active matches"] --> E{"Any rows captured and all operations succeeded?"}
+    E -->|No| F["Receive error and roll back"]
+    E -->|Yes| G["Receive group ID; commit or roll back"]
 ```
 
 ## Code flow
@@ -35,18 +34,17 @@ Scope: example service function through the builder `softDelete()` macro inside 
 
 ```mermaid
 flowchart TD
-    A["deleteGroup"] --> B{"Deduplicated ids empty?"}
-    B -->|Yes| C["Throw"]
-    B -->|No| D["RecoverableRecord query by tenantId and ids, forUpdate"]
-    D --> E["Insert recovery_groups usable"]
-    E --> F["Per row: softDelete returns affected count"]
-    F -->|Not 1| G["Skip row"]
-    F -->|1| H["Read deletedAt with withTrashed"]
-    H --> I["Delete old recovery_records for row, insert new one"]
-    G --> J{"Any row captured?"}
-    I --> J
-    J -->|No| K["Throw; caller rolls back"]
-    J -->|Yes| L["Return group id"]
+    A["deleteGroup deduplicates ids"] --> B{"Any ids?"}
+    B -->|No| C["Throw"]
+    B -->|Yes| D["Lock tenant active candidates"] --> E["Insert usable group"] --> F{"Another candidate?"}
+    F -->|Yes| G["softDelete by tenant and id"] --> H{"Affected count is one?"}
+    H -->|No| F
+    H -->|Yes| I["Read withTrashed by tenant and id"] --> J{"Timestamp present and trashed?"}
+    J -->|No| C
+    J -->|Yes| K["Replace old ownership, insert association, increment captured"] --> F
+    F -->|No| L{"Captured any?"}
+    L -->|No| C
+    L -->|Yes| M["Return group id"]
 ```
 
 **Code references:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts), [recipes](../../docs/recipes/index.md), [builder macros](../../src/bindings/model_query_builder.ts), [group recovery tests](../../examples/app/tests/group_recovery.spec.ts).

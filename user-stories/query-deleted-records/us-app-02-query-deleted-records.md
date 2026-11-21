@@ -22,13 +22,11 @@ As application code using a `SoftDeletes` model, I want to query active rows or 
 
 ```mermaid
 flowchart TD
-    A["Application issues a model query"] --> B{"Select read mode"}
-    B -->|Default| C["See active records"]
-    B -->|withTrashed| D["See active and deleted records"]
-    B -->|onlyTrashed| E["See deleted records"]
-    C --> F["Related reads, counts, aggregates and existence checks use the related model mode"]
-    D --> F
-    E --> F
+    A["Query model"] --> B{"Read mode?"}
+    B -->|Default| C["See matching active rows"]
+    B -->|withTrashed| D["See matching active and deleted rows"]
+    B -->|onlyTrashed| E["See matching deleted rows"]
+    F["Choose a related read or aggregate"] --> G["Choose its independent mode"] --> H["See scoped related results"]
 ```
 
 ## Code flow
@@ -37,22 +35,15 @@ Scope: Lucid model fetch hooks and relation subquery scoping through query predi
 
 ```mermaid
 flowchart TD
-    A["User.query or explicit read-mode call"] --> B["withTrashed or onlyTrashed sets mode"]
-    A --> C["Lucid beforeFind or beforeFetch"]
-    A --> R["Relation count, aggregate or existence query"]
-    R --> S["applySubQueryScope applies related model mode"]
-    S --> F
-    B --> C
-    C --> D["ModelWithSoftDeletes.ignoreDeleted"]
-    D --> E["applyScope(query)"]
-    E --> F["getSoftDeletesMode"]
-    F --> G{"Mode"}
-    G -->|default| H["addScopeFilter whereNull"]
-    G -->|with| I["removeScopeFilter"]
-    G -->|only| J["addScopeFilter whereNotNull"]
-    H --> K["Lucid executes model query"]
-    I --> K
-    J --> K
+    A["Fetch model query with chosen mode"] --> B["beforeFind or beforeFetch invokes ignoreDeleted"] --> C["applyScope"]
+    D["Paginate"] --> E["beforePaginate copies mode to count query"] --> C
+    F["Related aggregate or existence subquery"] --> G["Wrapped applyWhere invokes applySubQueryScope"]
+    C --> H{"Read mode?"}
+    G --> H
+    H -->|with| I["Remove scope filter"] --> J["Execute query"]
+    H -->|default or only| K{"Mapped deletion column?"}
+    K -->|No| L["Throw E_MODEL_SOFT_DELETE"]
+    K -->|Yes| M["Add qualified null or not-null predicate"] --> J
 ```
 
 **Code references:** [hooks and read-mode constructors](../../src/mixin.ts), [applyScope](../../src/scope.ts), [relation subquery scope](../../src/sub_query_scope.ts), [builder extension and macros](../../src/bindings/model_query_builder.ts), [provider](../../providers/lucid_soft_delete_provider.ts), [scope contract](../../docs/reference/scope-contract.md), [scope bypass tests](../../tests/scope_bypass.spec.ts).
