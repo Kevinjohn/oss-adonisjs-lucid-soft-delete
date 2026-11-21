@@ -10,6 +10,7 @@ concurrency:
 jobs:
   guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Only main releases
         run: test "$GITHUB_REF" = "refs/heads/main" || { echo "release runs on main only"; exit 1; }
