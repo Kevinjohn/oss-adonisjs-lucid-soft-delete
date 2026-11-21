@@ -30,6 +30,7 @@ jobs:
   min-peers:
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DB_CLIENT: pg
       DB_HOST: 127.0.0.1
@@ -77,6 +78,7 @@ jobs:
   latest-peers:
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DB_CLIENT: pg
       DB_HOST: 127.0.0.1
@@ -122,6 +124,7 @@ jobs:
   mysql:
     if: ${{ github.event_name == 'workflow_dispatch' || !github.event.repository.private }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
