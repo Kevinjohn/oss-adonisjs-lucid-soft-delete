@@ -2,11 +2,11 @@
 
 As a signed-in user of the hypermedia starter app, I want to confirm and delete my account so that I am signed out and cannot sign in again unless an administrator restores it.
 
-**Status:** Demo; source-reviewed in the [v0.13.0 hypermedia app](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.13.0/apps/hypermedia); the local native-auth contract fixture is retained but was not run for this documentation change.
+**Status:** Demo; source-reviewed in the [embedded hypermedia starter](../../examples/starter/hypermedia); the local native-auth contract fixture is retained but was not run for this documentation change.
 **Access:** Authenticated user (`middleware.auth()`); the account deleted is always the caller's own.
 **Entry:** From the signed-in dashboard, follow **Delete account** in the shared navigation to the `GET /account/delete` confirmation page, then use **Delete my account** (`POST /account/delete`).
 **Documentation:** [Instance lifecycle methods](../../docs/reference/README.md#instance-lifecycle-methods).
-**Source:** [Routes](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/start/routes.ts) (lines 118-126), [AccountDeletionController](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/app/controllers/account_deletion_controller.ts) (lines 5, 13-17), [confirmation view](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/resources/views/components/layouts/app.edge).
+**Source:** [Routes](../../examples/starter/hypermedia/start/routes.ts), [AccountDeletionController](../../examples/starter/hypermedia/app/controllers/account_deletion_controller.ts), [confirmation view](../../examples/starter/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge).
 **Coverage:** [Local hypermedia native-auth contract tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts), [local browser navigation test](../../examples/starter/hypermedia/tests/browser/soft_delete.spec.ts).
 
 ## Acceptance criteria
@@ -45,4 +45,4 @@ flowchart TD
     G --> H["redirect to session.create"]
 ```
 
-**Code references:** [routes](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/start/routes.ts), [controller](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/app/controllers/account_deletion_controller.ts), [view](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/blob/v0.13.0/apps/hypermedia/resources/views/components/layouts/app.edge), [SoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts).
+**Code references:** [routes](../../examples/starter/hypermedia/start/routes.ts), [controller](../../examples/starter/hypermedia/app/controllers/account_deletion_controller.ts), [view](../../examples/starter/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge), [SoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts).

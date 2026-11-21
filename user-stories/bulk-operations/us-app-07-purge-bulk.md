@@ -16,7 +16,7 @@ As application code, I want to permanently remove matching rows in bulk so that 
 - The model must use `SoftDeletes` and have a mapped `deletedAt` column. Many-to-many and has-many-through relation builders reject before writing; query the related model by selected IDs instead.
 - Application authorization, tenant predicates and cascade policy are host-owned. Builder writes do not hydrate instances, run model hooks, update `updatedAt` or invoke custom column `prepare` functions.
 - Default output is an affected-row count. `{ receipt: true }` instead returns changed primary-key `ids` and `count`; it requires an explicit caller-owned transaction on a supported dialect, a supported query shape and no row window. A divergence raises `E_BULK_RECEIPT_DIVERGED`; roll back the transaction. A receipt describes an uncommitted mutation, not an audit log.
-- Without receipts, `limit`, `offset` and relation `groupLimit` are refused; the single-related-row limit for has-one/belongs-to queries is allowed. Database errors propagate. The caller owns commit or rollback.
+- Without receipts, `limit`, `offset` and relation `groupLimit` are refused; the narrow exception is a limit of one on a single-parent belongs-to query targeting the related primary key on its own unqualified table. If Lucid already applied the relation constraints, the required key equality must still hold. A has-one limit or a widened previewed belongs-to query is refused. Database errors propagate. The caller owns commit or rollback.
 - Builder `delete()` and `del()` physically delete regardless of read mode; they do not provide recoverable deletion or the lifecycle methods' selection guarantees.
 
 ## User flow
