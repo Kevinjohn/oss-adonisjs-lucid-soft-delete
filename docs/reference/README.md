@@ -44,7 +44,7 @@ Receipts describe an uncommitted mutation and are not an audit log.
 
 ## SoftDeletes composition
 
-Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and TypeScript 5.9.3 or newer. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
+Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and (for TypeScript applications) a supported compiler in `^5.9.3 || ^6.0.3`. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
 
 Compose `SoftDeletes` with `BaseModel`:
 
@@ -107,7 +107,7 @@ const everyUser = await User.withTrashed().orderBy('id')
 const recycleBin = await User.onlyTrashed().orderBy('id')
 ```
 
-`User.query()` starts in the default mode and the fetch scope adds `deletedAt IS NULL`. Static `User.withTrashed()` and builder `.withTrashed()` include both active and trashed rows. Static `User.onlyTrashed()` and builder `.onlyTrashed()` select rows with a non-null deletion time. Static methods return a model query builder; builder methods return that builder for chaining. The provider must be booted for builder macros, and the model must use the mixin.
+`User.query()` starts in the default mode and the soft-delete read filter adds `deletedAt IS NULL` through model hooks. Static `User.withTrashed()` and the builder macro `.withTrashed()` include both active and trashed rows. Static `User.onlyTrashed()` and the builder macro `.onlyTrashed()` select rows with a non-null deletion time. Static methods return a model query builder; builder methods return that builder for chaining. The provider must be booted for builder macros, and the model must use the mixin.
 
 The root mode does not switch related preload or aggregate modes. Select a mode in each relation callback, such as `preload('posts', (query) => query.withTrashed())`. See the [scope contract](scope-contract.md#related-model-queries) for relationship boundaries, aliases, and query paths that bypass model hooks.
 
@@ -344,11 +344,11 @@ The [operation chooser](#choose-an-operation) puts the warning beside common cho
 
 ## Scope boundaries and query behavior
 
-Model fetch hooks scope the query's model. `pojo()`, raw database queries, joined models, and embedded subqueries do not become globally scoped. Joins and raw queries must add their own qualified deletion predicate when needed. `withTrashed()` affects the root model query only; choose a mode inside a preload or aggregate callback for the related model. OR grouping, aliases, group-limited preloads, and builder reuse have tested behavior and limitations documented in the [scope contract](scope-contract.md).
+Model fetch hooks apply the soft-delete read filter to the query's model. `pojo()`, raw database queries, joined models, and embedded subqueries do not automatically receive that filter. Joins and raw queries must add their own qualified deletion predicate when needed. `withTrashed()` affects the root model query only; choose a mode inside a preload or aggregate callback for the related model. OR grouping, aliases, group-limited preloads, and builder reuse have tested behavior and limitations documented in the [scope contract](scope-contract.md).
 
 ### Relationship aggregates and existence queries
 
-`withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` scope a soft-deletable related model inside the subquery. A callback's `withTrashed()` or `onlyTrashed()` changes that relation's mode without changing the parent query. A related model without the mixin is left alone.
+`withCount`, `withAggregate`, `has`, `whereHas`, `doesntHave`, `loadCount`, and `loadAggregate` apply the read filter to a soft-deletable related model inside the subquery. A callback's `withTrashed()` or `onlyTrashed()` changes that relation's mode without changing the parent query. A related model without the mixin is left alone.
 
 ```ts
 const users = await User.query()
@@ -370,17 +370,17 @@ After an outer rollback, the database state is reverted but the retained model's
 
 The package root exports:
 
-| Export                                                                                                              | Purpose                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                    |
-| `configure`                                                                                                         | Registers the provider in an AdonisJS application.                                                                            |
-| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                  |
-| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                           |
-| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, runtime capability guard, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
-| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                           |
-| `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                 |
-| `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                   |
-| `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                   |
+| Export                                                                                                              | Purpose                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                                          |
+| `configure`                                                                                                         | Registers the provider in an AdonisJS application.                                                                                                  |
+| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                                        |
+| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                                                 |
+| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, TypeScript type guard for the mixin capability, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
+| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                                                 |
+| `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                                       |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                                         |
+| `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                                         |
 
 The package also exports `./types` and `./types/*` (receipt and query-builder types), `./bindings` (`extendModelQueryBuilder`, used by the provider) and `./lucid_soft_delete_provider`.
 
@@ -403,7 +403,7 @@ The guard checks the explicit marker set by the mixin; it does not infer capabil
 
 | Error                                 | When it is thrown                                                                                                                                                                                                     |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `E_MODEL_SOFT_DELETE`                 | A read mode or lifecycle builder macro is used with a model without the mixin, or a scope/lifecycle macro needs a mapped `deletedAt` column that is missing.                                                          |
+| `E_MODEL_SOFT_DELETE`                 | A read mode or lifecycle builder macro is used with a model without the mixin, or the read filter or lifecycle macro needs a mapped `deletedAt` column that is missing.                                               |
 | `E_MODEL_NOT_PERSISTED`               | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
 | `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
 | `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |

@@ -14,10 +14,15 @@ import {
 import { SOFT_DELETES } from './guard.js'
 
 export interface SoftDeletesInstance {
+  /** Deletion time; null is active, while undefined can mean an omitted projection. */
   deletedAt?: DateTime | null
+  /** True when the loaded deletion time is non-null. Does not query the database. */
   readonly trashed: boolean
+  /** Used by the instance deletion path; prefer calling forceDelete(). */
   $forceDelete: boolean
+  /** Clear the deletion timestamp of a persisted instance, through normal save hooks. */
   restore(): Promise<this>
+  /** Physically delete the instance. */
   forceDelete(): Promise<void>
 }
 
@@ -102,6 +107,11 @@ type ScopedModelQueryBuilder<
   Result = InstanceType<Model>,
 > = ModelQueryBuilderContract<Model, Result> & { softDeletesMode?: 'default' | 'with' | 'only' }
 
+/**
+ * Compose a Lucid model with the soft-delete lifecycle and read filter.
+ * Model fetch hooks exclude deleted rows by default. Register the provider for the
+ * builder macros and prototype wrappers. Applications own authorisation and transactions.
+ */
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
   superclass: T
 ): SoftDeletesConstructor<T> {

@@ -22,6 +22,12 @@ A deleted account's access tokens stop authenticating and it cannot log in, beca
 guard and `verifyCredentials` query through the model, which leaves deleted rows out. Its tokens are
 not revoked, so a restored account's earlier tokens work again.
 
+The administrator list accepts `?page=2` (default `1`) and returns up to 25 users ordered by
+deletion time, then ID, descending. The existing JSON array contains only `id`, `email` and
+`deletedAt`; `X-Total-Count`, `X-Current-Page` and `X-Last-Page` describe pagination. An empty
+page returns an empty array. Restore still returns the restored account's ID and email. Its route
+validator rejects malformed or out-of-range IDs before querying the database.
+
 ## Install and run
 
 Use Node 24 and pnpm. From the Lucid Soft Delete repository root:

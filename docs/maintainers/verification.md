@@ -19,6 +19,11 @@ pnpm test:consumer --compatibility=minimum
 
 The default test database is SQLite. CI also runs PostgreSQL 16 and MySQL 8.4.
 
+Both installed-consumer modes install the candidate archive into a fresh host and exercise the
+configure hook with the host's Assembler dependency. Both compile named public mixin, provider,
+binding, receipt and augmentation imports using TypeScript 5.9.3 and 6.0.3, then run the host's
+build and lifecycle tests. The runtime library does not require Assembler.
+
 ## Documentation links and release history
 
 The default `pnpm docs:check` selection excludes `CHANGELOG.md`: historical relative paths can

@@ -71,7 +71,9 @@ The test runner fails when no selected test executes. Skipped and TODO tests do 
 and MySQL 8.4, and tests the minimum and latest supported peer versions. The packed consumer gate
 runs `pnpm test:consumer` and `pnpm test:consumer --compatibility=minimum`; both pack this package,
 install it into a fresh example application, and run configure, schema generation, migration,
-typecheck, production build and app checks. It requires network access for fixture dependencies.
+typechecks with TypeScript 5.9.3 and 6.0.3, production build and app checks. It requires network
+access for fixture dependencies. The fixture supplies the host's Assembler dependency for configure;
+it is not a runtime dependency of the library.
 
 The _Tested against_ table in `README.md` mirrors `.github/workflows/checks.yml` and `compat.yml`; change them in the same PR.
 

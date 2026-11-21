@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Starter recycle bins now validate restore identifiers, project display-only fields and paginate 25 deleted accounts with stable ordering. API consumers retain the array response and receive pagination headers; browser examples offer page navigation and preserve restore redirects.
+
 ## 0.2.1 - 2026-11-19
 
 ### Fixed
