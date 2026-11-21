@@ -24,27 +24,27 @@ for path in "$ROOT/tmp" "$DATA"; do
     [ "$(cd "$path" && pwd -P)" = "$path" ] || fail "ambiguous managed directory: $path"
   fi
 done
-missing() { fail 'PostgreSQL 16 not found: brew install postgresql@16, or run DB_CLIENT=pg pnpm quick:test against your own PostgreSQL 16 (see docs/maintainers/verification.md)'; }
+fail_missing_postgres() { fail 'PostgreSQL 16 not found: brew install postgresql@16, or run DB_CLIENT=pg pnpm quick:test against your own PostgreSQL 16 (see docs/maintainers/verification.md)'; }
 if prefix="$(brew --prefix --installed postgresql@16 2>/dev/null)"; then
   BIN="$prefix/bin"
 elif ctl="$(command -v pg_ctl)"; then
   BIN="$(dirname "$ctl")"
-else missing; fi
-[ -d "$BIN" ] || missing
+else fail_missing_postgres; fi
+[ -d "$BIN" ] || fail_missing_postgres
 BIN="$(cd "$BIN" && pwd -P)"
-for utility in pg_ctl postgres initdb pg_isready psql createdb; do [ -x "$BIN/$utility" ] || missing; done
+for utility in pg_ctl postgres initdb pg_isready psql createdb; do [ -x "$BIN/$utility" ] || fail_missing_postgres; done
 if version="$(env -i PATH="$PATH" LC_ALL=C "$BIN/pg_ctl" --version)"; then
-  case "$version" in 'pg_ctl (PostgreSQL) 16.'*|'pg_ctl (PostgreSQL) 16') ;; *) missing;; esac
-else missing; fi
+  case "$version" in 'pg_ctl (PostgreSQL) 16.'*|'pg_ctl (PostgreSQL) 16') ;; *) fail_missing_postgres;; esac
+else fail_missing_postgres; fi
 if node -e 'process.exit(Number(process.versions.node.split(".")[0]) === 24 ? 0 : 1)' 2>/dev/null; then :; else fail 'Use Node 24: nvm use'; fi
 node -e 'process.exit(["darwin", "linux"].includes(process.platform) ? 0 : 1)' || fail 'Managed process inspection requires macOS or Linux'
 node -e 'const p=Number(process.argv[1]);process.exit(Number.isInteger(p)&&p>=1&&p<=65535?0:1)' "$PORT" || fail 'DB_PORT must be an integer from 1 to 65535'
 PORT="$(node -e 'console.log(String(Number(process.argv[1])))' "$PORT")"
 POSTGRES="$(node -e 'console.log(require("node:fs").realpathSync(process.argv[1]))' "$BIN/postgres")"
 export LC_ALL=C
-pg() { local utility="$1"; shift; env -i PATH="$PATH" LC_ALL=C "$BIN/$utility" "$@"; }
-client() { local utility="$1"; shift; pg "$utility" -h 127.0.0.1 -p "$PORT" -U package_test "$@"; }
-identity() {
+run_pg_utility() { local utility="$1"; shift; env -i PATH="$PATH" LC_ALL=C "$BIN/$utility" "$@"; }
+run_pg_client() { local utility="$1"; shift; run_pg_utility "$utility" -h 127.0.0.1 -p "$PORT" -U package_test "$@"; }
+read_process_identity() {
   local pid directory started actual comm args expected
   [ -r "$DATA/postmaster.pid" ] || { echo 'cannot read postmaster identity' >&2; return 1; }
   { IFS= read -r pid; IFS= read -r directory; IFS= read -r started; IFS= read -r actual; } < "$DATA/postmaster.pid" || return 1
@@ -88,9 +88,9 @@ try {
 PROCESS_DIRECTORY
   then :; else return 1; fi
 }
-state() {
+read_cluster_state() {
   local result
-  if pg pg_ctl -D "$DATA" status; then identity || return 1; return 0; else result=$?; fi
+  if run_pg_utility pg_ctl -D "$DATA" status; then read_process_identity || return 1; return 0; else result=$?; fi
   case "$result" in
     # pg_ctl found no live postmaster; a leftover PID file after a crash is stale and
     # PostgreSQL replaces it on the next start.
@@ -102,9 +102,9 @@ state() {
 }
 stop_cluster() {
   local result
-  if state; then
-    identity || return 1
-    pg pg_ctl -D "$DATA" -w -t 10 -m fast stop
+  if read_cluster_state; then
+    read_process_identity || return 1
+    run_pg_utility pg_ctl -D "$DATA" -w -t 10 -m fast stop
   else result=$?; [ "$result" -eq 3 ]; fi
 }
 owns_started_cluster=0
@@ -179,7 +179,7 @@ if [ "$COMMAND" != status ]; then
 fi
 start_cluster() {
   local result actual existing
-  if state; then
+  if read_cluster_state; then
     actual="$(sed -n '4p' "$DATA/postmaster.pid")"
     [ "$actual" = "$PORT" ] || { echo "cluster already running on port $actual" >&2; return 1; }
     echo "already running on port $actual"; return 0
@@ -199,29 +199,29 @@ server.on('error', (error) => {
 server.listen({ host: '127.0.0.1', port: Number(process.argv[2]), exclusive: true }, () => server.close())
 NODE
   then :; else return $?; fi
-  if [ ! -f "$DATA/PG_VERSION" ]; then pg initdb -D "$DATA" -U package_test --auth=trust --no-locale -E UTF8 || return $?; fi
+  if [ ! -f "$DATA/PG_VERSION" ]; then run_pg_utility initdb -D "$DATA" -U package_test --auth=trust --no-locale -E UTF8 || return $?; fi
   owns_started_cluster=1
-  pg pg_ctl -D "$DATA" -w -t 10 -l "$LOG" -o "-p $PORT -c unix_socket_directories='' -c listen_addresses=127.0.0.1 -c fsync=off" start || return $?
-  if existing="$(client psql -X -w -d postgres -tAc "select 1 from pg_database where datname='package_test'")"; then :; else return $?; fi
-  if [ -z "$existing" ]; then client createdb package_test || return $?; fi
+  run_pg_utility pg_ctl -D "$DATA" -w -t 10 -l "$LOG" -o "-p $PORT -c unix_socket_directories='' -c listen_addresses=127.0.0.1 -c fsync=off" start || return $?
+  if existing="$(run_pg_client psql -X -w -d postgres -tAc "select 1 from pg_database where datname='package_test'")"; then :; else return $?; fi
+  if [ -z "$existing" ]; then run_pg_client createdb package_test || return $?; fi
 }
 case "$COMMAND" in
   status)
-    if state; then
+    if read_cluster_state; then
       echo "owned cluster running on port $(sed -n '4p' "$DATA/postmaster.pid")"
-      client pg_isready || :
+      run_pg_client pg_isready || :
       exit 0
     else result=$?; [ "$result" -ne 3 ] || echo 'owned cluster stopped'; exit "$result"; fi;;
   stop) stop_cluster;;
   start) start_cluster; owns_started_cluster=0;;
   reset)
     stop_cluster
-    if state; then fail 'cluster still running'; else result=$?; [ "$result" -eq 3 ] || exit "$result"; fi
+    if read_cluster_state; then fail 'cluster still running'; else result=$?; [ "$result" -eq 3 ] || exit "$result"; fi
     rm -rf "${DATA:?}"
     start_cluster
     owns_started_cluster=0;;
   test)
-    if state; then fail 'cluster already running: use pnpm pg:stop, or run DB_CLIENT=pg pnpm quick:test directly'; else result=$?; [ "$result" -eq 3 ] || exit "$result"; fi
+    if read_cluster_state; then fail 'cluster already running: use pnpm pg:stop, or run DB_CLIENT=pg pnpm quick:test directly'; else result=$?; [ "$result" -eq 3 ] || exit "$result"; fi
     start_cluster
     set -m
     (

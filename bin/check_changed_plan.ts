@@ -60,7 +60,10 @@ const BUILT_EXPORTS =
  * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but
  * leaves out the full test suite and the consumer gate, which a batch run covers once.
  */
-export function planChecks(changes: Change[], staticOnly = false): Plan {
+export function planChecks(
+  changes: Change[],
+  { staticOnly = false }: { staticOnly?: boolean } = {}
+): Plan {
   const plan: Plan = {
     lint: [],
     typecheck: false,

@@ -26,7 +26,7 @@ class OutsideCheckoutError extends Error {
   }
 }
 
-function errorCode(error: unknown): string | undefined {
+function readErrorCode(error: unknown): string | undefined {
   if (typeof error === 'object' && error !== null && 'code' in error) {
     const code = (error as { code?: unknown }).code
     if (typeof code === 'string') return code
@@ -35,16 +35,16 @@ function errorCode(error: unknown): string | undefined {
 }
 
 function isMissing(error: unknown): boolean {
-  return errorCode(error) === 'ENOENT' || errorCode(error) === 'ENOTDIR'
+  return readErrorCode(error) === 'ENOENT' || readErrorCode(error) === 'ENOTDIR'
 }
 
 function filesystemFailure(operation: string, target: string, error: unknown): Error {
-  const code = errorCode(error)
+  const code = readErrorCode(error)
   if (!code) throw error
   return new Error(`Cannot ${operation}: ${target} (${code})`, { cause: error })
 }
 
-function inside(root: string, path: string): boolean {
+function isWithinRoot(root: string, path: string): boolean {
   const location = relative(root, path)
   return (
     location === '' ||
@@ -53,13 +53,13 @@ function inside(root: string, path: string): boolean {
 }
 
 /** Resolve symlinks before inspecting a local target and preserve missing suffixes. */
-async function physicalTarget(root: string, path: string, target: string): Promise<string> {
+async function resolvePhysicalTarget(root: string, path: string, target: string): Promise<string> {
   let candidate = resolve(path)
   const suffix: string[] = []
   while (true) {
     try {
       const physical = resolve(await realpath(candidate))
-      if (!inside(root, physical)) throw new OutsideCheckoutError(target)
+      if (!isWithinRoot(root, physical)) throw new OutsideCheckoutError(target)
       return resolve(physical, ...suffix.reverse())
     } catch (error) {
       if (!isMissing(error)) throw error
@@ -116,7 +116,7 @@ function parseMarkdown(contents: string): Markdown {
   return result
 }
 
-function anchors(markdown: Markdown): Set<string> {
+function collectAnchors(markdown: Markdown): Set<string> {
   const found = new Set<string>()
   for (const line of markdown.visible) {
     for (const match of line
@@ -148,7 +148,7 @@ function anchors(markdown: Markdown): Set<string> {
   return found
 }
 
-function localTarget(
+function resolveLocalTarget(
   root: string,
   file: string,
   target: string
@@ -170,7 +170,7 @@ function localTarget(
   return { path, fragment }
 }
 
-function links(markdown: Markdown): { target: string; line: number }[] {
+function collectLinks(markdown: Markdown): { target: string; line: number }[] {
   const references = new Map<string, string>()
   const output: { target: string; line: number }[] = []
   const key = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
@@ -180,7 +180,7 @@ function links(markdown: Markdown): { target: string; line: number }[] {
   }
   for (const [index, raw] of markdown.visible.entries()) {
     const code = [...raw.matchAll(/(`+).*?\1/g)]
-    const inCode = (offset: number) =>
+    const isInCode = (offset: number) =>
       code.some((match) => offset >= match.index! && offset < match.index! + match[0].length)
     const line = raw.replace(/(`+).*?\1/g, (match) => ' '.repeat(match.length))
     if (/^ {0,3}\[[^\]]+\]:/.test(line)) continue
@@ -193,7 +193,7 @@ function links(markdown: Markdown): { target: string; line: number }[] {
       })
     }
     for (const match of raw.matchAll(/!?\[([^\]]+)\]\[([^\]]*)\]/g)) {
-      if (inCode(match.index!)) continue
+      if (isInCode(match.index!)) continue
       const label = key(match[2] || match[1])
       output.push({
         target: references.get(label) ?? `missing-reference:${label}`,
@@ -201,7 +201,7 @@ function links(markdown: Markdown): { target: string; line: number }[] {
       })
     }
     for (const match of raw.matchAll(/!?\[([^\]]+)\](?![\[(])/g)) {
-      if (inCode(match.index!) || raw[match.index! - 1] === ']') continue
+      if (isInCode(match.index!) || raw[match.index! - 1] === ']') continue
       const target = references.get(key(match[1]))
       if (target) output.push({ target, line: index + 1 })
     }
@@ -242,7 +242,7 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     let markdown: Markdown
     let contents: string
     try {
-      const physicalPath = await physicalTarget(canonicalRoot, resolve(root, file), file)
+      const physicalPath = await resolvePhysicalTarget(canonicalRoot, resolve(root, file), file)
       contents = await read(physicalPath)
     } catch (error) {
       if (error instanceof OutsideCheckoutError) report(1, error.message)
@@ -252,15 +252,15 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     }
     markdown = parseMarkdown(contents)
     for (const error of markdown.errors) report(error.line, error.message)
-    for (const link of links(markdown)) {
+    for (const link of collectLinks(markdown)) {
       if (link.target.startsWith('missing-reference:')) {
         report(link.line, `Missing reference definition: ${link.target.slice(18)}`)
         continue
       }
       if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link.target)) continue
       try {
-        const target = localTarget(root, file, link.target)
-        const physicalPath = await physicalTarget(canonicalRoot, target.path, link.target)
+        const target = resolveLocalTarget(root, file, link.target)
+        const physicalPath = await resolvePhysicalTarget(canonicalRoot, target.path, link.target)
         let info
         try {
           info = await stat(physicalPath)
@@ -273,7 +273,11 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
           ? resolve(target.path, 'README.md')
           : target.path
         const targetFile = info.isDirectory()
-          ? await physicalTarget(canonicalRoot, resolve(physicalPath, 'README.md'), link.target)
+          ? await resolvePhysicalTarget(
+              canonicalRoot,
+              resolve(physicalPath, 'README.md'),
+              link.target
+            )
           : physicalPath
         let content: string
         try {
@@ -285,7 +289,7 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
         const lineAnchor = target.fragment.match(/^L(\d+)(?:-L(\d+))?$/)
         const valid =
           extname(logicalTargetFile).toLowerCase() === '.md'
-            ? anchors(parseMarkdown(content)).has(target.fragment)
+            ? collectAnchors(parseMarkdown(content)).has(target.fragment)
             : lineAnchor &&
               Number(lineAnchor[1]) > 0 &&
               Number(lineAnchor[2] ?? lineAnchor[1]) >= Number(lineAnchor[1]) &&
@@ -302,8 +306,8 @@ export async function checkDocumentation(root: string, files?: string[]): Promis
     }
     for (const example of markdown.examples) {
       try {
-        const target = localTarget(root, file, example.target)
-        const physicalPath = await physicalTarget(canonicalRoot, target.path, example.target)
+        const target = resolveLocalTarget(root, file, example.target)
+        const physicalPath = await resolvePhysicalTarget(canonicalRoot, target.path, example.target)
         let source: string
         try {
           source = await read(physicalPath)

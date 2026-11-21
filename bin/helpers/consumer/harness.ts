@@ -16,13 +16,15 @@ function redact(value: unknown) {
   return password ? String(value).split(password).join('[REDACTED]') : String(value)
 }
 
+type CommandOptions = {
+  command: string
+  args: string[]
+  cwd: string
+  environment?: NodeJS.ProcessEnv
+}
+
 /** Run one command and retain its useful output in the consumer-gate log. */
-export function run(
-  command: string,
-  args: string[],
-  cwd: string,
-  environment: NodeJS.ProcessEnv = process.env
-) {
+export function runCommand({ command, args, cwd, environment = process.env }: CommandOptions) {
   const label = `${command} ${args.join(' ')}`
   console.log(`\n[${relative(repoRoot, cwd) || '.'}] $ ${label}`)
   const result = spawnSync(command, args, {

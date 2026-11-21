@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { selectedSteps } from './check_profiles.js'
+import { listSelectedSteps } from './check_profiles.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 if (Number(process.versions.node.split('.')[0]) !== 24) throw new Error('Use Node 24')
 
-for (const step of selectedSteps(process.argv.slice(2))) {
+for (const step of listSelectedSteps(process.argv.slice(2))) {
   const command = ['pnpm', step.script, ...(step.args ?? [])].join(' ')
   const where = step.directory ? ` (in ${step.directory})` : ''
   console.log(`[check] ${command}${where}`)

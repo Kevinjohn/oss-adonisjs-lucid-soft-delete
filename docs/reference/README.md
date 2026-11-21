@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.2.0`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.2.1`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
@@ -188,7 +188,7 @@ Physically deletes one persisted model through Lucid's instance delete path.
 - **Hooks:** Runs `beforeDelete` → physical delete → `afterDelete`; it does not run update/save hooks. Hook and database errors propagate. An `afterDelete` error can follow a completed physical delete.
 - **Dirty fields and timestamps:** Other dirty attributes are not saved. `updatedAt` is not advanced and column `prepare` does not run for a model update because no model update occurs.
 - **Client:** Uses the instance's client, including an attached caller transaction.
-- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `deleteActionFor` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
+- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `resolveDeleteAction` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
 
 ```ts
 const user = await User.withTrashed().where('id', userId).firstOrFail()
@@ -246,7 +246,11 @@ Physically removes matching model rows.
 const purgedCount = await User.query().onlyTrashed().whereIn('id', ids).forceDelete()
 ```
 
-Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches.
+Use an explicit caller predicate or a trusted list of IDs; `forceDelete()` is destructive and default mode includes active matches. For an accepted single-row belongs-to query, `forceDelete()` removes the redundant limit before compiling the physical delete.
+
+Count-mode lifecycle methods reject `limit()`, `offset()`, and `groupLimit()` because writes may ignore row windows. A single-parent belongs-to relation targeting the related model table by primary key may keep a limit of one, including the one Lucid adds during a SQL preview, while the relation key remains required by the query. After a SQL preview, the relation key may share its predicate group with additional `where(column, value)` or `where(column, '=', value)` filters that bind scalar values. Add other predicates before previewing the query.
+
+Count-mode lifecycle methods do not support a preceding `returning()` modifier. Use [receipt mode](#receipts) when you need the primary keys of the affected rows.
 
 ### Receipts
 
@@ -313,7 +317,7 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
 - Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
 - Cost: PostgreSQL runs one statement with `RETURNING`. MySQL and SQLite run a `SELECT … FOR UPDATE` (SQLite ignores `FOR UPDATE`) followed by the write restricted to the selected keys, and hold the row locks until the caller commits. All ids are held in memory and, on MySQL/SQLite, sent back as bind parameters (SQLite's bound-parameter limit is 32766).
-- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `ensureLifecycleWrite`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
+- Unsupported in receipt mode, rejected with `E_BULK_RECEIPT_UNSUPPORTED` before any statement: dialects other than `postgres`, `mysql`, `sqlite3`, `better-sqlite3`; has-one and belongs-to relation builders (many-to-many and has-many-through are already rejected by `assertLifecycleWriteSupported`); builders with joins, `groupBy`, `having`, `orderBy`, active `limit` or `offset`, unions, active aggregates, or a raw/sub-query `from`. Cleared limits, offsets and aggregate projections are accepted.
 - A prior `returning()` on the builder is overridden on PostgreSQL and ignored elsewhere.
 - Triggers and foreign-key cascades are outside the receipt: it reports the target table's rows only.
 - Hooks, `updatedAt`, custom `prepare`, relation rejection and mode selection rules are identical to count mode.
@@ -329,7 +333,7 @@ On has-many builders, the unsupported limit and ordering shapes also include `gr
 
 ### `delete()` and `del()`
 
-Lucid builder `delete()` and its alias `del()` are physical deletes. They are not soft-delete methods, and `withTrashed()` or `onlyTrashed()` does not constrain these writes. On a fresh builder they operate on all matching active and trashed rows; a builder that has already run keeps that run's soft-delete filter, so start a new query for a bulk write. They run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
+Lucid builder `delete()` and its alias `del()` are physical deletes. On a fresh builder, all matching active and trashed rows are eligible regardless of the selected read mode. A builder reused after a model fetch carries any soft-delete predicate installed during that fetch into ordinary writes, including `delete()`, `update()` and `increment()`. Start a fresh builder for an intentional bulk write and supply the desired predicates. They run no model hooks, update no model timestamps, and return Lucid's write result. Use builder `softDelete()` for bulk recoverable deletion, or instance `delete()` when model hooks and save semantics are required.
 
 ```ts
 // Physical deletion, even though onlyTrashed() is a read mode:

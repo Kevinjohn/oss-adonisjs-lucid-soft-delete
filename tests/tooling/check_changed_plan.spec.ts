@@ -174,9 +174,10 @@ test.group('check:changed plan', () => {
       ]).tests,
       []
     )
-    assert.deepEqual(planChecks(changed('.github/workflows/release.yml'), true).tests, [
-      'tests/tooling/release_workflow.spec.ts',
-    ])
+    assert.deepEqual(
+      planChecks(changed('.github/workflows/release.yml'), { staticOnly: true }).tests,
+      ['tests/tooling/release_workflow.spec.ts']
+    )
   })
 
   test('the check itself runs its own spec', ({ assert }) => {
@@ -236,7 +237,7 @@ test.group('check:changed plan', () => {
 
 test.group('check:changed --static plan', () => {
   test('keeps changed specs but leaves out the full test suite and consumer gate', ({ assert }) => {
-    const plan = planChecks(changed('src/scope.ts', 'tests/scope.spec.ts'), true)
+    const plan = planChecks(changed('src/scope.ts', 'tests/scope.spec.ts'), { staticOnly: true })
     assert.deepEqual(plan.tests, ['tests/scope.spec.ts'])
     assert.isFalse(plan.consumer)
     assert.deepEqual(plan.skipped, ['test suite', 'consumer'])
@@ -245,7 +246,9 @@ test.group('check:changed --static plan', () => {
   })
 
   test('skips nothing when the change selects no suite', ({ assert }) => {
-    const plan = planChecks(changed('tests/tooling/docs_check.spec.ts', 'README.md'), true)
+    const plan = planChecks(changed('tests/tooling/docs_check.spec.ts', 'README.md'), {
+      staticOnly: true,
+    })
     assert.deepEqual(plan.tests, ['tests/tooling/docs_check.spec.ts'])
     assert.deepEqual(plan.skipped, [])
   })

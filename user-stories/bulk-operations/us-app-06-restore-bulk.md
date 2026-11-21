@@ -38,17 +38,17 @@ Scope: provider-installed builder macro through Lucid execution; route authoriza
 
 ```mermaid
 flowchart TD
-    A["extendModelQueryBuilder installs restore"] --> B["parseReceiptOptions and ensureLifecycleWrite"]
+    A["extendModelQueryBuilder installs restore"] --> B["requireValidReceiptMode and assertLifecycleWriteSupported"]
     B --> C{"receipt requested?"}
-    C -->|Yes| D["ensureReceiptSupport"]
-    C -->|No| E["ensureNoRowWindow"]
+    C -->|Yes| D["assertReceiptSupported"]
+    C -->|No| E["assertSupportedRowWindow"]
     D --> F["whereNotNull on the mapped deletion column"]
     E --> F
     F --> G{"Receipt mode?"}
     G -->|Yes| H["executeWithReceipt selects IDs and performs write"]
     G -->|No| I["update with deletion timestamp null"]
     H --> J["Return receipt or propagate divergence/write error"]
-    I --> K["normalizeWriteCount returns count"]
+    I --> K["countAffectedRows returns count"]
 ```
 
 **Code references:** [Macro and validation](../../src/bindings/model_query_builder.ts), [executeWithReceipt and option parsing](../../src/receipts.ts), [receipt contract](../../docs/reference/README.md#receipts), [lifecycle tests](../../tests/builder_lifecycle.spec.ts).

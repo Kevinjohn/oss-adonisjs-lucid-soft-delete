@@ -41,7 +41,7 @@ Scope: model instance through Lucid save; route access and application authoriza
 
 ```mermaid
 flowchart TD
-    A["ModelWithSoftDeletes.delete or deleteQuietly"] --> B["deleteActionFor"]
+    A["ModelWithSoftDeletes.delete or deleteQuietly"] --> B["resolveDeleteAction"]
     B --> C{"Persisted state and action"}
     C -->|Unsaved| D["Throw E_MODEL_NOT_PERSISTED"]
     C -->|Already trashed and unchanged| E["Return without write"]

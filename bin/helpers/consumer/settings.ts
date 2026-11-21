@@ -40,7 +40,7 @@ if (process.env.DB_CLIENT && !['pg', 'better-sqlite3'].includes(process.env.DB_C
 
 export const tempRoot = await mkdtemp(join(tmpdir(), 'adonisjs-lucid-soft-delete-consumer-'))
 
-export function appEnvironment(appRoot: string) {
+export function readConsumerEnvironment(appRoot: string) {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     CI: 'true',

@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import pg from 'pg'
-import { run } from './harness.js'
+import { runCommand } from './harness.js'
 
 const appSchemaCheck = `import pg from 'pg'
 const client = new pg.Client({
@@ -31,7 +31,7 @@ try {
 }
 `
 
-function connection(environment: NodeJS.ProcessEnv) {
+function createPostgresClient(environment: NodeJS.ProcessEnv) {
   assert.ok(environment.DB_DATABASE, 'DB_DATABASE is required for the PostgreSQL consumer gate')
   return new pg.Client({
     host: environment.DB_HOST,
@@ -60,7 +60,7 @@ export async function withPostgresSchema<T>(
   if (environment.DB_CLIENT !== 'pg') return action(environment, undefined, undefined)
 
   const schema = `lucid_soft_delete_consumer_${randomUUID().replaceAll('-', '')}`
-  const client = connection(environment)
+  const client = createPostgresClient(environment)
   await client.connect()
   let created = false
   let result!: T
@@ -116,7 +116,12 @@ export async function verifyAppPostgresSchema(
   const script = join(appRoot, 'tmp', 'check_postgres_schema.js')
   await writeFile(script, appSchemaCheck)
   try {
-    const current = run(process.execPath, ['tmp/check_postgres_schema.js'], appRoot, environment)
+    const current = runCommand({
+      command: process.execPath,
+      args: ['tmp/check_postgres_schema.js'],
+      cwd: appRoot,
+      environment,
+    })
     assert.equal(current.trim(), schema, 'The consumer app did not select its isolated schema')
   } finally {
     await rm(script)

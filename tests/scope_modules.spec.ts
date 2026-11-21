@@ -14,8 +14,8 @@ import { RelationUser } from './fixtures/models.js'
 import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../src/mode.js'
 import { installModePropagation } from '../src/propagation.js'
 import {
-  aliasFromTable,
-  qualifiedColumnReference,
+  parseTableAlias,
+  qualifyColumnReference,
   resolveTableReference,
 } from '../src/table_reference.js'
 import { addScopeFilter, removeScopeFilter } from '../src/where_stack.js'
@@ -37,22 +37,22 @@ test.group('scope modules', (group) => {
   })
 
   test('table reference: reads an alias from a string, an object, or neither', ({ assert }) => {
-    assert.equal(aliasFromTable('posts as p'), 'p')
-    assert.equal(aliasFromTable('posts AS P'), 'P')
-    assert.equal(aliasFromTable('posts as user-rows'), 'user-rows')
-    assert.equal(aliasFromTable('users as user.rows'), 'user.rows')
-    assert.equal(aliasFromTable('posts AS u$'), 'u$')
-    assert.equal(aliasFromTable('posts as   user-rows   '), 'user-rows')
-    assert.equal(aliasFromTable({ p: 'posts' }), 'p')
-    assert.equal(aliasFromTable({ 'user.rows': 'users' }), 'user.rows')
-    assert.equal(aliasFromTable({ ' user.rows ': 'users' }), 'user.rows')
-    assert.isUndefined(aliasFromTable('posts'))
-    assert.isUndefined(aliasFromTable({ p: 'posts', q: 'users' }))
-    assert.isUndefined(aliasFromTable({ p: 1 }))
-    assert.isUndefined(aliasFromTable(['posts']))
-    assert.isUndefined(aliasFromTable(undefined))
-    assert.isUndefined(aliasFromTable('posts as   '))
-    assert.isUndefined(aliasFromTable({ '  ': 'posts' }))
+    assert.equal(parseTableAlias('posts as p'), 'p')
+    assert.equal(parseTableAlias('posts AS P'), 'P')
+    assert.equal(parseTableAlias('posts as user-rows'), 'user-rows')
+    assert.equal(parseTableAlias('users as user.rows'), 'user.rows')
+    assert.equal(parseTableAlias('posts AS u$'), 'u$')
+    assert.equal(parseTableAlias('posts as   user-rows   '), 'user-rows')
+    assert.equal(parseTableAlias({ p: 'posts' }), 'p')
+    assert.equal(parseTableAlias({ 'user.rows': 'users' }), 'user.rows')
+    assert.equal(parseTableAlias({ ' user.rows ': 'users' }), 'user.rows')
+    assert.isUndefined(parseTableAlias('posts'))
+    assert.isUndefined(parseTableAlias({ p: 'posts', q: 'users' }))
+    assert.isUndefined(parseTableAlias({ p: 1 }))
+    assert.isUndefined(parseTableAlias(['posts']))
+    assert.isUndefined(parseTableAlias(undefined))
+    assert.isUndefined(parseTableAlias('posts as   '))
+    assert.isUndefined(parseTableAlias({ '  ': 'posts' }))
   })
 
   test('table reference: follows current from alias ahead of cached metadata', async ({
@@ -106,7 +106,7 @@ test.group('scope modules', (group) => {
     const query = SchemaQualifiedUser.query()
     assert.equal(resolveTableReference(query), SchemaQualifiedUser.table)
     assert.equal(
-      qualifiedColumnReference(query, 'deleted_at'),
+      qualifyColumnReference(query, { column: 'deleted_at' }),
       `${SchemaQualifiedUser.table}.deleted_at`
     )
     const rows = await query
@@ -120,7 +120,7 @@ test.group('scope modules', (group) => {
     await createDatabase()
 
     const query = RelationUser.query().from({ ' user.rows ': 'users' })
-    const reference = qualifiedColumnReference(query, ' deleted_at ')
+    const reference = qualifyColumnReference(query, { column: ' deleted_at ' })
     const knexQuery = query.knexQuery as unknown as {
       queryContext(): unknown
       client: {
@@ -158,7 +158,7 @@ test.group('scope modules', (group) => {
     }
 
     try {
-      const reference = qualifiedColumnReference(query, 'deleted_at')
+      const reference = qualifyColumnReference(query, { column: 'deleted_at' })
       const sql = query.whereNull(reference).toQuery()
 
       assert.include(sql, '[user.rows].[deleted_at] is null')

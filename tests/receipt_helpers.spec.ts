@@ -16,10 +16,10 @@ import {
   E_BULK_RECEIPT_UNSUPPORTED,
 } from '../index.js'
 import {
-  ensureReceiptSupport,
+  assertReceiptSupported,
   executeWithReceipt,
-  normalizeWriteCount,
-  parseReceiptOptions,
+  countAffectedRows,
+  requireValidReceiptMode,
 } from '../src/receipts.js'
 
 /** Exercise the preselect algorithm independently of the suite's configured database driver. */
@@ -81,17 +81,17 @@ function preselectQuery(dialect: string, rows: Record<string, unknown>[]) {
 test.group('Receipt helpers', () => {
   test('validates option values and preserves the numeric count contract', ({ assert }) => {
     for (const value of [null, [], 'yes', 1, false]) {
-      assert.throws(() => parseReceiptOptions(value), InvalidArgumentsException)
+      assert.throws(() => requireValidReceiptMode(value), InvalidArgumentsException)
     }
-    assert.throws(() => parseReceiptOptions({ receipt: 'true' }), InvalidArgumentsException)
-    assert.throws(() => parseReceiptOptions({ reciept: true }), InvalidArgumentsException)
+    assert.throws(() => requireValidReceiptMode({ receipt: 'true' }), InvalidArgumentsException)
+    assert.throws(() => requireValidReceiptMode({ reciept: true }), InvalidArgumentsException)
     for (const value of [undefined, {}, { receipt: undefined }, { receipt: false }]) {
-      assert.isFalse(parseReceiptOptions(value))
+      assert.isFalse(requireValidReceiptMode(value))
     }
-    assert.isTrue(parseReceiptOptions({ receipt: true }))
-    assert.equal(normalizeWriteCount([2]), 2)
-    assert.equal(normalizeWriteCount([]), 0)
-    assert.equal(normalizeWriteCount([{ id: 1 }, { id: 2 }]), 2)
+    assert.isTrue(requireValidReceiptMode({ receipt: true }))
+    assert.equal(countAffectedRows([2]), 2)
+    assert.equal(countAffectedRows([]), 0)
+    assert.equal(countAffectedRows([{ id: 1 }, { id: 2 }]), 2)
   })
 
   test('rejects unsupported dialects and a missing transaction client before inspecting clauses', ({
@@ -100,13 +100,13 @@ test.group('Receipt helpers', () => {
     const unsupported = {
       client: { dialect: { name: 'mssql' } },
     } as unknown as ModelQueryBuilderContract<LucidModel>
-    assert.throws(() => ensureReceiptSupport(unsupported), E_BULK_RECEIPT_UNSUPPORTED)
+    assert.throws(() => assertReceiptSupported(unsupported), E_BULK_RECEIPT_UNSUPPORTED)
     const missingTransaction = {
       client: { dialect: { name: 'postgres' } },
       knexQuery: {},
     } as unknown as ModelQueryBuilderContract<LucidModel>
     assert.throws(
-      () => ensureReceiptSupport(missingTransaction),
+      () => assertReceiptSupported(missingTransaction),
       E_BULK_RECEIPT_REQUIRES_TRANSACTION
     )
   })
