@@ -6,24 +6,25 @@ As application code in the example app, I want to restore a recovery group once 
 **Access:** Application code holding a caller-owned transaction and a `tenantId` it has chosen and authorised; the service filters every query by that `tenantId`. Authorization and write serialisation are the caller's.
 **Entry:** `restoreGroup(trx, { tenantId, groupId })` in the example service.
 **Documentation:** [Recipes](../../docs/recipes/index.md), [Builder lifecycle methods](../../docs/reference/README.md#builder-lifecycle-methods).
-**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`restoreGroup` line 115).
+**Source:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts) (`restoreGroup`).
 **Coverage:** [Group recovery tests](../../examples/app/tests/group_recovery.spec.ts), [example tests](../../examples/app/tests/group_recovery_example.spec.ts).
 
 ## Acceptance criteria
 
 - `restoreGroup` requires a `usable` group for the tenant; a missing, `invalidated` or `consumed` group throws.
 - The group must have current row associations, and every associated row must exist for the tenant and still be trashed; otherwise it throws before any write.
-- It marks the group `consumed`, restores the rows with `onlyTrashed().restore()`, throws if fewer rows were restored than expected, deletes the group's associations and returns the restored count. A group restores once.
+- It conditionally marks the group `consumed` and requires one affected group row, restores the rows with `onlyTrashed().restore()`, throws if fewer rows were restored than expected, deletes the group's associations and returns the restored count. A group restores once.
 - It runs inside the caller's transaction and never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    A["Application chooses a recovery group to restore"] --> B{"Group usable with all its rows still deleted?"}
-    B -->|No| C["Receive error; nothing is restored"]
-    B -->|Yes| D["Rows become active again"]
-    D --> E["Group is consumed; a second restore is refused"]
+    A["Choose recovery group"] --> B{"Usable with all associated rows still trashed?"}
+    B -->|No| C["Receive failure; roll back"]
+    B -->|Yes| D["Attempt to consume group and restore rows"] --> E{"All operations succeed?"}
+    E -->|No| C
+    E -->|Yes| F["Receive restored count; commit to make rows active and consume group"]
 ```
 
 ## Code flow
@@ -32,17 +33,15 @@ Scope: example service function through the builder `restore()` macro inside a c
 
 ```mermaid
 flowchart TD
-    A["restoreGroup"] --> B["Lock recovery_groups row"]
-    B --> C{"Status usable?"}
-    C -->|No| D["Throw"]
-    C -->|Yes| E["Lock recovery_records for the group"]
-    E --> F{"Associations exist and every row withTrashed is trashed?"}
-    F -->|No| D
-    F -->|Yes| G["Update group status to consumed"]
-    G --> H["onlyTrashed whereIn ids restore"]
-    H --> I{"Restored count matches?"}
-    I -->|No| J["Throw; caller rolls back"]
-    I -->|Yes| K["Delete recovery_records, return count"]
+    A["restoreGroup locks tenant group"] --> B{"Usable?"}
+    B -->|No| C["Throw"]
+    B -->|Yes| D["Lock current associations"] --> E{"Any?"}
+    E -->|No| C
+    E -->|Yes| F["Lock tenant rows withTrashed"] --> G{"All associated rows exist and are trashed?"}
+    G -->|No| C
+    G -->|Yes| H["Update usable group to consumed; require one affected"] --> I["onlyTrashed tenant and ids restore"] --> J{"Count matches?"}
+    J -->|No| C
+    J -->|Yes| K["Delete associations and return count"]
 ```
 
 **Code references:** [group_recovery.ts](../../examples/app/app/services/group_recovery.ts), [recipes](../../docs/recipes/index.md), [builder macros](../../src/bindings/model_query_builder.ts), [group recovery tests](../../examples/app/tests/group_recovery.spec.ts).
