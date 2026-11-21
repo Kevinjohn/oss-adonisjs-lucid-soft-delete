@@ -76,14 +76,29 @@ export class ReceiptLockConnections {
   }
 }
 
-/** Lucid forwards the external connection option to Knex but omits it from its types. */
+/**
+ * Runs a Lucid transaction on a native connection the test owns. Lucid 22.5 pins it through the
+ * fourth `QueryClient` argument and drops a `connection` transaction option; earlier releases
+ * ignore that argument and forward the option to Knex. Neither path is in Lucid's types.
+ */
 export async function openReceiptTransaction(db: Database, connection: ReceiptConnection) {
-  const client = db.connection()
-  const transaction = client.transaction as unknown as (
-    callback: undefined,
-    options: { connection: ReceiptConnection }
-  ) => ReturnType<Database['transaction']>
-  return transaction.call(client, undefined, { connection })
+  const client = db.connection() as unknown as {
+    connection: unknown
+    emitter: unknown
+    constructor: new (
+      mode: 'write',
+      connection: unknown,
+      emitter: unknown,
+      pinnedConnection: ReceiptConnection
+    ) => {
+      transaction(
+        callback: undefined,
+        options: { connection: ReceiptConnection }
+      ): ReturnType<Database['transaction']>
+    }
+  }
+  const pinned = new client.constructor('write', client.connection, client.emitter, connection)
+  return pinned.transaction(undefined, { connection })
 }
 
 export async function openReceiptConnection(db: Database, connections: ReceiptLockConnections) {
