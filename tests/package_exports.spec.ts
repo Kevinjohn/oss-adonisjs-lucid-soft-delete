@@ -21,6 +21,14 @@ test.group('Package exports', () => {
     assert.notProperty(manifest.exports, './provider')
   })
 
+  test('declares Assembler as an optional peer for the configure codemods', async ({ assert }) => {
+    const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+
+    assert.equal(manifest.peerDependencies['@adonisjs/assembler'], '^8.0.0')
+    assert.deepEqual(manifest.peerDependenciesMeta['@adonisjs/assembler'], { optional: true })
+    assert.notProperty(manifest.dependencies ?? {}, '@adonisjs/assembler')
+  })
+
   if (!process.env.TEST_BUILT_EXPORTS) return
 
   test('loads the renamed provider export and rejects the old alias', async ({ assert }) => {

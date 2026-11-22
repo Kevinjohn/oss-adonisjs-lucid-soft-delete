@@ -63,7 +63,7 @@ account; the [signup validator](starter/api/app/validators/user.ts) does not all
 The [routes](starter/api/start/routes.ts) put both operations behind AdonisJS authentication.
 The [controller](starter/api/app/controllers/deleted_users_controller.ts) checks the administrator
 capability on every request, before querying the recycle bin. The [restore validator](starter/api/app/validators/deleted_user.ts)
-requires a positive, safe integer route identifier, then the controller selects only trashed
+requires a positive route identifier no larger than 2,147,483,647, the PostgreSQL `increments` range, then the controller selects only trashed
 accounts by that validated identifier. An active or missing account returns not found without writing.
 
 The maintained files are the complete example, including authentication, administrator grants,
@@ -87,8 +87,8 @@ messages.
 
 The fixtures project only the required fields and use Lucid `paginate(page, perPage)` with a
 validated `page` query parameter (default 1), a fixed page size of 25, and descending deletion
-time and ID ordering. The API retains the array response with `X-Total-Count`, `X-Current-Page`,
-and `X-Last-Page` headers. Browser pages offer navigation and an empty-page state. The
+time and ID ordering. The API returns the starter kit's paginated shape,
+`serialize(Transformer.paginate(...))`: `{ data, metadata }` with Lucid's pagination metadata. Browser pages offer navigation and an empty-page state. The
 administrator check and read filter apply on every page; restore remains independent of the
 listing page.
 
@@ -97,27 +97,49 @@ Relations, pagination, transactions and the cases the read filter does not cover
 
 ## Caller-owned transaction service
 
-Policy and bookkeeping belong to the application. This sketch uses a fictional notes table;
-replace `mayRemove` with the application's policy. Send external notifications after this function
-resolves, because model after-hooks run before commit.
+Policy and bookkeeping belong to the application. `mayRemove` is the host application's
+authorization callback, such as a Bouncer ability checked for the verified actor; a refusal is a
+typed exception that the exception handler renders as 403. The bookkeeping row goes to the example
+app's `lifecycle_notes` table. Send external notifications after this function resolves, because
+model after-hooks run before commit.
+
+<!-- source: app/app/services/caller_owned_transaction.ts#CALLER_OWNED_TRANSACTION -->
 
 ```ts
+import { Exception } from '@adonisjs/core/exceptions'
 import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
 
-export async function removeUser(id: number, mayRemove: (user: User) => boolean) {
+/** A permission refusal; the AdonisJS exception handler renders it as 403 Forbidden. */
+export class RemovalForbiddenException extends Exception {
+  static status = 403
+  static code = 'E_REMOVAL_FORBIDDEN'
+  static message = 'Removal is not permitted'
+}
+
+/**
+ * `mayRemove` is the host application's authorization callback for the verified actor, for
+ * example `(user) => bouncer.allows(removeUserAbility, user)` from the request's `HttpContext`.
+ */
+export async function removeUser(
+  id: number,
+  mayRemove: (user: User) => boolean | Promise<boolean>,
+  note = 'removed'
+) {
   return db.transaction(async (trx) => {
     const user = await User.query({ client: trx }).where('id', id).firstOrFail()
-    if (!mayRemove(user)) throw new Error('Removal is not permitted')
+    if (!(await mayRemove(user))) throw new RemovalForbiddenException()
     await user.delete()
-    await trx.table('operation_notes').insert({ user_id: id, message: 'removed' })
+    await trx.table('lifecycle_notes').insert({ tenant_id: 0, parent_id: id, action: note })
     return user.id
   })
 }
 ```
 
-A policy rejection before deletion changes neither table. An error after deletion rolls back both
-writes. Rollback does not rewind a retained model instance; discard and refetch it before reuse.
+A refusal before deletion changes neither table. An error after deletion rolls back both writes.
+Rollback does not rewind a retained model instance; discard and refetch it before reuse. The
+[example app spec](app/tests/caller_owned_transaction.spec.ts) checks the refused, permitted and
+rolled-back cases.
 
 ## Installed lifecycle evidence
 

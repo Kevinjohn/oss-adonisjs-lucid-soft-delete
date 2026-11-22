@@ -64,19 +64,31 @@ test.group('soft delete', (group) => {
       password,
       isSoftDeleteAdmin: true,
     })
-    const deletedAt = '2026-01-01 00:00:00'
+    // The two lowest IDs are deleted last, so deletion-time order and ID order disagree.
     await db.table('users').multiInsert(
       Array.from({ length: 27 }, (_, index) => ({
         email: `deleted-${index}@example.test`,
         password: adminAccount.password,
-        created_at: deletedAt,
-        deleted_at: deletedAt,
+        created_at: '2026-01-01 00:00:00',
+        deleted_at: index < 2 ? '2026-01-02 00:00:00' : '2026-01-01 00:00:00',
       }))
     )
-    const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
+    const expected = [1, 0, ...Array.from({ length: 25 }, (_, index) => 26 - index)].map(
+      (index) => `deleted-${index}@example.test`
+    )
+    const executed: string[] = []
+    const recordQuery = (query: { sql: string }) => executed.push(query.sql)
+    db.connection().getWriteClient().on('query', recordQuery)
     const admin = new FormSession()
     await admin.login(adminAccount.email, password)
     const first = await admin.request('/admin/deleted-users')
+    db.connection().getWriteClient().off('query', recordQuery)
+    assert.isTrue(
+      executed.some((sql) =>
+        /^select [`"]id[`"], [`"]email[`"], [`"]deleted_at[`"] from/.test(sql)
+      ),
+      `The recycle bin selects only the display fields:\n${executed.join('\n')}`
+    )
     assert.equal(first.status, 200)
     assert.deepEqual(
       [...new Set(admin.html.match(/deleted-[0-9]+@example[.]test/g) ?? [])],
@@ -93,6 +105,12 @@ test.group('soft delete', (group) => {
     const empty = await admin.request('/admin/deleted-users?page=3')
     assert.equal(empty.status, 200)
     assert.include(admin.html, 'No deleted accounts on this page.')
+    const invalid = await admin.request(
+      '/admin/deleted-users?page=0',
+      undefined,
+      'application/json'
+    )
+    assert.equal(invalid.status, 422)
   })
 
   test('restore validates the identifier and leaves rows unchanged on failure', async ({
@@ -118,6 +136,7 @@ test.group('soft delete', (group) => {
       '1e0',
       '1.00000000000000001',
       '9007199254740992',
+      '2147483648',
     ]) {
       const result = await admin.request(
         `/admin/deleted-users/${id}/restore`,
@@ -126,7 +145,7 @@ test.group('soft delete', (group) => {
       )
       assert.equal(result.status, 422)
     }
-    const missing = await admin.request('/admin/deleted-users/9007199254740991/restore', {})
+    const missing = await admin.request('/admin/deleted-users/2147483647/restore', {})
     assert.equal(missing.status, 404)
     const active = await admin.request(`/admin/deleted-users/${adminAccount.id}/restore`, {})
     assert.equal(active.status, 404)

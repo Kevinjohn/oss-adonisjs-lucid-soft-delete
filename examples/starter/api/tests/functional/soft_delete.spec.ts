@@ -28,7 +28,7 @@ test.group('soft delete', (group) => {
     const listed = await client.get('/api/v1/admin/deleted-users').loginAs(admin)
     listed.assertStatus(200)
     assert.deepEqual(
-      listed.body().map((user: { email: string }) => user.email),
+      listed.body().data.map((user: { email: string }) => user.email),
       ['member@example.test']
     )
 
@@ -111,35 +111,49 @@ test.group('soft delete', (group) => {
       password,
       isSoftDeleteAdmin: true,
     })
-    const deletedAt = '2026-01-01 00:00:00'
+    // The two lowest IDs are deleted last, so deletion-time order and ID order disagree.
     await db.table('users').multiInsert(
       Array.from({ length: 27 }, (_, index) => ({
         email: `deleted-${index}@example.test`,
         password: adminAccount.password,
-        created_at: deletedAt,
-        deleted_at: deletedAt,
+        created_at: '2026-01-01 00:00:00',
+        deleted_at: index < 2 ? '2026-01-02 00:00:00' : '2026-01-01 00:00:00',
       }))
     )
-    const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
+    const expected = [1, 0, ...Array.from({ length: 25 }, (_, index) => 26 - index)].map(
+      (index) => `deleted-${index}@example.test`
+    )
+    const executed: string[] = []
+    const recordQuery = (query: { sql: string }) => executed.push(query.sql)
+    db.connection().getWriteClient().on('query', recordQuery)
     const first = await client.get('/api/v1/admin/deleted-users').loginAs(adminAccount)
+    db.connection().getWriteClient().off('query', recordQuery)
+    assert.isTrue(
+      executed.some((sql) =>
+        /^select [`"]id[`"], [`"]email[`"], [`"]deleted_at[`"] from/.test(sql)
+      ),
+      `The recycle bin selects only the display fields:\n${executed.join('\n')}`
+    )
     first.assertStatus(200)
+    assert.lengthOf(first.body().data, 25)
     assert.deepEqual(
-      first.body().map((user: { email: string }) => user.email),
+      first.body().data.map((user: { email: string }) => user.email),
       expected.slice(0, 25)
     )
-    assert.deepEqual(Object.keys(first.body()[0]).sort(), ['deletedAt', 'email', 'id'])
-    first.assertHeader('x-total-count', '27')
-    first.assertHeader('x-last-page', '2')
+    assert.deepEqual(Object.keys(first.body().data[0]).sort(), ['deletedAt', 'email', 'id'])
+    assert.equal(first.body().metadata.total, 27)
+    assert.equal(first.body().metadata.lastPage, 2)
+    assert.notProperty(first.headers(), 'x-total-count')
     const second = await client.get('/api/v1/admin/deleted-users?page=2').loginAs(adminAccount)
     second.assertStatus(200)
-    second.assertHeader('x-current-page', '2')
+    assert.equal(second.body().metadata.currentPage, 2)
     assert.deepEqual(
-      second.body().map((user: { email: string }) => user.email),
+      second.body().data.map((user: { email: string }) => user.email),
       expected.slice(25)
     )
     const empty = await client.get('/api/v1/admin/deleted-users?page=3').loginAs(adminAccount)
     empty.assertStatus(200)
-    assert.deepEqual(empty.body(), [])
+    assert.deepEqual(empty.body().data, [])
     const invalid = await client.get('/api/v1/admin/deleted-users?page=0').loginAs(adminAccount)
     invalid.assertStatus(422)
   })
@@ -165,12 +179,13 @@ test.group('soft delete', (group) => {
       '1e0',
       '1.00000000000000001',
       '9007199254740992',
+      '2147483648',
     ]) {
       const result = await client.post(`/api/v1/admin/deleted-users/${id}/restore`).loginAs(admin)
       result.assertStatus(422)
     }
     const missing = await client
-      .post('/api/v1/admin/deleted-users/9007199254740991/restore')
+      .post('/api/v1/admin/deleted-users/2147483647/restore')
       .loginAs(admin)
     missing.assertStatus(404)
     const active = await client

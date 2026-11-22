@@ -26,10 +26,9 @@ pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/do
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
-The configure command uses the host application's `@adonisjs/assembler` for codemods; install
-it as a development dependency when it is not already present. It is not required by runtime
-model operations. The installed-consumer gate exercises configure twice and compiles the
-installed declarations with TypeScript 5.9.3 and 6.0.3.
+`@adonisjs/assembler` `^8.0.0` is an optional peer used only by the configure command's codemods.
+The installed-consumer gate exercises configure twice and compiles the installed declarations with
+TypeScript 5.9.3 and 6.0.3.
 
 Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
 [getting started guide](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
@@ -88,6 +87,7 @@ purge a row deliberately.
 | Node.js                 | 24                 | 24                                      |
 | AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
 | Lucid                   | locked version     | lowest supported and latest 22.x        |
+| Assembler (configure)   | locked version     | lowest supported (8.0.0) and latest 8.x |
 | SQLite (better-sqlite3) | yes                | before each release only                |
 | PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
 | MySQL 8.4               | yes                | yes, with the locked peers              |

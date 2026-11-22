@@ -77,6 +77,7 @@ export default defineConfig({
           'tests/receipts.spec.{ts,js}',
           'tests/group_recovery_example.spec.{ts,js}',
           'tests/group_recovery.spec.{ts,js}',
+          'tests/caller_owned_transaction.spec.{ts,js}',
         ],
         name: 'consumer',
         timeout: 30000,

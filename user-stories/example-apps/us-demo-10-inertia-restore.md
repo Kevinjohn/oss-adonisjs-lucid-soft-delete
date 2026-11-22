@@ -12,7 +12,7 @@ As a soft-delete administrator, I want to recover an account so its member can s
 ## Acceptance criteria
 
 - Check the administrator flag before validating the identifier. Revoked administrators receive 403.
-- The ID must be a positive decimal without leading zeros, at most 16 digits and within the safe integer range. An active or absent account fails lookup with 404; invalid input is rejected before lookup.
+- The ID must be a positive decimal without leading zeros, at most 2,147,483,647 (the PostgreSQL `increments` range). An active or absent account fails lookup with 404; invalid input is rejected before lookup.
 - Success clears deletedAt, flashes a message containing the email and redirects to the deleted-users index.
 
 ## User flow

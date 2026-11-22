@@ -1,4 +1,5 @@
 import User from '#models/user'
+import DeletedUserTransformer from '#transformers/deleted_user_transformer'
 import { isSoftDeleteAdmin } from '#services/soft_delete_admins'
 import { listDeletedUsersValidator, restoreDeletedUserValidator } from '#validators/deleted_user'
 import type { HttpContext } from '@adonisjs/core/http'
@@ -9,7 +10,7 @@ const refusal = {
 
 export default class DeletedUsersController {
   /** Lists soft-deleted accounts, most recently deleted first. */
-  async index({ auth, request, response }: HttpContext) {
+  async index({ auth, request, response, serialize }: HttpContext) {
     if (!isSoftDeleteAdmin(auth.getUserOrFail())) return response.forbidden(refusal)
     const { page = 1 } = await request.validateUsing(listDeletedUsersValidator)
     const users = await User.onlyTrashed()
@@ -17,14 +18,7 @@ export default class DeletedUsersController {
       .orderBy('deleted_at', 'desc')
       .orderBy('id', 'desc')
       .paginate(page, 25)
-    response.header('X-Total-Count', String(users.total))
-    response.header('X-Current-Page', String(users.currentPage))
-    response.header('X-Last-Page', String(users.lastPage))
-    return users.all().map((user) => ({
-      id: user.id,
-      email: user.email,
-      deletedAt: user.deletedAt?.toISO() ?? null,
-    }))
+    return serialize(DeletedUserTransformer.paginate(users.all(), users.getMeta()))
   }
 
   /** Restores one soft-deleted account. */

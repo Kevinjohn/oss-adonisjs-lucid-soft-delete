@@ -13,7 +13,7 @@ As a soft-delete administrator of the hypermedia starter app, I want to see dele
 
 - The dashboard navigation shows **Deleted accounts** only when the server evaluates the signed-in account as an enrolled administrator. Both routes sit behind `middleware.auth()`; a non-administrator receives `403` before validation or the recycle-bin query runs.
 - `index` renders `pages/deleted_users` with `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and an ISO-date `deletedAt`.
-- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()`, calls `restore()`, flashes "`<email>` is restored." and redirects to `deleted_users.index`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and unsafe integer IDs before lookup.
+- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()`, calls `restore()`, flashes "`<email>` is restored." and redirects to `deleted_users.index`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and IDs above 2,147,483,647 (the PostgreSQL `increments` range) before lookup.
 - Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set is empty. The view receives current and last page numbers.
 - The administrator grant comes from the account row, defaults to false for new signups, and can be revoked by clearing the flag.
 

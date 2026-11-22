@@ -23,6 +23,7 @@ import {
 } from './settings.js'
 
 const minimumPeers = {
+  '@adonisjs/assembler': '8.0.0',
   '@adonisjs/core': '7.0.0',
   '@adonisjs/lucid': '22.0.0',
 }

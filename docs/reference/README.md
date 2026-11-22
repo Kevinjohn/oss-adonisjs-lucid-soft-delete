@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.3.0`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.3.1`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
@@ -282,7 +282,10 @@ The public types are:
 ```ts
 import type { DateTime } from 'luxon'
 
-/** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
+/**
+ * Raw driver value of the model's primary key. A bigint from the driver is converted with String().
+ * Supported keys are numeric, string and binary; boolean primary keys are not supported.
+ */
 export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
@@ -313,6 +316,7 @@ export interface SoftDeleteReceipt extends BulkReceipt {
 - The receipt describes an executed mutation inside the caller's transaction. It is not durable until the caller commits. It is not an audit log and does not authorise an undo.
 - `deletedAt` is not unique per call and is not a recovery-group or ownership token. Two calls in the same second (or millisecond on PostgreSQL) produce equal values.
 - Values in `ids` are raw driver values: PostgreSQL `bigint` arrives as a string; a driver configured to return `bigint` has it converted with `String()`. Binary keys remain `Uint8Array` values (Node buffers on SQLite); no `consume` function runs. Do not compare with `===` against `$primaryKeyValue` without normalizing.
+- Boolean primary keys are not supported, and `PrimaryKeyValue` excludes `boolean`. The receipt mapper does not convert or reject a boolean that a driver decodes (for example a PostgreSQL `BOOL` key column), so such a value would reach `ids` with a type the declaration does not allow. Use numeric, string or binary keys with receipt mode.
 - For SQLite integer keys outside JavaScript's safe integer range, configure lossless decoding on every connection before any key read. For `better-sqlite3`, enable `connection.defaultSafeIntegers(true)` in the connection setup; returned `bigint` keys are converted to strings in receipts. Apply this consistently to ordinary reads and transaction connections and verify key round trips in your application. A key already rounded to a JavaScript `number` cannot be recovered by receipt normalization; converting that rounded number to a string does not restore its original digits.
 - Receipt mode requires a caller-owned transaction on every dialect (`Model.query({ client: trx })`, `.useTransaction(trx)`, or a global transaction). A non-transaction client rejects with `E_BULK_RECEIPT_REQUIRES_TRANSACTION` before any statement.
 - Receipt mode never begins, commits or rolls back a transaction. When `E_BULK_RECEIPT_DIVERGED` is thrown the write has already executed inside the caller's transaction; the caller must roll back.
@@ -370,17 +374,17 @@ After an outer rollback, the database state is reverted but the retained model's
 
 The package root exports:
 
-| Export                                                                                                              | Purpose                                                                                                                                             |
-| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                                          |
-| `configure`                                                                                                         | Registers the provider in an AdonisJS application.                                                                                                  |
-| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                                        |
-| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | Type contracts for instance, static, and composed constructor APIs.                                                                                 |
-| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, TypeScript type guard for the mixin capability, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model. |
-| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                                                 |
-| `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                                       |
-| `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                                         |
-| `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                                         |
+| Export                                                                                                              | Purpose                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                                                                                             |
+| `configure`                                                                                                         | The `node ace configure` hook. Registers the provider in `adonisrc.ts` through the host's Assembler codemods; a second run changes nothing.                                                            |
+| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                                                                                           |
+| `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | `SoftDeletesInstance`: `deletedAt`, `trashed`, `restore()`, `forceDelete()`. `SoftDeletesStatics`: the marker, read modes and fetch hooks. `SoftDeletesConstructor<T>`: what `SoftDeletes(T)` returns. |
+| `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, TypeScript type guard for the mixin capability, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model.                                                    |
+| `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                                                                                                    |
+| `E_LIFECYCLE_WRITE_UNSUPPORTED`, `LifecycleWriteUnsupportedException`                                               | The same constructor for unsupported lifecycle writes on many-to-many and has-many-through relation builders.                                                                                          |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION`, `E_BULK_RECEIPT_UNSUPPORTED`, `E_BULK_RECEIPT_DIVERGED`                      | Named receipt exception classes and error-code definitions.                                                                                                                                            |
+| `BulkReceiptOptions`, `BulkReceipt`, `PrimaryKeyValue`, `SoftDeleteReceipt`, `RestoreReceipt`, `ForceDeleteReceipt` | Receipt option and return types for bulk lifecycle methods.                                                                                                                                            |
 
 The package also exports `./types` and `./types/*` (receipt and query-builder types), `./bindings` (`extendModelQueryBuilder`, used by the provider) and `./lucid_soft_delete_provider`.
 

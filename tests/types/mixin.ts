@@ -13,7 +13,13 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { SoftDeletes } from '../../index.js'
+import { SoftDeletes, configure } from '../../index.js'
+import type {
+  SoftDeletesConstructor,
+  SoftDeletesInstance,
+  SoftDeletesStatics,
+} from '../../index.js'
+import type Configure from '@adonisjs/core/commands/configure'
 
 class User extends compose(BaseModel, SoftDeletes) {}
 
@@ -114,6 +120,19 @@ export function assertMixinTypeContracts(): void {
   void username
   void firstMarker
   void secondMarker
+}
+
+/** The documented root types describe what `compose(..., SoftDeletes)` infers. */
+export function assertPublicContractTypes(): void {
+  const constructor: SoftDeletesConstructor<typeof BaseModel> = SoftDeletes(BaseModel)
+  const statics: SoftDeletesStatics = User
+  const instance: SoftDeletesInstance = new User()
+  const configureEntry: (command: Configure) => Promise<void> = configure
+
+  // @ts-expect-error PLAIN_MODEL_IS_NOT_SOFT_DELETES_STATICS
+  const plainStatics: SoftDeletesStatics = BaseModel
+
+  void [constructor, statics, instance, configureEntry, plainStatics]
 }
 
 export { User }

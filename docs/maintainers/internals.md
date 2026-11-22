@@ -43,15 +43,18 @@ not justify rewriting legal attribution.
 
 Lucid 22 clones model query builders through `ModelQueryBuilder.clone()` and calls the protected
 `applyQueryFlags()` method on the clone (`node_modules/@adonisjs/lucid/build/src/orm/query_builder/index.js`).
-The provider wraps that method once to preserve the soft-delete mode; the wrapper is guarded by
-`Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/patched')`. The provider also wraps `ModelQueryBuilder.prototype.applyWhere()`, guarded by
+The provider wraps that method once to preserve the soft-delete mode; the prototype wrapper is marked by
+`Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/patched')`. The provider also wraps `ModelQueryBuilder.prototype.applyWhere()`, marked by
 `Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/sub-query-scope')`: when the builder is a relation
 sub-query (`isRelatedSubQuery`, not a `where` callback child) for a model with the mixin, the
-soft-delete filter is added before the where stack is flushed. Every way Lucid renders a sub-query
+soft-delete read filter is added before the where stack is flushed. Every way Lucid renders a sub-query
 (`toKnex()` for `select` and `whereExists`, `toSQL()` for `has` with an operator) passes through
 `applyWhere()` after `prepare()` has added the relation constraint. These are the package's two
-Lucid prototype hooks; `tests/scope_aggregates.spec.ts` and `tests/scope_bypass.spec.ts`
-cover the second.
+Lucid prototype wrappers; `tests/scope_aggregates.spec.ts` and `tests/scope_bypass.spec.ts`
+cover the second. They are distinct from the model fetch hooks (`beforeFind`, `beforeFetch`,
+`beforePaginate` in `src/mixin.ts`), which apply the read filter to model reads, and from the
+builder macros (`withTrashed`, `onlyTrashed`, `restore`, `softDelete`, `forceDelete`) that
+`src/bindings/model_query_builder.ts` registers.
 
 The default and only-trashed scopes, and builder `restore()`, rewrite Lucid's internal `whereStack`
 into one where group and call its `getWrappingMethod()` to rebuild the caller's groups. Lucid's
