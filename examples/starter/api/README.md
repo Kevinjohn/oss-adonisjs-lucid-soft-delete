@@ -26,8 +26,10 @@ The administrator list accepts `?page=2` (default `1`) and returns up to 25 user
 deletion time, then ID, descending. It returns the starter kit's paginated shape,
 `serialize(DeletedUserTransformer.paginate(...))`: `data` holds each user's `id`, `email` and
 `deletedAt`, and `metadata` holds Lucid's pagination fields such as `total`, `currentPage` and
-`lastPage`. An empty page returns an empty `data` array. Restore still returns the restored account's ID and email. Its route
-validator rejects malformed or out-of-range IDs before querying the database.
+`lastPage`. An empty page returns an empty `data` array. Restore still returns the restored
+account's ID and email. Its route validator rejects malformed IDs and IDs above 2,147,483,647, the
+largest value of a PostgreSQL `increments` column, before querying the database. The starter tests
+run on SQLite only; the bound comes from the column type, not from a PostgreSQL run.
 
 ## Install and run
 

@@ -63,7 +63,7 @@ account; the [signup validator](starter/api/app/validators/user.ts) does not all
 The [routes](starter/api/start/routes.ts) put both operations behind AdonisJS authentication.
 The [controller](starter/api/app/controllers/deleted_users_controller.ts) checks the administrator
 capability on every request, before querying the recycle bin. The [restore validator](starter/api/app/validators/deleted_user.ts)
-requires a positive, safe integer route identifier, then the controller selects only trashed
+requires a positive route identifier no larger than 2,147,483,647, the PostgreSQL `increments` range, then the controller selects only trashed
 accounts by that validated identifier. An active or missing account returns not found without writing.
 
 The maintained files are the complete example, including authentication, administrator grants,

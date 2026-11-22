@@ -6,6 +6,10 @@
 
 - The API starter's deleted-accounts list returns the starter kit's paginated `{ data, metadata }` shape through `serialize(Transformer.paginate(...))` instead of a bare array with `X-Total-Count`, `X-Current-Page` and `X-Last-Page` headers.
 
+### Fixed
+
+- The starter restore validators cap the account ID at 2,147,483,647, the PostgreSQL `increments` range, so a larger ID is refused with a validation error instead of reaching the database.
+
 ## 0.3.1 - 2026-11-22
 
 - Preserve the caller’s model type when checking the soft-delete marker. Unknown values gain only the marker.

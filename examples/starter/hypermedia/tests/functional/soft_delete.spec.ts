@@ -136,6 +136,7 @@ test.group('soft delete', (group) => {
       '1e0',
       '1.00000000000000001',
       '9007199254740992',
+      '2147483648',
     ]) {
       const result = await admin.request(
         `/admin/deleted-users/${id}/restore`,
@@ -144,7 +145,7 @@ test.group('soft delete', (group) => {
       )
       assert.equal(result.status, 422)
     }
-    const missing = await admin.request('/admin/deleted-users/9007199254740991/restore', {})
+    const missing = await admin.request('/admin/deleted-users/2147483647/restore', {})
     assert.equal(missing.status, 404)
     const active = await admin.request(`/admin/deleted-users/${adminAccount.id}/restore`, {})
     assert.equal(active.status, 404)

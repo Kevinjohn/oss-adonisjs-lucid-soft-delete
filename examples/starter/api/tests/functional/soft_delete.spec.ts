@@ -179,12 +179,13 @@ test.group('soft delete', (group) => {
       '1e0',
       '1.00000000000000001',
       '9007199254740992',
+      '2147483648',
     ]) {
       const result = await client.post(`/api/v1/admin/deleted-users/${id}/restore`).loginAs(admin)
       result.assertStatus(422)
     }
     const missing = await client
-      .post('/api/v1/admin/deleted-users/9007199254740991/restore')
+      .post('/api/v1/admin/deleted-users/2147483647/restore')
       .loginAs(admin)
     missing.assertStatus(404)
     const active = await client

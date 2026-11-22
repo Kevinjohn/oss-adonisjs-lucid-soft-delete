@@ -13,7 +13,7 @@ As a soft-delete administrator of the API starter app, I want to list deleted ac
 
 - Both routes sit behind `middleware.auth()`; a non-administrator receives `403` with an `errors` message before validation or the recycle-bin query runs.
 - `index` returns `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and ISO `deletedAt`, through `serialize(DeletedUserTransformer.paginate(...))`.
-- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()` and calls `restore()`, returning `id` and `email`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and unsafe integer IDs before lookup.
+- `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()` and calls `restore()`, returning `id` and `email`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and IDs above 2,147,483,647 (the PostgreSQL `increments` range) before lookup.
 - Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set has an empty `data` array. The response is `{ data, metadata }`, where `metadata` carries Lucid's pagination fields (`total`, `currentPage`, `lastPage` and the others); no pagination headers are set.
 - The administrator grant comes from the account row, defaults to false for new signups, and can be revoked by clearing the flag.
 
