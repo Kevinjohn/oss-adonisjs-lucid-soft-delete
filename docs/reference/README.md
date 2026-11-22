@@ -392,7 +392,7 @@ The entry point loads the package's TypeScript module augmentations. They add `w
 
 Type registry values as `LucidModel` (from `@adonisjs/lucid/types/model`) so a successful check yields a `SoftDeletesModel`. The example imports `hasSoftDeletes` and `SoftDeletesModel` from the package root:
 
-<!-- source: ../../tests/types/builder.ts#lucid_model_registry -->
+<!-- source: ../../tests/types/guard.ts#lucid_model_registry -->
 
 ```ts
 const registry = new Map<string, LucidModel>()
