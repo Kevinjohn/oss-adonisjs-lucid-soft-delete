@@ -12,14 +12,14 @@ As an application developer, I want to identify participating models so shared s
 ## Acceptance criteria
 
 - The guard tests the SOFT_DELETES symbol for exactly true. A deletedAt column alone does not qualify.
-- Null, primitives and unmarked models return false. A true result narrows the value to SoftDeletesModel.
+- Null, primitives and unmarked models return false. A true result adds the marker to the existing type. A known Lucid constructor narrows to `SoftDeletesModel`; an unknown value gains only the marker.
 
 ## User flow
 
 ```mermaid
 flowchart TD
     A["Receive candidate model"] --> B{"hasSoftDeletes?"}
-    B -->|Yes| C["Choose lifecycle operation"]
+    B -->|Yes| C["Choose lifecycle operation for a known Lucid model"]
     B -->|No| D["Choose alternative or refuse operation"]
 ```
 

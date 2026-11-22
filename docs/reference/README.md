@@ -388,16 +388,14 @@ The entry point loads the package's TypeScript module augmentations. They add `w
 
 ```ts
 import { hasSoftDeletes, SOFT_DELETES } from '@kevinjohn/adonisjs-lucid-soft-delete'
-import type { SoftDeletesModel } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 // `model` is an unknown value obtained from a dynamic model registry.
 if (hasSoftDeletes(model)) {
-  const capableModel: SoftDeletesModel = model
-  console.log(capableModel[SOFT_DELETES]) // true
+  console.log(model[SOFT_DELETES]) // true
 }
 ```
 
-The guard checks the explicit marker set by the mixin; it does not infer capability from a coincidental `deletedAt` column or methods with similar names. The former `ModelWithSoftDeletes` augmentation is not part of this API.
+A successful guard adds the marker to the existing type. An unknown value gains only the marker; a value already typed as a Lucid constructor narrows to `SoftDeletesModel`. The guard checks the explicit marker set by the mixin; it does not infer capability from a coincidental `deletedAt` column or methods with similar names. The former `ModelWithSoftDeletes` augmentation is not part of this API.
 
 ## Errors
 
