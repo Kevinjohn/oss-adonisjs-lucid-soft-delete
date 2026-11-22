@@ -7,7 +7,7 @@ As an application developer, I want to identify participating models so shared s
 **Entry:** Call hasSoftDeletes on the constructor.
 **Documentation:** [Package reference](../../docs/reference/README.md).
 **Source:** [index.ts](../../index.ts), [src/guard.ts](../../src/guard.ts), [src/mixin.ts](../../src/mixin.ts).
-**Coverage:** [tests/guard.spec.ts](../../tests/guard.spec.ts).
+**Coverage:** [tests/guard.spec.ts](../../tests/guard.spec.ts), [tests/types/builder.ts](../../tests/types/builder.ts) (type contract).
 
 ## Acceptance criteria
 
