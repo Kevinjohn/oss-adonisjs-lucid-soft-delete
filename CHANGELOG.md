@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `@adonisjs/assembler` `^8.0.0` is declared as an optional peer dependency, used only by `node ace configure`.
+
 ### Changed
 
 - The API starter's deleted-accounts list returns the starter kit's paginated `{ data, metadata }` shape through `serialize(Transformer.paginate(...))` instead of a bare array with `X-Total-Count`, `X-Current-Page` and `X-Last-Page` headers.

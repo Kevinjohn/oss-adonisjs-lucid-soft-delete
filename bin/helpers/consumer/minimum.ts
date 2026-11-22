@@ -9,7 +9,7 @@
 
 import { runConsumerApp } from './consumer_app.js'
 
-/** Exact minimum AdonisJS and Lucid peers declared by the package. */
+/** Exact minimum AdonisJS, Assembler and Lucid peers declared by the package. */
 export function runMinimum(archive: string) {
   return runConsumerApp(archive, 'minimum')
 }
