@@ -25,7 +25,7 @@ flowchart TD
     E -->|Yes| G{"Deletion succeeds?"}
     G -->|No| H["Receive error"]
     G -->|Yes| I["Account hidden"] --> J{"Logout succeeds?"}
-    J -->|No| K["Receive error; session status unconfirmed"]
+    J -->|No| K["Receive error with session status unconfirmed"]
     J -->|Yes| L["Session ends and login page opens"]
 ```
 

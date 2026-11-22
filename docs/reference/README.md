@@ -395,7 +395,7 @@ if (hasSoftDeletes(model)) {
 }
 ```
 
-A successful guard adds the marker to the existing type. An unknown value gains only the marker; a value already typed as a Lucid constructor narrows to `SoftDeletesModel`. The guard checks the explicit marker set by the mixin; it does not infer capability from a coincidental `deletedAt` column or methods with similar names. The former `ModelWithSoftDeletes` augmentation is not part of this API.
+A successful guard adds the marker to the existing type. An unknown value gains only the marker. A value already typed as a Lucid constructor narrows to `SoftDeletesModel`. The guard checks the explicit marker set by the mixin. A coincidental `deletedAt` column or similarly named methods do not establish the capability. The former `ModelWithSoftDeletes` augmentation is not part of this API.
 
 ## Errors
 
