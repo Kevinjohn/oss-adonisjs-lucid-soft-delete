@@ -8,6 +8,7 @@
 
 ### Changed
 
+- **Breaking for `unknown` inputs, first shipped in 0.3.1:** `hasSoftDeletes` adds only the `SOFT_DELETES` marker to the type it receives. A value typed `unknown` no longer narrows to `SoftDeletesModel`: assigning it to `SoftDeletesModel` fails with TS2322, calling `query()` on it fails with TS2339, and `filter(hasSoftDeletes)` on an `unknown[]` no longer yields `SoftDeletesModel[]`. Values typed `LucidModel`, `LucidModel | undefined`, a generic `M extends LucidModel` or `any` still narrow to `SoftDeletesModel`. Migration: type the registry value as `LucidModel` before calling the type guard, as in the [reference example](docs/reference/README.md#exports-guards-and-typescript).
 - The API starter's deleted-accounts list returns the starter kit's paginated `{ data, metadata }` shape through `serialize(Transformer.paginate(...))` instead of a bare array with `X-Total-Count`, `X-Current-Page` and `X-Last-Page` headers.
 
 ### Fixed

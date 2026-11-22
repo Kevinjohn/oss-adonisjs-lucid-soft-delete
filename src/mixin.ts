@@ -21,9 +21,9 @@ export interface SoftDeletesInstance {
   readonly trashed: boolean
   /** Used by the instance deletion path; prefer calling forceDelete(). */
   $forceDelete: boolean
-  /** Clear the deletion timestamp of a persisted instance, through normal save hooks. */
+  /** Clears the deletion timestamp of a persisted instance through the normal save hooks. */
   restore(): Promise<this>
-  /** Physically delete the instance. */
+  /** Physically deletes the instance. */
   forceDelete(): Promise<void>
 }
 
@@ -117,7 +117,7 @@ type ScopedModelQueryBuilder<
 > = ModelQueryBuilderContract<Model, Result> & { softDeletesMode?: 'default' | 'with' | 'only' }
 
 /**
- * Compose a Lucid model with the soft-delete lifecycle and read filter.
+ * Composes a Lucid model with the soft-delete lifecycle and read filter.
  * Model fetch hooks exclude deleted rows by default. Register the provider for the
  * builder macros and prototype wrappers. Applications own authorisation and transactions.
  */

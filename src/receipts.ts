@@ -24,7 +24,7 @@ import { parseTableAlias, qualifyColumnReference } from './table_reference.js'
 export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {
-  /** Return the changed primary keys rather than just the count. Requires a caller-owned transaction. */
+  /** When true, the method returns the changed primary keys rather than just the count. Requires a caller-owned transaction. */
   receipt?: boolean
 }
 

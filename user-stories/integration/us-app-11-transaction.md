@@ -20,7 +20,7 @@ As an application service, I want to bind writes to one transaction so a failed 
 flowchart TD
     A["Begin transaction"] --> B["Change record and bookkeeping"] --> C{"Succeeded?"}
     C -->|No| D["Roll back; discard or reload instance"]
-    C -->|Yes| E["Commit or roll back according to application policy"]
+    C -->|Yes| E["Commit or roll back according to application rules"]
 ```
 
 ## Code flow

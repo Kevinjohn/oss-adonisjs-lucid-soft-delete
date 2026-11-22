@@ -9,8 +9,7 @@
 
 /** Compile-time contracts for soft-delete builder macros. */
 
-import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
-import { hasSoftDeletes, SOFT_DELETES } from '../../index.js'
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type {
   SoftDeletesModel,
   SoftDeleteReceipt,
@@ -83,18 +82,4 @@ export function includeTrashed<Model extends SoftDeletesModel>(
 
 export function restoreTrashed<Model extends SoftDeletesModel>(model: Model): Promise<number> {
   return model.query().onlyTrashed().restore()
-}
-
-export function assertGuardTypeContracts(candidate: unknown, model: LucidModel): void {
-  if (hasSoftDeletes(candidate)) {
-    const marker: true = candidate[SOFT_DELETES]
-    void marker
-    // @ts-expect-error The marker alone does not establish a Lucid constructor.
-    void candidate.query
-  }
-
-  if (hasSoftDeletes(model)) {
-    const capable: SoftDeletesModel = model
-    void capable.query().withTrashed()
-  }
 }

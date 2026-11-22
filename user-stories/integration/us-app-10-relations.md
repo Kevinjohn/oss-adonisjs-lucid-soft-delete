@@ -1,4 +1,4 @@
-# US-APP-10 — Load related records with the intended deletion scope
+# US-APP-10 — Load related records in the intended read mode
 
 As an application developer, I want to select the right related rows so details and summary counts agree.
 
@@ -12,7 +12,7 @@ As an application developer, I want to select the right related rows so details 
 ## Acceptance criteria
 
 - When the related model uses `SoftDeletes`, has-one, has-many, belongs-to, many-to-many and nested or through reads default to active rows. A hidden has-one can yield no related record.
-- An explicit mode on the related query can include or isolate trashed children. With the provider installed, counts, aggregates and existence checks scope the related model. Raw joins and arbitrary SQL subqueries need explicit predicates.
+- An explicit mode on the related query can include or isolate trashed children. With the provider installed, counts, aggregates and existence checks apply the related model’s read filter. Raw joins and arbitrary SQL subqueries need explicit predicates.
 
 ## User flow
 
