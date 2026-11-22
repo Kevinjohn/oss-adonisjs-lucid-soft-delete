@@ -17,7 +17,10 @@ import {
 } from './errors.js'
 import { parseTableAlias, qualifyColumnReference } from './table_reference.js'
 
-/** Raw driver value of the model's primary key. A bigint from the driver is converted with String(). */
+/**
+ * Raw driver value of the model's primary key. A bigint from the driver is converted with String().
+ * Supported keys are numeric, string and binary; boolean primary keys are not supported.
+ */
 export type PrimaryKeyValue = number | string | Uint8Array
 
 export interface BulkReceiptOptions {

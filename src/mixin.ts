@@ -13,6 +13,7 @@ import {
 } from './errors.js'
 import { SOFT_DELETES } from './guard.js'
 
+/** Instance members `SoftDeletes` adds to every model instance; `delete()` keeps Lucid's signature. */
 export interface SoftDeletesInstance {
   /** Deletion time; null is active, while undefined can mean an omitted projection. */
   deletedAt?: DateTime | null
@@ -51,7 +52,7 @@ async function persistDeletedAt(
 
 type DeleteAction = 'physical' | 'skip' | 'soft'
 
-/** Shared guard for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
+/** Shared delete decision for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
 async function resolveDeleteAction(
   model: InstanceType<typeof BaseModel> & { $forceDelete: boolean; trashed: boolean }
 ): Promise<DeleteAction> {
@@ -76,6 +77,10 @@ async function resolveDeleteAction(
   return 'soft'
 }
 
+/**
+ * Static members `SoftDeletes` adds to the model class. `withTrashed()` and `onlyTrashed()` select
+ * a read mode; the other three are the model fetch hooks and their bypass, not application API.
+ */
 export interface SoftDeletesStatics {
   readonly [SOFT_DELETES]: true
   ignoreDeleted<Model extends LucidModel>(query: ModelQueryBuilderContract<Model>): void
@@ -94,6 +99,10 @@ export interface SoftDeletesStatics {
   ): ModelQueryBuilderContract<Model, InstanceType<Model>>
 }
 
+/**
+ * The class `SoftDeletes(superclass)` returns: the superclass statics plus `SoftDeletesStatics`,
+ * constructing instances of the superclass that also carry `SoftDeletesInstance`.
+ */
 export type SoftDeletesConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
   T,
   'constructor'

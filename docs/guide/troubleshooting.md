@@ -68,11 +68,11 @@ Source and tests: [mixin column and query mapping](../../src/mixin.ts), [scope c
 
 ## Deleted rows appear in `pojo()`, raw queries, or joins
 
-**Likely cause:** `pojo()` and raw database queries do not hydrate the model and therefore do not run its fetch hooks. A model scope also applies to the model being fetched; it is not a global filter on every table named by a join.
+**Likely cause:** `pojo()` and raw database queries do not hydrate the model and therefore do not run its fetch hooks (`beforeFind`, `beforeFetch` and `beforePaginate`), which apply the soft-delete read filter. The read filter also applies only to the model being fetched; it is not a global filter on every table named by a join.
 
-**Check:** Identify which path creates the query. `Record.query().pojo()`, `db.from(...)`, and `db.rawQuery(...)` are outside the model fetch scope. On a join, check whether the joined table's soft-delete predicate is present in the join condition or `WHERE` clause.
+**Check:** Identify which path creates the query. `Record.query().pojo()`, `db.from(...)`, and `db.rawQuery(...)` are outside the soft-delete read filter. On a join, check whether the joined table's soft-delete predicate is present in the join condition or `WHERE` clause.
 
-**Correction:** Use a normal model query when you want the model scope. For a raw/pojo query or joined table, add an explicit predicate using the mapped database column and the query's table alias:
+**Correction:** Use a normal model query when you want the read filter. For a raw/pojo query or joined table, add an explicit predicate using the mapped database column and the query's table alias:
 
 ```ts
 // Contextual fragment: both tables have a nullable `deleted_at` column.
@@ -87,14 +87,14 @@ const activeRows = await db
 
 The `LEFT JOIN` keeps active users that have no active post, including users whose posts are all deleted. Keep the child predicate in `ON` (as above), or join a subquery already filtered to active posts. Putting it in `WHERE` can remove those users; grouping the `WHERE` condition does not change that result. For an inner join, an explicit child `WHERE` predicate is another option.
 
-For a model query converted to plain objects, scope it before converting results, or explicitly constrain the query:
+For a model query converted to plain objects, constrain the query explicitly, because `pojo()` skips the fetch hooks:
 
 ```ts
 // Contextual fragment.
 const rows = await Record.query().whereNull('records.deleted_at').pojo()
 ```
 
-Use the actual table name or alias and the model's mapped column name. `withTrashed()` disables the scope for that model query; it does not add scope predicates to other tables.
+Use the actual table name or alias and the model's mapped column name. `withTrashed()`, a builder macro the provider registers, disables the read filter for that model query; it does not add read-filter predicates to other tables.
 
 **Expected result:** Each table's deleted rows are included or excluded according to an explicit predicate, and outer-join results retain the parents your join is intended to keep.
 
