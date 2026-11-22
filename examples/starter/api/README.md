@@ -23,9 +23,10 @@ guard and `verifyCredentials` query through the model, which leaves deleted rows
 not revoked, so a restored account's earlier tokens work again.
 
 The administrator list accepts `?page=2` (default `1`) and returns up to 25 users ordered by
-deletion time, then ID, descending. The existing JSON array contains only `id`, `email` and
-`deletedAt`; `X-Total-Count`, `X-Current-Page` and `X-Last-Page` describe pagination. An empty
-page returns an empty array. Restore still returns the restored account's ID and email. Its route
+deletion time, then ID, descending. It returns the starter kit's paginated shape,
+`serialize(DeletedUserTransformer.paginate(...))`: `data` holds each user's `id`, `email` and
+`deletedAt`, and `metadata` holds Lucid's pagination fields such as `total`, `currentPage` and
+`lastPage`. An empty page returns an empty `data` array. Restore still returns the restored account's ID and email. Its route
 validator rejects malformed or out-of-range IDs before querying the database.
 
 ## Install and run

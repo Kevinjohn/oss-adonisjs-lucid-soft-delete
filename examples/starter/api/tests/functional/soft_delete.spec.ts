@@ -28,7 +28,7 @@ test.group('soft delete', (group) => {
     const listed = await client.get('/api/v1/admin/deleted-users').loginAs(admin)
     listed.assertStatus(200)
     assert.deepEqual(
-      listed.body().map((user: { email: string }) => user.email),
+      listed.body().data.map((user: { email: string }) => user.email),
       ['member@example.test']
     )
 
@@ -123,23 +123,25 @@ test.group('soft delete', (group) => {
     const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
     const first = await client.get('/api/v1/admin/deleted-users').loginAs(adminAccount)
     first.assertStatus(200)
+    assert.lengthOf(first.body().data, 25)
     assert.deepEqual(
-      first.body().map((user: { email: string }) => user.email),
+      first.body().data.map((user: { email: string }) => user.email),
       expected.slice(0, 25)
     )
-    assert.deepEqual(Object.keys(first.body()[0]).sort(), ['deletedAt', 'email', 'id'])
-    first.assertHeader('x-total-count', '27')
-    first.assertHeader('x-last-page', '2')
+    assert.deepEqual(Object.keys(first.body().data[0]).sort(), ['deletedAt', 'email', 'id'])
+    assert.equal(first.body().metadata.total, 27)
+    assert.equal(first.body().metadata.lastPage, 2)
+    assert.notProperty(first.headers(), 'x-total-count')
     const second = await client.get('/api/v1/admin/deleted-users?page=2').loginAs(adminAccount)
     second.assertStatus(200)
-    second.assertHeader('x-current-page', '2')
+    assert.equal(second.body().metadata.currentPage, 2)
     assert.deepEqual(
-      second.body().map((user: { email: string }) => user.email),
+      second.body().data.map((user: { email: string }) => user.email),
       expected.slice(25)
     )
     const empty = await client.get('/api/v1/admin/deleted-users?page=3').loginAs(adminAccount)
     empty.assertStatus(200)
-    assert.deepEqual(empty.body(), [])
+    assert.deepEqual(empty.body().data, [])
     const invalid = await client.get('/api/v1/admin/deleted-users?page=0').loginAs(adminAccount)
     invalid.assertStatus(422)
   })

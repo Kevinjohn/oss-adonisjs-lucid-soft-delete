@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The API starter's deleted-accounts list returns the starter kit's paginated `{ data, metadata }` shape through `serialize(Transformer.paginate(...))` instead of a bare array with `X-Total-Count`, `X-Current-Page` and `X-Last-Page` headers.
+
 ## 0.3.1 - 2026-11-22
 
 - Preserve the caller’s model type when checking the soft-delete marker. Unknown values gain only the marker.

@@ -87,8 +87,8 @@ messages.
 
 The fixtures project only the required fields and use Lucid `paginate(page, perPage)` with a
 validated `page` query parameter (default 1), a fixed page size of 25, and descending deletion
-time and ID ordering. The API retains the array response with `X-Total-Count`, `X-Current-Page`,
-and `X-Last-Page` headers. Browser pages offer navigation and an empty-page state. The
+time and ID ordering. The API returns the starter kit's paginated shape,
+`serialize(Transformer.paginate(...))`: `{ data, metadata }` with Lucid's pagination metadata. Browser pages offer navigation and an empty-page state. The
 administrator check and read filter apply on every page; restore remains independent of the
 listing page.
 

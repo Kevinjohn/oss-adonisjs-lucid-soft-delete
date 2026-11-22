@@ -10,5 +10,5 @@ before deletion, during deletion and after restoration. The examples workflow te
 All four fixtures validate the restore route parameter, check that malformed and missing
 identifiers do not change accounts, project only the recycle-bin display fields and order by
 deletion time then ID. The lists use a validated `page` query parameter and return at most 25
-accounts per page, leaving the restore routes and response fields unchanged. The API includes
-pagination headers; browser fixtures display page navigation and retain their restore redirects.
+accounts per page, leaving the restore routes unchanged. The API returns the starter kit's
+`{ data, metadata }` paginated shape; browser fixtures display page navigation and retain their restore redirects.

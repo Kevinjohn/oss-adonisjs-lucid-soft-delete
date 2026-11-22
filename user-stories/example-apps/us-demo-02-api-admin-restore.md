@@ -12,9 +12,9 @@ As a soft-delete administrator of the API starter app, I want to list deleted ac
 ## Acceptance criteria
 
 - Both routes sit behind `middleware.auth()`; a non-administrator receives `403` with an `errors` message before validation or the recycle-bin query runs.
-- `index` returns `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and ISO `deletedAt`.
+- `index` returns `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and ISO `deletedAt`, through `serialize(DeletedUserTransformer.paginate(...))`.
 - `restore` finds the user with `onlyTrashed().where('id', params.id).firstOrFail()` and calls `restore()`, returning `id` and `email`. A valid ID for an absent or active row fails with 404. Validation rejects zero, signs, leading zeros and unsafe integer IDs before lookup.
-- Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set is empty. The API includes `X-Total-Count`, `X-Current-Page` and `X-Last-Page` headers.
+- Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set has an empty `data` array. The response is `{ data, metadata }`, where `metadata` carries Lucid's pagination fields (`total`, `currentPage`, `lastPage` and the others); no pagination headers are set.
 - The administrator grant comes from the account row, defaults to false for new signups, and can be revoked by clearing the flag.
 
 ## User flow
@@ -54,11 +54,11 @@ flowchart TD
     L -->|Valid| P["onlyTrashed, select fields, order deleted_at and id descending, paginate 25"]
     R -->|Invalid| V
     R -->|Valid| Q["onlyTrashed by ID firstOrFail"]
-    P --> W["Set pagination headers; return mapped users"]
+    P --> W["Return data and pagination metadata"]
     Q -->|Missing or active| N["404 Not Found"]
     Q -->|Found| T["user.restore"]
     T -->|Failure| X["Propagate error"]
     T -->|Success| Z["Return id and email"]
 ```
 
-**Code references:** [routes](../../examples/starter/api/start/routes.ts), [controller](../../examples/starter/api/app/controllers/deleted_users_controller.ts), [admin check](../../examples/starter/api/app/services/soft_delete_admins.ts), [admin flag migration](../../examples/starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts), [operator setup](../../examples/starter/api/README.md#install-and-run), [SoftDeletes mixin](../../src/mixin.ts), [local API native-auth contract tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
+**Code references:** [routes](../../examples/starter/api/start/routes.ts), [controller](../../examples/starter/api/app/controllers/deleted_users_controller.ts), [transformer](../../examples/starter/api/app/transformers/deleted_user_transformer.ts), [admin check](../../examples/starter/api/app/services/soft_delete_admins.ts), [admin flag migration](../../examples/starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts), [operator setup](../../examples/starter/api/README.md#install-and-run), [SoftDeletes mixin](../../src/mixin.ts), [local API native-auth contract tests](../../examples/starter/api/tests/functional/soft_delete.spec.ts).
