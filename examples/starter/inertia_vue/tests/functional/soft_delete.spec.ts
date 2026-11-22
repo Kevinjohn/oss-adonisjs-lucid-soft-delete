@@ -66,16 +66,21 @@ test.group('soft delete', (group) => {
       password,
       isSoftDeleteAdmin: true,
     })
-    const deletedAt = '2026-01-01 00:00:00'
+    // The two lowest IDs are deleted last, so deletion-time order and ID order disagree.
     await db.table('users').multiInsert(
       Array.from({ length: 27 }, (_, index) => ({
         email: `deleted-${index}@example.test`,
         password: adminAccount.password,
-        created_at: deletedAt,
-        deleted_at: deletedAt,
+        created_at: '2026-01-01 00:00:00',
+        deleted_at: index < 2 ? '2026-01-02 00:00:00' : '2026-01-01 00:00:00',
       }))
     )
-    const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
+    const expected = [1, 0, ...Array.from({ length: 25 }, (_, index) => 26 - index)].map(
+      (index) => `deleted-${index}@example.test`
+    )
+    const executed: string[] = []
+    const recordQuery = (query: { sql: string }) => executed.push(query.sql)
+    db.connection().getWriteClient().on('query', recordQuery)
     const admin = new InertiaSession()
     await admin.login(adminAccount.email, password)
     type Page = {
@@ -84,6 +89,13 @@ test.group('soft delete', (group) => {
       users: { id: number; email: string; deletedAt: string }[]
     }
     const first = await admin.props<Page>('/admin/deleted-users')
+    db.connection().getWriteClient().off('query', recordQuery)
+    assert.isTrue(
+      executed.some((sql) =>
+        /^select [`"]id[`"], [`"]email[`"], [`"]deleted_at[`"] from/.test(sql)
+      ),
+      `The recycle bin selects only the display fields:\n${executed.join('\n')}`
+    )
     assert.equal(first.currentPage, 1)
     assert.equal(first.lastPage, 2)
     assert.deepEqual(
@@ -99,6 +111,8 @@ test.group('soft delete', (group) => {
     )
     const empty = await admin.props<Page>('/admin/deleted-users?page=3')
     assert.deepEqual(empty.users, [])
+    const invalid = await admin.request('/admin/deleted-users?page=0')
+    assert.include([302, 303], invalid.status)
   })
 
   test('restore validates the identifier and leaves rows unchanged on failure', async ({

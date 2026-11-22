@@ -111,17 +111,29 @@ test.group('soft delete', (group) => {
       password,
       isSoftDeleteAdmin: true,
     })
-    const deletedAt = '2026-01-01 00:00:00'
+    // The two lowest IDs are deleted last, so deletion-time order and ID order disagree.
     await db.table('users').multiInsert(
       Array.from({ length: 27 }, (_, index) => ({
         email: `deleted-${index}@example.test`,
         password: adminAccount.password,
-        created_at: deletedAt,
-        deleted_at: deletedAt,
+        created_at: '2026-01-01 00:00:00',
+        deleted_at: index < 2 ? '2026-01-02 00:00:00' : '2026-01-01 00:00:00',
       }))
     )
-    const expected = Array.from({ length: 27 }, (_, index) => `deleted-${26 - index}@example.test`)
+    const expected = [1, 0, ...Array.from({ length: 25 }, (_, index) => 26 - index)].map(
+      (index) => `deleted-${index}@example.test`
+    )
+    const executed: string[] = []
+    const recordQuery = (query: { sql: string }) => executed.push(query.sql)
+    db.connection().getWriteClient().on('query', recordQuery)
     const first = await client.get('/api/v1/admin/deleted-users').loginAs(adminAccount)
+    db.connection().getWriteClient().off('query', recordQuery)
+    assert.isTrue(
+      executed.some((sql) =>
+        /^select [`"]id[`"], [`"]email[`"], [`"]deleted_at[`"] from/.test(sql)
+      ),
+      `The recycle bin selects only the display fields:\n${executed.join('\n')}`
+    )
     first.assertStatus(200)
     assert.lengthOf(first.body().data, 25)
     assert.deepEqual(
