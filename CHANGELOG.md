@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.1 - 2026-11-22
+
 - Preserve the caller’s model type when checking the soft-delete marker. Unknown values gain only the marker.
 
 ## 0.3.0 - 2026-11-21
