@@ -13,7 +13,8 @@ apply this format prospectively rather than rewriting history for style.
 4. Actions → release → Run workflow (on `main`).
 
 Nothing else is manual. The release is a GitHub prerelease with the tarball attached; its notes
-carry the install command and the SHA-256. `bash bin/release_check.sh` runs the same gate locally.
+carry the install command and the SHA-256. `bash bin/release_check.sh` runs the same gate locally;
+it refuses a release when any reference step 2 lists names a version other than `package.json`.
 
 The workflow refuses other branches, then runs `checks` and `compat`. A `package` job with the
 default read-only token runs the gate, builds, packs and uploads `tmp/release/` as an artifact.

@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- The getting-started tutorial checks out the `v0.3.1` tag and the API reference names `0.3.1`, matching the installed release; the release gate now refuses a release whose README install commands, tutorial tag or reference version differ from the package version.
 - The starter restore validators cap the account ID at 2,147,483,647, the PostgreSQL `increments` range, so a larger ID is refused with a validation error instead of reaching the database.
 
 ## 0.3.1 - 2026-11-22

@@ -13,6 +13,17 @@ awk -v h="## $VERSION - " 'index($0, h) == 1 && substr($0, length(h) + 1) ~ /^[0
 if awk 'tolower($0) ~ /^## \[?unreleased\]?([ \t\r]|$)/ {u=1; next} /^## / {u=0} u && NF {found=1} END {exit !found}' CHANGELOG.md; then
   echo "CHANGELOG.md has entries under '## Unreleased'; move them into the $VERSION section or bump the version" >&2
   exit 1; fi
+# Releasing step 2: every listed reference names this version, and only this version.
+TARBALL_NAME=$(node -p "require('./package.json').name.replace(/^@/, '').replace('/', '-')")-$VERSION.tgz
+names_version() { # file, ERE matching each reference, the one reference it must be
+  local found
+  found=$(grep -oE "$2" "$1" 2>/dev/null | sort -u) || true
+  [ "$found" = "$3" ] || { echo "$1 does not name version $VERSION (releasing step 2); found: ${found:-nothing}" >&2; exit 1; }
+}
+names_version README.md 'releases/download/[^ )]*\.tgz' "releases/download/v$VERSION/$TARBALL_NAME"
+names_version README-AGENTS.md 'releases/download/[^ )]*\.tgz' "releases/download/v$VERSION/$TARBALL_NAME"
+names_version docs/guide/getting-started.md 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]*[0-9A-Za-z])?' "v$VERSION"
+names_version docs/reference/README.md 'public API of `[^`]*`' "public API of \`$VERSION\`"
 pnpm build
 rm -rf tmp/release && mkdir -p tmp/release
 pnpm pack --pack-destination tmp/release >/dev/null

@@ -17,6 +17,17 @@ import { test } from '@japa/runner'
 const releaseCheck = fileURLToPath(new URL('../../bin/release_check.sh', import.meta.url))
 const version = '0.0.0-wp6-test'
 
+/** The references releasing step 2 updates, each naming `release`. */
+function versionReferences(release: string) {
+  const install = `pnpm add https://github.com/example/release-check-fixture/releases/download/v${release}/release-check-fixture-${release}.tgz luxon\n`
+  return {
+    'README.md': `# Fixture\n\n${install}`,
+    'README-AGENTS.md': `# Fixture\n\n${install}`,
+    'docs/guide/getting-started.md': `It checks out the [\`v${release}\` release tag](https://github.com/example/release-check-fixture/tree/v${release}).\n\ngit checkout --detach v${release}\n\nThis guide targets the \`v${release}\` tag selected above.\n`,
+    'docs/reference/README.md': `This reference documents the public API of \`${release}\`.\n`,
+  }
+}
+
 async function fixture(cleanup: (fn: () => Promise<void>) => void) {
   const root = await mkdtemp(join(tmpdir(), 'release-check-'))
   cleanup(() => rm(root, { recursive: true, force: true }))
@@ -30,6 +41,10 @@ async function fixture(cleanup: (fn: () => Promise<void>) => void) {
     join(root, 'CHANGELOG.md'),
     `# Changelog\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`
   )
+  for (const [file, text] of Object.entries(versionReferences(version))) {
+    await mkdir(join(root, file, '..'), { recursive: true })
+    await writeFile(join(root, file), text)
+  }
   execFileSync('git', ['init', '--quiet'], { cwd: root })
   execFileSync('git', ['config', 'user.name', 'Release Check Test'], { cwd: root })
   execFileSync('git', ['config', 'user.email', 'release-check@example.test'], { cwd: root })
@@ -167,6 +182,43 @@ test.group('release check', () => {
     const notes = await readFile(join(root, 'tmp/release/notes.md'), 'utf8')
     assert.include(notes, '- Current')
     assert.notInclude(notes, '- Other')
+  })
+
+  test('rejects a stale version reference that releasing step 2 lists', async ({
+    assert,
+    cleanup,
+  }) => {
+    const stale = versionReferences('0.0.0-stale')
+    for (const file of Object.keys(stale) as (keyof typeof stale)[]) {
+      const root = await packingFixture(
+        cleanup,
+        `# Changelog\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`
+      )
+      await writeFile(join(root, file), stale[file])
+
+      const result = runReleaseCheck(root)
+
+      assert.notEqual(result.status, 0, file)
+      assert.include(result.stderr, `${file} does not name version ${version}`)
+    }
+  })
+
+  test('rejects a getting-started guide that names an older tag in one place', async ({
+    assert,
+    cleanup,
+  }) => {
+    const root = await packingFixture(
+      cleanup,
+      `# Changelog\n\n## ${version} - 2026-11-03\n\nFixture notes.\n`
+    )
+    const guide = join(root, 'docs/guide/getting-started.md')
+    const text = await readFile(guide, 'utf8')
+    await writeFile(guide, text.replace(`--detach v${version}`, '--detach v0.0.0-stale'))
+
+    const result = runReleaseCheck(root)
+
+    assert.notEqual(result.status, 0)
+    assert.include(result.stderr, `docs/guide/getting-started.md does not name version ${version}`)
   })
 
   test('packs the release, writes install notes and gives the release job its outputs', async ({
