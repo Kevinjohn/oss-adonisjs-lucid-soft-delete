@@ -1,6 +1,6 @@
 # API reference
 
-This reference documents the public API of `0.3.1`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
+This reference documents the public API of `0.3.2`. Check the [README](../../README.md) for the supported runtime and dependency versions, installation steps, and the exact-version guidance.
 
 ## Contents
 
