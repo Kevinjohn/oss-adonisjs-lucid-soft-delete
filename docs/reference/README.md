@@ -390,16 +390,23 @@ The package also exports `./types` and `./types/*` (receipt and query-builder ty
 
 The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`; lifecycle methods include `{ receipt: true }` overloads. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
 
-```ts
-import { hasSoftDeletes, SOFT_DELETES } from '@kevinjohn/adonisjs-lucid-soft-delete'
+Type registry values as `LucidModel` (from `@adonisjs/lucid/types/model`) so a successful check yields a `SoftDeletesModel`. The example imports `hasSoftDeletes` and `SoftDeletesModel` from the package root:
 
-// `model` is an unknown value obtained from a dynamic model registry.
-if (hasSoftDeletes(model)) {
-  console.log(model[SOFT_DELETES]) // true
+<!-- source: ../../tests/types/builder.ts#lucid_model_registry -->
+
+```ts
+const registry = new Map<string, LucidModel>()
+
+export function findSoftDeletesModel(name: string): SoftDeletesModel | undefined {
+  const model = registry.get(name)
+  if (model && hasSoftDeletes(model)) {
+    return model
+  }
+  return undefined
 }
 ```
 
-A successful guard adds the marker to the existing type. An unknown value gains only the marker. A value already typed as a Lucid constructor narrows to `SoftDeletesModel`. The guard checks the explicit marker set by the mixin. A coincidental `deletedAt` column or similarly named methods do not establish the capability. The former `ModelWithSoftDeletes` augmentation is not part of this API.
+A successful guard adds the marker to the existing type. A value already typed as a Lucid constructor narrows to `SoftDeletesModel`. An `unknown` value gains only the marker: `model[SOFT_DELETES]` is typed `true`, but assigning the value to `SoftDeletesModel` or calling `model.query()` does not compile. The guard checks the explicit marker set by the mixin. A coincidental `deletedAt` column or similarly named methods do not establish the capability. The former `ModelWithSoftDeletes` augmentation is not part of this API.
 
 ## Errors
 
