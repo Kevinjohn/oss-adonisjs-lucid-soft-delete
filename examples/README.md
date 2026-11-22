@@ -7,7 +7,7 @@ serves as the packed-package test fixture for `pnpm test:consumer`.
 
 For an HTTP application, start with the [maintained native-authentication examples](starter/README.md),
 especially the API fixture's administrator-only recycle bin. The standalone consumer above exercises
-the library API, not an HTTP authorisation policy. The [API reference](../docs/reference/README.md)
+the library API, not an HTTP authorisation check. The [API reference](../docs/reference/README.md)
 describes the full lifecycle contract.
 
 ## 1. Migration

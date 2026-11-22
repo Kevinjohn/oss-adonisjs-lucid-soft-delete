@@ -123,7 +123,7 @@ Await each lifecycle operation before starting another operation on the same mod
 
 Soft-deletes a persisted active instance by saving a local deletion timestamp. It also saves other dirty attributes on that write.
 
-- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its immutable-model guard.
+- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its deleted-instance check.
 - **Return/no-op:** `Promise<void>`. If already trashed, not physically deleted, and `deletedAt` is unchanged, it skips the write and hooks; other dirty attributes remain dirty and are not saved by that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** On the soft-delete write, Lucid runs `beforeDelete` → `beforeUpdate` → `beforeSave` → database write → `afterUpdate` → `afterSave` → `afterDelete`. Hook and database errors propagate. An after-hook can fail after the write completed.
 - **Dirty fields and timestamps:** Dirty fields are saved with the deletion timestamp. Configured automatic `updatedAt` advances. Lucid column `prepare` functions run.
@@ -140,7 +140,7 @@ Use `deleteQuietly()` when the same soft-delete save should omit hooks.
 
 Takes the same active-to-trashed path as `delete()` using Lucid's quiet save methods.
 
-- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its immutable-model guard.
+- **Eligible state:** Persisted, not physically deleted, active or trashed model; an unpersisted instance rejects with `E_MODEL_NOT_PERSISTED`. Lucid rejects a physically deleted instance through its deleted-instance check.
 - **Return/no-op:** `Promise<void>`. Repeating a delete on a trashed, non-deleted instance with unchanged `deletedAt` is a no-op; other dirty attributes remain unsaved on that no-op. If `deletedAt` is dirty on a persisted, non-deleted instance, it writes again with a new deletion timestamp.
 - **Hooks:** No model hooks run. Errors from the persistence operation propagate.
 - **Dirty fields and timestamps:** A soft-delete write saves other dirty fields and advances configured `updatedAt`; column `prepare` runs. The no-op writes nothing.
@@ -406,7 +406,7 @@ export function findSoftDeletesModel(name: string): SoftDeletesModel | undefined
 }
 ```
 
-A successful guard adds the marker to the existing type. A value already typed as a Lucid constructor narrows to `SoftDeletesModel`. An `unknown` value gains only the marker: `model[SOFT_DELETES]` is typed `true`, but assigning the value to `SoftDeletesModel` or calling `model.query()` does not compile. The guard checks the explicit marker set by the mixin. A coincidental `deletedAt` column or similarly named methods do not establish the capability. The former `ModelWithSoftDeletes` augmentation is not part of this API.
+When the type guard returns true, it adds the marker to the existing type. A value already typed as a Lucid constructor narrows to `SoftDeletesModel`. An `unknown` value gains only the marker: `model[SOFT_DELETES]` is typed `true`, but assigning the value to `SoftDeletesModel` or calling `model.query()` does not compile. The type guard checks the explicit marker set by the mixin. A coincidental `deletedAt` column or similarly named methods do not establish the capability. The former `ModelWithSoftDeletes` augmentation is not part of this API.
 
 ## Errors
 

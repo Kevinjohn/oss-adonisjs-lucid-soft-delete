@@ -11,7 +11,7 @@ As an application developer, I want to identify participating models so shared s
 
 ## Acceptance criteria
 
-- The guard tests the SOFT_DELETES symbol for exactly true. A deletedAt column alone does not qualify.
+- The type guard tests the SOFT_DELETES symbol for exactly true. A deletedAt column alone does not qualify.
 - Null, primitives and unmarked models return false. A true result adds the marker to the existing type. A known Lucid constructor narrows to `SoftDeletesModel`. An unknown value gains only the marker.
 
 ## User flow

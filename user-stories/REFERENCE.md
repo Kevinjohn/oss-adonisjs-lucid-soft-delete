@@ -2,7 +2,7 @@
 
 ## Source baseline and scope
 
-Reviewed source baseline is `origin/main` commit [`1db234ac88216b71cf649880fdcaec20918a5033`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/1db234ac88216b71cf649880fdcaec20918a5033). The administrator policy in the demo stories is reconciled to the embedded starter source. The catalogue covers the public Lucid mixin and builder methods, provider configuration, read behavior, lifecycle writes, receipts, the example group recovery service, the account deletion and deleted-user restore flows in the [API](../examples/starter/api), [hypermedia](../examples/starter/hypermedia), [React](../examples/starter/inertia_react) and [Vue](../examples/starter/inertia_vue) apps, and documented query boundaries.
+Reviewed source baseline is `origin/main` commit [`1db234ac88216b71cf649880fdcaec20918a5033`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/1db234ac88216b71cf649880fdcaec20918a5033). The administrator rule in the demo stories is reconciled to the embedded starter source. The catalogue covers the public Lucid mixin and builder methods, provider configuration, read behavior, lifecycle writes, receipts, the example group recovery service, the account deletion and deleted-user restore flows in the [API](../examples/starter/api), [hypermedia](../examples/starter/hypermedia), [React](../examples/starter/inertia_react) and [Vue](../examples/starter/inertia_vue) apps, and documented query boundaries.
 
 ## Roles and product boundary
 

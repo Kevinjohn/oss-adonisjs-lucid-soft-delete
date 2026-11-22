@@ -35,11 +35,11 @@ Instance `delete()` soft-deletes and runs Lucid hooks; `restore()` clears the ti
 
 ## Testing an application
 
-Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/docs/guide/getting-started.md) to configure the provider, add the column and exercise recovery. Query paths are in the [scope contract](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/docs/reference/scope-contract.md).
+Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/docs/guide/getting-started.md) to configure the provider, add the column and exercise recovery. Query paths are in [`docs/reference/scope-contract.md`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/main/docs/reference/scope-contract.md).
 
 ## Source map
 
-`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply query scopes; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` registers the query builder macros and `src/types/querybuilder.ts` augments the Lucid types. `providers/` registers the runtime and `tests/` covers behavior, tooling and types.
+`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply the soft-delete read filter to model queries and relation subqueries; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` registers the query builder macros and `src/types/querybuilder.ts` augments the Lucid types. `providers/` registers the runtime and `tests/` covers behavior, tooling and types.
 
 ## Further reading
 
