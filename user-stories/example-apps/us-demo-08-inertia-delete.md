@@ -12,7 +12,7 @@ As a signed-in starter user, I want to confirm deletion so my account is hidden 
 ## Acceptance criteria
 
 - GET renders the confirmation. Both routes require a signed-in session.
-- POST deletes only the authenticated user, then logs out the web guard and redirects to login. The stored account remains recoverable. A write failure propagates before logout; guests are redirected to login.
+- POST deletes only the authenticated user, then logs out the web guard and redirects to login. The stored account remains recoverable. A write failure propagates before logout; guests are redirected to login. If logout fails after deletion, the account stays hidden and the controller propagates the error before redirecting.
 
 ## User flow
 
@@ -24,7 +24,9 @@ flowchart TD
     E -->|No| F["Leave without changes"]
     E -->|Yes| G{"Deletion succeeds?"}
     G -->|No| H["Receive error"]
-    G -->|Yes| I["Account hidden; logged out and redirected"]
+    G -->|Yes| I["Account hidden"] --> J{"Logout succeeds?"}
+    J -->|No| K["Receive error with session status unconfirmed"]
+    J -->|Yes| L["Session ends and login page opens"]
 ```
 
 ## Code flow
@@ -37,7 +39,9 @@ flowchart TD
     D -->|GET| E["inertia.render account/delete"]
     D -->|POST| F["auth.getUserOrFail then user.delete"]
     F -->|Failure| X["Propagate error"]
-    F -->|Success| G["web.logout"] --> H["Redirect session.create"]
+    F -->|Success| G["web.logout"]
+    G -->|Failure| X
+    G -->|Success| H["Redirect session.create"]
 ```
 
 **Code references:** [examples/starter/inertia_react/start/routes.ts](../../examples/starter/inertia_react/start/routes.ts), [examples/starter/inertia_react/app/controllers/account_deletion_controller.ts](../../examples/starter/inertia_react/app/controllers/account_deletion_controller.ts), [examples/starter/inertia_react/inertia/pages/account/delete.tsx](../../examples/starter/inertia_react/inertia/pages/account/delete.tsx), [examples/starter/inertia_vue/start/routes.ts](../../examples/starter/inertia_vue/start/routes.ts), [examples/starter/inertia_vue/app/controllers/account_deletion_controller.ts](../../examples/starter/inertia_vue/app/controllers/account_deletion_controller.ts), [examples/starter/inertia_vue/inertia/pages/account/delete.vue](../../examples/starter/inertia_vue/inertia/pages/account/delete.vue).

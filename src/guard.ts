@@ -19,7 +19,9 @@ export type SoftDeletesModel = LucidModel & {
  * TypeScript type guard for the explicit soft-delete mixin capability on a model constructor.
  * A `deletedAt` column alone does not guarantee the model has the mixin behavior.
  */
-export function hasSoftDeletes(model: unknown): model is SoftDeletesModel {
+export function hasSoftDeletes<Model>(
+  model: Model
+): model is Model & Pick<SoftDeletesModel, typeof SOFT_DELETES> {
   if (model === null || (typeof model !== 'object' && typeof model !== 'function')) {
     return false
   }

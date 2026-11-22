@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve the caller’s model type when checking the soft-delete marker. Unknown values gain only the marker.
+
 ## 0.3.0 - 2026-11-21
 
 - Document and verify the package user stories and implementation flows.

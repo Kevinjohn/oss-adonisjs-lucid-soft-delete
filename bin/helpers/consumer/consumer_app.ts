@@ -87,18 +87,24 @@ async function verifyPublicApi(appRoot: string, environment: NodeJS.ProcessEnv) 
     join(appRoot, 'package_exports.ts'),
     `import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
-import { SoftDeletes, hasSoftDeletes } from '${packageName}'
+import { SOFT_DELETES, SoftDeletes, hasSoftDeletes } from '${packageName}'
 import type { SoftDeleteReceipt, BulkReceiptOptions, SoftDeletesInstance } from '${packageName}/types'
 import type {} from '${packageName}/types/querybuilder'
 import Provider from '${packageName}/lucid_soft_delete_provider'
 import { extendModelQueryBuilder } from '${packageName}/bindings'
 
 class Example extends compose(BaseModel, SoftDeletes) {}
-export function verifyContract(model: unknown, example: Example, options: BulkReceiptOptions) {
+export function verifyContract(candidate: unknown, model: typeof BaseModel, example: Example, options: BulkReceiptOptions) {
   const instance: SoftDeletesInstance = example
   const receipt: Promise<SoftDeleteReceipt> = Example.query().onlyTrashed().softDelete({ receipt: true })
   const count: Promise<number> = Example.query().withTrashed().restore()
-  if (hasSoftDeletes(model)) model.query()
+  if (hasSoftDeletes(candidate)) {
+    const marker: true = candidate[SOFT_DELETES]
+    void marker
+    // @ts-expect-error An unknown value gains only the marker.
+    void candidate.query
+  }
+  if (hasSoftDeletes(model)) model.query().withTrashed()
   return [instance, receipt, count, options, Provider, extendModelQueryBuilder]
 }
 `
