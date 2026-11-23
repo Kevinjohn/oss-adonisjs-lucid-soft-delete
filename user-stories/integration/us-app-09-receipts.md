@@ -11,7 +11,7 @@ As an application service, I want to collect changed primary keys so bookkeeping
 
 ## Acceptance criteria
 
-- Soft-delete, restore and force-delete receipts contain count and unordered distinct ids. Only soft-delete adds deletedAt, null for zero changes.
+- Soft-delete, restore and force-delete receipts contain count and unordered distinct ids. Numeric, string and binary primary keys are supported. A driver bigint is returned as a string. Only soft-delete adds deletedAt, null for zero changes.
 - Omitting receipt or using false returns the ordinary count. Receipt mode requires a transaction and a supported query shape, including eligible has-many builders. Unsupported shapes are refused before mutation.
 - PostgreSQL uses `RETURNING` rather than preselecting IDs. MySQL selects and locks IDs; SQLite selects IDs without a row lock. Both constrain the write to selected IDs and reject a count mismatch with `E_BULK_RECEIPT_DIVERGED`. Database failures propagate. A receipt only describes a durable write after commit.
 

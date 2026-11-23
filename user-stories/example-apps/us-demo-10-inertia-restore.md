@@ -4,7 +4,7 @@ As a soft-delete administrator, I want to recover an account so its member can s
 
 **Status:** Demo, source-reviewed.
 **Access:** A signed-in account enrolled by an operator through `is_soft_delete_admin`; signup cannot grant this flag.
-**Entry:** POST /admin/deleted-users/:id/restore.
+**Entry:** In the [Deleted accounts](us-demo-09-inertia-list.md) list, choose **Restore <email>** to post to `/admin/deleted-users/:id/restore`. The button uses the row ID, with no user-entered fields.
 **Documentation:** [Package reference](../../docs/reference/README.md).
 **Source:** [examples/starter/inertia_react/start/routes.ts](../../examples/starter/inertia_react/start/routes.ts), [examples/starter/inertia_react/app/controllers/deleted_users_controller.ts](../../examples/starter/inertia_react/app/controllers/deleted_users_controller.ts), [examples/starter/inertia_react/inertia/pages/deleted_users.tsx](../../examples/starter/inertia_react/inertia/pages/deleted_users.tsx), [examples/starter/inertia_react/app/validators/deleted_user.ts](../../examples/starter/inertia_react/app/validators/deleted_user.ts), [examples/starter/inertia_vue/start/routes.ts](../../examples/starter/inertia_vue/start/routes.ts), [examples/starter/inertia_vue/app/controllers/deleted_users_controller.ts](../../examples/starter/inertia_vue/app/controllers/deleted_users_controller.ts), [examples/starter/inertia_vue/inertia/pages/deleted_users.vue](../../examples/starter/inertia_vue/inertia/pages/deleted_users.vue), [examples/starter/inertia_vue/app/validators/deleted_user.ts](../../examples/starter/inertia_vue/app/validators/deleted_user.ts).
 **Coverage:** [examples/starter/inertia_react/tests/functional/soft_delete.spec.ts](../../examples/starter/inertia_react/tests/functional/soft_delete.spec.ts), [examples/starter/inertia_vue/tests/functional/soft_delete.spec.ts](../../examples/starter/inertia_vue/tests/functional/soft_delete.spec.ts).
@@ -19,7 +19,7 @@ As a soft-delete administrator, I want to recover an account so its member can s
 
 ```mermaid
 flowchart TD
-    A["Submit restore for account ID"] --> B{"Signed in and administrator?"}
+    A["Choose Restore for the selected account"] --> B{"Signed in and administrator?"}
     B -->|No| C["Redirect to login or 403"]
     B -->|Yes| D{"ID valid?"}
     D -->|No| E["Receive validation failure"]

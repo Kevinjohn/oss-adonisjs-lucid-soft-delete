@@ -4,21 +4,21 @@ As a signed-in starter user, I want to confirm deletion so my account is hidden 
 
 **Status:** Demo, source-reviewed.
 **Access:** A signed-in starter user.
-**Entry:** GET then POST /account/delete.
+**Entry:** Follow **Delete account** in the signed-in navigation to `GET /account/delete`, then use **Delete my account** to submit `POST /account/delete`.
 **Documentation:** [Package reference](../../docs/reference/README.md).
 **Source:** [examples/starter/inertia_react/start/routes.ts](../../examples/starter/inertia_react/start/routes.ts), [examples/starter/inertia_react/app/controllers/account_deletion_controller.ts](../../examples/starter/inertia_react/app/controllers/account_deletion_controller.ts), [examples/starter/inertia_react/inertia/pages/account/delete.tsx](../../examples/starter/inertia_react/inertia/pages/account/delete.tsx), [examples/starter/inertia_vue/start/routes.ts](../../examples/starter/inertia_vue/start/routes.ts), [examples/starter/inertia_vue/app/controllers/account_deletion_controller.ts](../../examples/starter/inertia_vue/app/controllers/account_deletion_controller.ts), [examples/starter/inertia_vue/inertia/pages/account/delete.vue](../../examples/starter/inertia_vue/inertia/pages/account/delete.vue).
 **Coverage:** [examples/starter/inertia_react/tests/functional/soft_delete.spec.ts](../../examples/starter/inertia_react/tests/functional/soft_delete.spec.ts), [examples/starter/inertia_vue/tests/functional/soft_delete.spec.ts](../../examples/starter/inertia_vue/tests/functional/soft_delete.spec.ts).
 
 ## Acceptance criteria
 
-- GET renders the confirmation. Both routes require a signed-in session.
+- GET renders **Delete your account** with a warning and a **Delete my account** submit button disabled while processing. The form has no user-entered fields. Leaving the page without submitting leaves the account unchanged. Both routes require a signed-in session.
 - POST deletes only the authenticated user, then logs out the web guard and redirects to login. The stored account remains recoverable. A write failure propagates before logout; guests are redirected to login. If logout fails after deletion, the account stays hidden and the controller propagates the error before redirecting.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    A["Open confirmation"] --> B{"Signed in?"}
+    A["Choose Delete account"] --> B{"Signed in?"}
     B -->|No| C["Redirect to login"]
     B -->|Yes| D["Read confirmation"] --> E{"Submit deletion?"}
     E -->|No| F["Leave without changes"]
