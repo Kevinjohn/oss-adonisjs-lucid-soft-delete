@@ -11,7 +11,7 @@ As application code using a `SoftDeletes` model, I want to reload an instance by
 
 ## Acceptance criteria
 
-- A persisted instance can reload its row by its original query identity, including a trashed row. The call returns the same instance filled with the current row's attributes, including the mapped `deletedAt` value, and resets its original attributes to the reloaded state. A projection that omitted `deletedAt` can be refreshed before [restoration](../restore-instance/us-app-03-restore-instance.md).
+- A persisted instance can reload a row by its Lucid lookup key, including a trashed row. Lucid normally uses the instance's current primary key and uses the original key for self-assigned primary keys. The projection must retain the lookup key. A projection with that key that omitted `deletedAt` can be refreshed before [restoration](../restore-instance/us-app-03-restore-instance.md). The call fills the same instance with the fetched attributes, including the mapped `deletedAt` value, and resets its original attributes to the reloaded state.
 - Lucid uses the attached transaction client if present. Refresh reads the row and changes only the retained instance in memory.
 - Lucid returns an unsaved instance unchanged and rejects a retained instance it has marked physically deleted, even after an outer rollback restored the row. A separate persisted instance whose row is missing fails the lookup.
 
@@ -35,7 +35,7 @@ flowchart TD
     A -->|Allowed| C{"$isPersisted?"}
     C -->|No| D["Return this"]
     C -->|Yes| E["Adapter.refresh selects modelClient and calls $getQueryFor with refresh"]
-    E --> F["BaseModel query selects by primary key; mixin sets with mode"]
+    E --> F["Lucid selects by current key or original self-assigned key; mixin sets with mode"]
     F --> G["first runs beforeFind without a deletion predicate"]
     G -->|Missing| H["Throw Lucid lookup error"]
     G -->|Found| I["fill with fetched attributes and hydrate originals"] --> D
