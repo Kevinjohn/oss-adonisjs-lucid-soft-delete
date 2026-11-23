@@ -12,7 +12,7 @@ As an application service, I want to bind writes to one transaction so a failed 
 ## Acceptance criteria
 
 - Instance delete, quiet delete, restore and physical deletion honour the attached transaction. Include application bookkeeping on the same client.
-- Commit persists the database changes. Rollback undoes them but does not rewind a retained instance. Discard or reload it before reading the durable state.
+- The caller decides when to commit. A post-write hook error can still leave changes pending in the transaction. Commit persists the database changes. Rollback undoes them but does not rewind a retained instance. For a soft delete or restore, discard or [refresh the retained instance](us-app-13-refresh-instance.md). After a force-delete rollback, fetch a new instance because Lucid still marks the retained one deleted.
 
 ## User flow
 
@@ -32,7 +32,9 @@ flowchart TD
     B -->|Success| C{"Caller commits?"}
     C -->|No| E
     C -->|Yes| D["Fetch durable state"]
-    E --> F["Discard or reload retained instance"] --> D
+    E --> F{"Retained instance marked physically deleted?"}
+    F -->|Yes| G["Discard instance and fetch another"] --> D
+    F -->|No| H["Discard or refresh retained instance"] --> D
 ```
 
 **Code references:** [src/mixin.ts](../../src/mixin.ts).

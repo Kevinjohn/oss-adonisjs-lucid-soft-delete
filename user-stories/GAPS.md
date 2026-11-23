@@ -4,4 +4,4 @@ The accepted implementation and compatibility decisions are recorded in [maintai
 
 No source-backed mismatch between those accepted records and current package behavior was identified in this catalogue pass. The package does not prescribe an end-user interface, application authorization, tenant isolation, retention or cascade rules; applications supply those policies as described in the [scope contract](../docs/reference/scope-contract.md#model-fetches-and-builder-lifecycle).
 
-The embedded React and Vue starters share the same three journeys. Their pages, controllers and functional suites are linked independently. The [recycle-bin tutorial](../examples/app/app/services/recycle_bin.ts) composes the query and instance operations, selecting only trashed rows before purge.
+The four embedded starters each expose account deletion, a paginated deleted-account list and single-account restoration. API responses, Edge views and Inertia pages have their own source and coverage links. The [recycle-bin tutorial](../examples/app/app/services/recycle_bin.ts) composes the query and instance operations, selecting only trashed rows before purge.

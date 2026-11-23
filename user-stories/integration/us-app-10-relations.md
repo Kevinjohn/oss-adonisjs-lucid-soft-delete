@@ -6,13 +6,13 @@ As an application developer, I want to select the right related rows so details 
 **Access:** An application developer.
 **Entry:** Use Lucid preload, load, related queries, aggregates or existence checks.
 **Documentation:** [Package reference](../../docs/reference/README.md).
-**Source:** [src/mixin.ts](../../src/mixin.ts), [src/sub_query_scope.ts](../../src/sub_query_scope.ts), [src/propagation.ts](../../src/propagation.ts).
+**Source:** [src/mixin.ts](../../src/mixin.ts), [src/sub_query_scope.ts](../../src/sub_query_scope.ts), [src/propagation.ts](../../src/propagation.ts), [src/scope.ts](../../src/scope.ts), [relation read contract](../../docs/reference/scope-contract.md#related-model-queries).
 **Coverage:** [tests/scope_relations.spec.ts](../../tests/scope_relations.spec.ts), [tests/scope_bypass.spec.ts](../../tests/scope_bypass.spec.ts), [tests/group_limit.spec.ts](../../tests/group_limit.spec.ts).
 
 ## Acceptance criteria
 
 - When the related model uses `SoftDeletes`, has-one, has-many, belongs-to, many-to-many and nested or through reads default to active rows. A hidden has-one can yield no related record.
-- An explicit mode on the related query can include or isolate trashed children. With the provider installed, counts, aggregates and existence checks apply the related model’s read filter. Raw joins and arbitrary SQL subqueries need explicit predicates.
+- An explicit mode on the related query can include or isolate trashed children. With the provider installed, counts, aggregates and existence checks apply the related model’s read filter. For a grouped relation fetch, the filter runs inside the grouped query before the window selects rows. Raw joins and arbitrary SQL subqueries need explicit predicates.
 
 ## User flow
 
@@ -25,12 +25,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Construct related query"] --> B{"Read path?"}
-    B -->|Load or preload| C["Related model hooks applyScope"]
-    B -->|Aggregate or existence| D["Wrapped applyWhere invokes applySubQueryScope"]
-    C --> E["Apply related model mode"]
-    D --> E
-    E --> F["Fetch or aggregate"]
+    A["Construct related query and set its own mode"] --> B{"Read path?"}
+    B -->|Load, preload or direct fetch| C["Marked related model runs ignoreDeleted before fetch"]
+    C --> E["applyScope adds or removes read filter; grouped fetch uses inner builder"]
+    E --> F["Lucid fetches related records"]
+    B -->|Aggregate or existence| D{"Non-child relation subquery for a marked model?"}
+    D -->|Yes| G["applySubQueryScope adds or removes read filter"]
+    G --> H["Lucid applyWhere renders related subquery"]
+    D -->|No| H
 ```
 
-**Code references:** [src/mixin.ts](../../src/mixin.ts), [src/sub_query_scope.ts](../../src/sub_query_scope.ts), [src/propagation.ts](../../src/propagation.ts).
+**Code references:** [src/mixin.ts](../../src/mixin.ts), [src/sub_query_scope.ts](../../src/sub_query_scope.ts), [src/propagation.ts](../../src/propagation.ts), [src/scope.ts](../../src/scope.ts), [relation read contract](../../docs/reference/scope-contract.md#related-model-queries).
