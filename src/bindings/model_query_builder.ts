@@ -40,9 +40,7 @@ function assertLifecycleWriteSupported(query: ModelQueryBuilderContract<LucidMod
     throw new E_MODEL_SOFT_DELETE_COLUMN_MISSING(query.model.name)
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   if (type === 'manyToMany' || type === 'hasManyThrough') {
-    throw new E_LIFECYCLE_WRITE_UNSUPPORTED(
-      'many-to-many or has-many-through builders; query the related model by its IDs instead'
-    )
+    throw new E_LIFECYCLE_WRITE_UNSUPPORTED()
   }
 }
 

@@ -12,9 +12,11 @@ import { Exception } from '@adonisjs/core/exceptions'
 export class LifecycleWriteUnsupportedException extends Exception {
   static code = 'E_LIFECYCLE_WRITE_UNSUPPORTED'
   static status = 500
+  static message =
+    'Bulk lifecycle writes do not support many-to-many or has-many-through builders; query the related model by its IDs instead'
 
-  constructor(reason: string) {
-    super(`Bulk lifecycle writes do not support ${reason}`)
+  constructor() {
+    super()
   }
 }
 
@@ -107,7 +109,7 @@ export class LifecycleWriteWindowUnsupportedException extends LifecycleWriteUnsu
   static message = 'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
 
   constructor() {
-    super('limit, offset or groupLimit clauses')
+    super()
   }
 }
 

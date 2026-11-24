@@ -34,10 +34,10 @@ test.group('Emitted declarations', () => {
     const namespace = built.errors
     const cases = [
       [
-        new namespace.E_LIFECYCLE_WRITE_UNSUPPORTED('limit clauses'),
+        new namespace.E_LIFECYCLE_WRITE_UNSUPPORTED(),
         namespace.LifecycleWriteUnsupportedException,
         'E_LIFECYCLE_WRITE_UNSUPPORTED',
-        'Bulk lifecycle writes do not support limit clauses',
+        'Bulk lifecycle writes do not support many-to-many or has-many-through builders; query the related model by its IDs instead',
       ],
       [
         new namespace.E_MODEL_SOFT_DELETE('PlainUser'),
