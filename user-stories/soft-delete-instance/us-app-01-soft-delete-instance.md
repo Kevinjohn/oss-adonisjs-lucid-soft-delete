@@ -12,7 +12,7 @@ As application code using a `SoftDeletes` model, I want to delete a persisted in
 ## Acceptance criteria
 
 - On a persisted, active instance, `delete()` and `deleteQuietly()` set `deletedAt` to the current local `DateTime`; the former uses Lucid `save()`, the latter `saveQuietly()`.
-- `delete()` runs Lucid's `beforeDelete` and `afterDelete` hooks around the soft-delete write, and the write itself runs the `beforeUpdate`, `beforeSave`, `afterUpdate` and `afterSave` hooks; `deleteQuietly()` runs none. After the call, the row remains stored, `deletedAt` is set, and the instance's `$isDeleted` is reset in `finally`.
+- `delete()` runs Lucid's `beforeDelete` and `afterDelete` hooks around the soft-delete write, and the write itself runs the `beforeUpdate`, `beforeSave`, `afterUpdate` and `afterSave` hooks; `deleteQuietly()` runs none. After a successful soft delete the row remains stored and `deletedAt` is set. The normal `delete()` path resets `$isDeleted` in `finally`; the quiet soft path calls `saveQuietly()` directly.
 - An unsaved instance is rejected with `E_MODEL_NOT_PERSISTED`. A trashed instance without a dirty `deletedAt` is skipped; a physically deleted instance or a force flag delegates to Lucid's physical-delete path, which can reject an already deleted instance.
 - For a fetched projection without `deletedAt`, the mixin reads the mapped column by persisted primary key on the model write client. A stored timestamp skips the write, preserving the timestamp and unrelated dirty attributes. An active row follows the normal or quiet path.
 - A write error propagates. `persistDeletedAt` restores the previous in-memory timestamp only when Lucid has not advanced `$original`; an after-save hook can fail after the write completed.

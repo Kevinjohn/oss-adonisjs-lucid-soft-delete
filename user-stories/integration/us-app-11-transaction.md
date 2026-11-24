@@ -27,7 +27,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Attach transaction client or fetch through it"] --> B["Perform lifecycle write and bookkeeping"]
+    A["Attach transaction client or fetch model through it"] --> B["delete, deleteQuietly, restore or forceDelete uses model client; caller writes bookkeeping"]
     B -->|Failure| E["Caller rolls back"]
     B -->|Success| C{"Caller commits?"}
     C -->|No| E

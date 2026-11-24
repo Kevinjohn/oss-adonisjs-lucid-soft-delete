@@ -6,7 +6,7 @@ As application code using a `SoftDeletes` model, I want to reload an instance by
 **Access:** Application code holding a model instance. The host application owns access policy and any attached transaction.
 **Entry:** Call the Lucid instance method `refresh()`.
 **Documentation:** [Model fetches and builder lifecycle](../../docs/reference/scope-contract.md#model-fetches-and-builder-lifecycle).
-**Source:** [SoftDeletes query override](../../src/mixin.ts#L197).
+**Source:** [SoftDeletes query override](../../src/mixin.ts#L256).
 **Coverage:** [Scope tests](../../tests/scope.spec.ts#L426), [custom deletion column and transaction](../../tests/lifecycle.spec.ts#L875), [rollback tests](../../tests/transactions.spec.ts#L73).
 
 ## Acceptance criteria
@@ -41,4 +41,4 @@ flowchart TD
     G -->|Found| I["fill with fetched attributes and hydrate originals"] --> D
 ```
 
-**Code references:** [query override](../../src/mixin.ts#L197), [beforeFind](../../src/mixin.ts#L131), [applyScope](../../src/scope.ts#L76), [Lucid refresh contract](../../docs/reference/scope-contract.md#model-fetches-and-builder-lifecycle), [refresh tests](../../tests/scope.spec.ts#L426).
+**Code references:** [query override](../../src/mixin.ts#L256), [beforeFind](../../src/mixin.ts#L192), [applyScope](../../src/scope.ts#L76), [Lucid refresh contract](../../docs/reference/scope-contract.md#model-fetches-and-builder-lifecycle), [refresh tests](../../tests/scope.spec.ts#L426).

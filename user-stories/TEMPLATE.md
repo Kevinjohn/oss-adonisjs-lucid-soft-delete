@@ -49,10 +49,12 @@ flowchart TD
     C -->|Soft| G{"Quiet method?"}
     G -->|No| H["super.delete runs before:delete, then overridden $getQueryFor"]
     H --> I["persistDeletedAt with DateTime.local()"]
-    G -->|Yes| J["persistDeletedAt with quietly = true"]
+    G -->|Yes| J["persistDeletedAt with skipHooks = true"]
     I --> K["model.save runs update and save hooks, then after:delete runs"]
     J --> L["model.saveQuietly omits hooks"]
-    K --> M["delete finally resets $isDeleted, including on failure"]
+    H -->|Failure| M["delete finally resets $isDeleted, including on failure"]
+    I -->|Failure| M
+    K --> M
     L --> N["Return, or propagate persistence error"]
 ```
 
