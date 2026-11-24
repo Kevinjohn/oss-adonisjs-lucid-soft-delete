@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.3 - 2026-11-24
+
+- Clarify the documentation link rewriter’s registration and refresh the user story catalogue.
+
 ## 0.3.2 - 2026-11-22
 
 ### Added
