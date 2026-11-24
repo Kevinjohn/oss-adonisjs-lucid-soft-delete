@@ -7,10 +7,11 @@
  * file that was distributed with this source code.
  */
 
+import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
-import { errors } from '../index.js'
+import { errors, SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
 
@@ -34,6 +35,29 @@ type SoftDeleteMacros = {
 test.group('Builder macro runtime guard', (group) => {
   group.setup(() => {
     extendModelQueryBuilder(ModelQueryBuilder)
+  })
+
+  test('a soft-delete model without its mapped column has a distinct raw cause', async ({
+    assert,
+  }) => {
+    const db = await createDatabase()
+    await createTables(db)
+    class MissingColumn extends compose(BaseModel, SoftDeletes) {
+      static table = 'users'
+
+      @column({ isPrimary: true })
+      declare id: number
+    }
+    MissingColumn.boot()
+    MissingColumn.$columnsDefinitions.delete('deletedAt')
+
+    const error = await MissingColumn.query()
+      .restore()
+      .catch((failure: unknown) => failure)
+    assert.instanceOf(error, errors.E_MODEL_SOFT_DELETE_COLUMN_MISSING)
+    assert.propertyVal(error, 'code', 'E_MODEL_SOFT_DELETE_COLUMN_MISSING')
+    assert.propertyVal(error, 'status', 500)
+    assert.propertyVal(error, 'message', 'MissingColumn does not declare its deletedAt column')
   })
 
   test('{$self} rejects a model without SoftDeletes')
