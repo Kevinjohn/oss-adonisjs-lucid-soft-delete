@@ -22,7 +22,7 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 Requires Node.js 24+, AdonisJS 7, Lucid 22 and Luxon 3.4.4+ (3.x). TypeScript is an optional peer supported at `^5.9.3 || ^6.0.3`; install a supported version separately if your application uses TypeScript. The package's declarations expose Luxon's `DateTime` type, so TypeScript applications that do not already have Luxon declarations should install `@types/luxon`.
 
 ```sh
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.3.3/kevinjohn-adonisjs-lucid-soft-delete-0.3.3.tgz luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.4.0/kevinjohn-adonisjs-lucid-soft-delete-0.4.0.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
@@ -106,10 +106,8 @@ purge a row deliberately.
 
 Import `errors` from `@kevinjohn/adonisjs-lucid-soft-delete` and identify package exceptions by
 their stable code constructors, such as `error instanceof errors.E_MODEL_NOT_PERSISTED`.
-The unreleased API exposes each named class in the namespace for instance type annotations.
-See the [current error reference](docs/reference/README.md#errors) for the unreleased API or the
-[v0.3.3 reference](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/v0.3.3/docs/reference/README.md#errors)
-for the published version.
+Each named class is also available in the namespace for instance type annotations.
+See the [error reference](docs/reference/README.md#errors) for all exports.
 
 ## Contributing
 
