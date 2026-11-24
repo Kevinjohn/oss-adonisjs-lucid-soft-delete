@@ -106,8 +106,10 @@ purge a row deliberately.
 
 Import `errors` from `@kevinjohn/adonisjs-lucid-soft-delete` and identify package exceptions by
 their stable code constructors, such as `error instanceof errors.E_MODEL_NOT_PERSISTED`.
-The namespace also exposes the named classes for type annotations. See the
-[error reference](docs/reference/README.md#errors) for all codes and their causes.
+The unreleased API exposes each named class in the namespace for instance type annotations.
+See the [current error reference](docs/reference/README.md#errors) for the unreleased API or the
+[v0.3.3 reference](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/blob/v0.3.3/docs/reference/README.md#errors)
+for the published version.
 
 ## Contributing
 

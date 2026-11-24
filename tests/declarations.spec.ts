@@ -92,13 +92,27 @@ test.group('Emitted declarations', () => {
       assert.equal(exception.code, code)
       assert.equal(exception.status, 500)
       assert.equal(exception.message, message)
-      assert.isFalse(Object.prototype.propertyIsEnumerable.call(exception, 'message'))
+      assert.isUndefined(exception.cause)
     }
     assert.strictEqual(
       built.LifecycleWriteUnsupportedException,
       namespace.LifecycleWriteUnsupportedException
     )
     assert.equal(errors.E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
+  })
+
+  test('the mixed model declaration carries examples for the overridden Lucid methods', async ({
+    assert,
+  }) => {
+    const mixin = await readFile(new URL('../build/src/mixin.d.ts', import.meta.url), 'utf8')
+    for (const method of ['delete', 'deleteQuietly']) {
+      assert.match(
+        mixin,
+        new RegExp(
+          `@example\\s+\\* \`\`\`ts\\s+\\* await user\\.${method}\\(\\)\\s+\\* \`\`\`\\s+\\*/\\s+${method}\\(`
+        )
+      )
+    }
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {

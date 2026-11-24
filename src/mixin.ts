@@ -22,24 +22,6 @@ export interface SoftDeletesInstance {
   /** Used by the instance deletion path; prefer calling forceDelete(). */
   $forceDelete: boolean
   /**
-   * Marks a persisted instance as deleted through the normal model hooks.
-   *
-   * @example
-   * ```ts
-   * await user.delete()
-   * ```
-   */
-  delete(): Promise<void>
-  /**
-   * Marks a persisted instance as deleted without running model hooks.
-   *
-   * @example
-   * ```ts
-   * await user.deleteQuietly()
-   * ```
-   */
-  deleteQuietly(): Promise<void>
-  /**
    * Clears the deletion timestamp of a persisted instance through the normal save hooks.
    *
    * @example
@@ -149,14 +131,34 @@ export interface SoftDeletesStatics {
 
 /**
  * The class `SoftDeletes(superclass)` returns: the superclass statics plus `SoftDeletesStatics`,
- * constructing instances of the superclass that also carry `SoftDeletesInstance`.
+ * constructing instances with `SoftDeletesInstance` and the overridden Lucid delete methods.
  */
 export type SoftDeletesConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
   T,
   'constructor'
 > &
   SoftDeletesStatics & {
-    new (...args: any[]): InstanceType<T> & SoftDeletesInstance
+    new (...args: any[]): InstanceType<T> &
+      SoftDeletesInstance & {
+        /**
+         * Marks a persisted instance as deleted through the normal model hooks.
+         *
+         * @example
+         * ```ts
+         * await user.delete()
+         * ```
+         */
+        delete(): Promise<void>
+        /**
+         * Marks a persisted instance as deleted without running model hooks.
+         *
+         * @example
+         * ```ts
+         * await user.deleteQuietly()
+         * ```
+         */
+        deleteQuietly(): Promise<void>
+      }
   }
 
 type ScopedModelQueryBuilder<

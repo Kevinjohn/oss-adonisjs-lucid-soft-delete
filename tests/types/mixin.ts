@@ -127,12 +127,20 @@ export function assertPublicContractTypes(): void {
   const constructor: SoftDeletesConstructor<typeof BaseModel> = SoftDeletes(BaseModel)
   const statics: SoftDeletesStatics = User
   const instance: SoftDeletesInstance = new User()
+  const lifecycleOnly: SoftDeletesInstance = {
+    trashed: false,
+    $forceDelete: false,
+    restore() {
+      return Promise.resolve(this)
+    },
+    forceDelete: () => Promise.resolve(),
+  }
   const configureEntry: (command: Configure) => Promise<void> = configure
 
   // @ts-expect-error PLAIN_MODEL_IS_NOT_SOFT_DELETES_STATICS
   const plainStatics: SoftDeletesStatics = BaseModel
 
-  void [constructor, statics, instance, configureEntry, plainStatics]
+  void [constructor, statics, instance, lifecycleOnly, configureEntry, plainStatics]
 }
 
 export { User }

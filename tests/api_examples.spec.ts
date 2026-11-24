@@ -34,8 +34,10 @@ test.group('Public API examples', () => {
         const queryContext =
           text.lastIndexOf("declare module '@adonisjs/lucid/orm'", match.index) === -1
             ? 'const query = User.query()\n'
-            : 'import type { ModelQueryBuilder } from "@adonisjs/lucid/orm"\n' +
-              'declare const query: ModelQueryBuilder & { model: typeof User }\n'
+            : 'import { ModelQueryBuilder } from "@adonisjs/lucid/orm"\n' +
+              'const builder = User.query()\n' +
+              'if (!(builder instanceof ModelQueryBuilder)) throw new TypeError("Expected a Lucid model query")\n' +
+              'const query: ModelQueryBuilder & { model: typeof User } = builder\n'
         const preamble = snippet.startsWith('import ')
           ? ''
           : 'import User from "#models/user"\n' +

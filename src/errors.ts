@@ -33,7 +33,7 @@ export class ModelForceDeletedException extends Exception {
   static message = 'Cannot restore a model instance that was force deleted'
 
   constructor() {
-    super(ModelForceDeletedException.message)
+    super()
   }
 }
 
@@ -43,7 +43,7 @@ export class ModelNotPersistedException extends Exception {
   static message = 'Cannot mutate a model instance that is not persisted'
 
   constructor() {
-    super(ModelNotPersistedException.message)
+    super()
   }
 }
 
@@ -54,7 +54,7 @@ export class ModelUnknownDeletionStateException extends Exception {
     'Cannot restore a model without loading deletedAt; select deletedAt or call refresh()'
 
   constructor() {
-    super(ModelUnknownDeletionStateException.message)
+    super()
   }
 }
 
@@ -64,7 +64,7 @@ export class BulkReceiptRequiresTransactionException extends Exception {
   static message = 'Bulk lifecycle receipts require a caller-owned transaction client'
 
   constructor() {
-    super(BulkReceiptRequiresTransactionException.message)
+    super()
   }
 }
 
