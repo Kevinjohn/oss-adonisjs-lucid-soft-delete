@@ -37,7 +37,7 @@
     "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
     "pretest": "pnpm lint",
     "test": "c8 pnpm quick:test",
-    "test:built-exports": "cross-env TEST_BUILT_EXPORTS=1 pnpm quick:test --files=declarations.spec.ts,package_exports.spec.ts",
+    "test:built-exports": "cross-env TEST_BUILT_EXPORTS=1 pnpm quick:test --files=declarations.spec.ts,package_exports.spec.ts,api_examples.spec.ts",
     "test:consumer": "node --import=@poppinss/ts-exec --enable-source-maps bin/test_consumer.ts",
     "test:pg": "bash bin/pg.sh test",
     "pg:start": "bash bin/pg.sh start",

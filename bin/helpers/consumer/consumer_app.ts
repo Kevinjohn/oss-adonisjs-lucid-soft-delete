@@ -116,7 +116,7 @@ export function verifyContract(candidate: unknown, model: typeof BaseModel, exam
     args: [
       '--input-type=module',
       '-e',
-      `import assert from 'node:assert/strict'; import { E_MODEL_SOFT_DELETE, errors } from '${packageName}'; assert.equal(errors.E_MODEL_SOFT_DELETE, E_MODEL_SOFT_DELETE)`,
+      `import assert from 'node:assert/strict'; import { errors } from '${packageName}'; const error = new errors.E_MODEL_SOFT_DELETE('User'); assert.ok(error instanceof errors.ModelSoftDeleteException); assert.equal(error.code, 'E_MODEL_SOFT_DELETE')`,
     ],
     cwd: appRoot,
     environment,

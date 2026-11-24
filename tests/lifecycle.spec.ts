@@ -22,11 +22,7 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { SoftDeletes } from '../src/mixin.js'
-import {
-  E_MODEL_FORCE_DELETED,
-  E_MODEL_NOT_PERSISTED,
-  E_MODEL_UNKNOWN_DELETION_STATE,
-} from '../src/errors.js'
+import { errors } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables, dbClient } from './helpers.js'
 
@@ -674,19 +670,19 @@ test.group('Soft-delete lifecycle', (group) => {
     record.fill({ username: 'unsaved', email: 'unsaved@example.test' })
     assert.isFalse(record.trashed)
 
-    const errors: unknown[] = []
+    const failures: unknown[] = []
     for (const operation of [() => record.delete(), () => record.deleteQuietly()]) {
       try {
         await operation()
       } catch (error) {
-        errors.push(error)
+        failures.push(error)
       }
     }
-    assert.lengthOf(errors, 2)
-    for (const error of errors) {
-      assert.instanceOf(error, E_MODEL_NOT_PERSISTED)
-      assert.equal((error as { code: string }).code, E_MODEL_NOT_PERSISTED.code)
-      assert.equal((error as { status: number }).status, E_MODEL_NOT_PERSISTED.status)
+    assert.lengthOf(failures, 2)
+    for (const error of failures) {
+      assert.instanceOf(error, errors.E_MODEL_NOT_PERSISTED)
+      assert.equal((error as { code: string }).code, errors.E_MODEL_NOT_PERSISTED.code)
+      assert.equal((error as { status: number }).status, errors.E_MODEL_NOT_PERSISTED.status)
     }
 
     assert.equal(
@@ -726,9 +722,9 @@ test.group('Soft-delete lifecycle', (group) => {
           await record.restore()
           assert.fail('Expected restore to reject an unpersisted instance')
         } catch (error) {
-          assert.instanceOf(error, E_MODEL_NOT_PERSISTED)
-          assert.equal((error as { code: string }).code, E_MODEL_NOT_PERSISTED.code)
-          assert.equal((error as { status: number }).status, E_MODEL_NOT_PERSISTED.status)
+          assert.instanceOf(error, errors.E_MODEL_NOT_PERSISTED)
+          assert.equal((error as { code: string }).code, errors.E_MODEL_NOT_PERSISTED.code)
+          assert.equal((error as { status: number }).status, errors.E_MODEL_NOT_PERSISTED.status)
         }
 
         assert.deepEqual(record.$attributes, attributesBefore)
@@ -796,9 +792,12 @@ test.group('Soft-delete lifecycle', (group) => {
       }
 
       assert.isDefined(error)
-      assert.instanceOf(error, E_MODEL_UNKNOWN_DELETION_STATE)
-      assert.equal((error as { code: string }).code, E_MODEL_UNKNOWN_DELETION_STATE.code)
-      assert.equal((error as { status: number }).status, E_MODEL_UNKNOWN_DELETION_STATE.status)
+      assert.instanceOf(error, errors.E_MODEL_UNKNOWN_DELETION_STATE)
+      assert.equal((error as { code: string }).code, errors.E_MODEL_UNKNOWN_DELETION_STATE.code)
+      assert.equal(
+        (error as { status: number }).status,
+        errors.E_MODEL_UNKNOWN_DELETION_STATE.status
+      )
     }
 
     assert.deepEqual(
@@ -826,7 +825,7 @@ test.group('Soft-delete lifecycle', (group) => {
 
     assert.notProperty(projected.$attributes, 'deletedAt')
     assert.equal(Object.hasOwn(projected, 'deletedAt'), hadOwnDeletedAt)
-    await assert.rejects(() => projected.restore(), E_MODEL_UNKNOWN_DELETION_STATE)
+    await assert.rejects(() => projected.restore(), errors.E_MODEL_UNKNOWN_DELETION_STATE)
     const stored = await LifecycleRecord.findOrFail(active.id)
     assert.isNull(stored.deletedAt)
   })
@@ -839,7 +838,7 @@ test.group('Soft-delete lifecycle', (group) => {
     assert.notProperty(projected.$attributes, 'deletedAt')
     await projected.forceDelete()
     assert.isTrue(projected.$isDeleted)
-    await assert.rejects(() => projected.restore(), E_MODEL_FORCE_DELETED)
+    await assert.rejects(() => projected.restore(), errors.E_MODEL_FORCE_DELETED)
     assert.isNull(await LifecycleRecord.withTrashed().where('id', saved.id).first())
   })
 
@@ -899,8 +898,8 @@ test.group('Soft-delete lifecycle', (group) => {
         error = caught
       }
       assert.isDefined(error)
-      assert.instanceOf(error, E_MODEL_UNKNOWN_DELETION_STATE)
-      assert.equal((error as { code: string }).code, E_MODEL_UNKNOWN_DELETION_STATE.code)
+      assert.instanceOf(error, errors.E_MODEL_UNKNOWN_DELETION_STATE)
+      assert.equal((error as { code: string }).code, errors.E_MODEL_UNKNOWN_DELETION_STATE.code)
       assert.deepEqual(
         statements.filter((sql) => /^update\b/i.test(sql)),
         []

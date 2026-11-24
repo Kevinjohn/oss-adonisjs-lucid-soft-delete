@@ -102,6 +102,13 @@ purge a row deliberately.
 - [Maintainer verification](docs/maintainers/verification.md): local test databases and checks.
 - Apps moving from the previous package name or the original package: uninstall the previous package, change its imports to `@kevinjohn/adonisjs-lucid-soft-delete`, remove its provider entry from `adonisrc.ts`, then run `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`. Models that still import the previous package are not recognised by this provider.
 
+## Errors
+
+Import `errors` from `@kevinjohn/adonisjs-lucid-soft-delete` and identify package exceptions by
+their stable code constructors, such as `error instanceof errors.E_MODEL_NOT_PERSISTED`.
+The namespace also exposes the named classes for type annotations. See the
+[error reference](docs/reference/README.md#errors) for all codes and their causes.
+
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks,

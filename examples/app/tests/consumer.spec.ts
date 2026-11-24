@@ -11,9 +11,7 @@ import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import {
-  E_MODEL_FORCE_DELETED,
-  E_MODEL_NOT_PERSISTED,
-  E_MODEL_SOFT_DELETE,
+  errors,
   hasSoftDeletes,
   SOFT_DELETES,
   SoftDeletes,
@@ -30,10 +28,10 @@ test('installed package exports and soft-delete lifecycle', async ({ assert }) =
   assert.isTrue(hasSoftDeletes(User))
   assert.isFalse(hasSoftDeletes(PlainUser))
   assert.isTrue(User[SOFT_DELETES])
-  assert.equal(new E_MODEL_SOFT_DELETE('Plain').code, 'E_MODEL_SOFT_DELETE')
+  assert.equal(new errors.E_MODEL_SOFT_DELETE('Plain').code, 'E_MODEL_SOFT_DELETE')
 
   const unsaved = new User()
-  await assert.rejects(() => unsaved.delete(), E_MODEL_NOT_PERSISTED)
+  await assert.rejects(() => unsaved.delete(), errors.E_MODEL_NOT_PERSISTED)
 
   const user = await User.create({
     email: `consumer-${Date.now()}-${Math.random()}@example.test`,
@@ -60,10 +58,10 @@ test('installed package exports and soft-delete lifecycle', async ({ assert }) =
 
   await user.forceDelete()
   assert.isNull(await User.withTrashed().where('id', user.id).first())
-  await assert.rejects(() => user.restore(), E_MODEL_FORCE_DELETED)
+  await assert.rejects(() => user.restore(), errors.E_MODEL_FORCE_DELETED)
 
   const plainQuery = PlainUser.query() as unknown as { withTrashed(): unknown }
-  assert.throws(() => plainQuery.withTrashed(), E_MODEL_SOFT_DELETE)
+  assert.throws(() => plainQuery.withTrashed(), errors.E_MODEL_SOFT_DELETE)
 })
 
 test('installed bulk lifecycle macros return counts and preserve active rows when purging trash', async ({

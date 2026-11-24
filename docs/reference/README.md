@@ -376,7 +376,7 @@ The package root exports:
 
 | Export                                                                                                              | Purpose                                                                                                                                                                                                |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `errors`                                                                                                            | Namespace with every exception class under its `E_*` name.                                                                                                                                             |
+| `errors`                                                                                                            | Namespace with every package exception under its class name and stable `E_*` code.                                                                                                                     |
 | `configure`                                                                                                         | The `node ace configure` hook. Registers the provider in `adonisrc.ts` through the host's Assembler codemods; a second run changes nothing.                                                            |
 | `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                                                                                           |
 | `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | `SoftDeletesInstance`: `deletedAt`, `trashed`, `restore()`, `forceDelete()`. `SoftDeletesStatics`: the marker, read modes and fetch hooks. `SoftDeletesConstructor<T>`: what `SoftDeletes(T)` returns. |
@@ -410,18 +410,37 @@ When the type guard returns true, it adds the marker to the existing type. A val
 
 ## Errors
 
-| Error                                 | When it is thrown                                                                                                                                                                                                     |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `E_MODEL_SOFT_DELETE`                 | A read mode or lifecycle builder macro is used with a model without the mixin, or the read filter or lifecycle macro needs a mapped `deletedAt` column that is missing.                                               |
-| `E_MODEL_NOT_PERSISTED`               | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
-| `E_MODEL_FORCE_DELETED`               | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
-| `E_MODEL_UNKNOWN_DELETION_STATE`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
-| `E_LIFECYCLE_WRITE_UNSUPPORTED`       | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder, or without receipt mode on a builder with `limit`, `offset` or `groupLimit`.                                                 |
-| `InvalidArgumentsException`           | Rejects `null`, functions, other primitives except `undefined`, arrays, unknown own enumerable string keys, or non-boolean `receipt` values. It comes from `@adonisjs/core/exceptions`.                               |
-| `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
-| `E_BULK_RECEIPT_UNSUPPORTED`          | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
-| `E_BULK_RECEIPT_DIVERGED`             | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
-| Query/hook/database error             | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
+Use the package root’s `errors` namespace to catch a package exception by its stable code.
+Each code and its named class refer to the same constructor. Use the named class as an instance
+type, for example `errors.BulkReceiptDivergedException`.
+
+```ts
+import { errors } from '@kevinjohn/adonisjs-lucid-soft-delete'
+
+try {
+  await user.restore()
+} catch (error) {
+  if (error instanceof errors.E_MODEL_UNKNOWN_DELETION_STATE) {
+    await user.refresh()
+    await user.restore()
+  } else {
+    throw error
+  }
+}
+```
+
+| Code or error                         | Class                                            | When it is thrown                                                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `E_MODEL_SOFT_DELETE`                 | `errors.ModelSoftDeleteException`                | A read mode or lifecycle builder macro is used with a model without the mixin, or the read filter or lifecycle macro needs a mapped `deletedAt` column that is missing.                                               |
+| `E_MODEL_NOT_PERSISTED`               | `errors.ModelNotPersistedException`              | Instance `delete()`, `deleteQuietly()`, `restore()`, or `forceDelete()` is called before the model has been persisted. Persistence is checked before the force-delete flag.                                           |
+| `E_MODEL_FORCE_DELETED`               | `errors.ModelForceDeletedException`              | `restore()` is called on an instance Lucid marks as physically deleted.                                                                                                                                               |
+| `E_MODEL_UNKNOWN_DELETION_STATE`      | `errors.ModelUnknownDeletionStateException`      | `restore()` is called on a fetched instance whose projection omitted `deletedAt`; load the state or call `refresh()` if the row still exists.                                                                         |
+| `E_LIFECYCLE_WRITE_UNSUPPORTED`       | `errors.LifecycleWriteUnsupportedException`      | A bulk lifecycle write is called on a many-to-many or has-many-through relation builder, or without receipt mode on a builder with `limit`, `offset` or `groupLimit`.                                                 |
+| `InvalidArgumentsException`           | `InvalidArgumentsException`                      | Rejects `null`, functions, other primitives except `undefined`, arrays, unknown own enumerable string keys, or non-boolean `receipt` values. It comes from `@adonisjs/core/exceptions`.                               |
+| `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `errors.BulkReceiptRequiresTransactionException` | Receipt mode is used without a caller-owned transaction client.                                                                                                                                                       |
+| `E_BULK_RECEIPT_UNSUPPORTED`          | `errors.BulkReceiptUnsupportedException`         | Receipt mode is used with an unsupported dialect, relation builder, or query shape.                                                                                                                                   |
+| `E_BULK_RECEIPT_DIVERGED`             | `errors.BulkReceiptDivergedException`            | The write changed a different number of rows than the preselect; roll back the caller's transaction.                                                                                                                  |
+| Query/hook/database error             | Depends on the underlying error                  | Propagates from Lucid, the database, or model hooks. Unique conflicts and foreign-key violations require application/schema-specific resolution. A failed PostgreSQL statement aborts its transaction until rollback. |
 
 See [troubleshooting](../guide/troubleshooting.md) for recovery steps for projected models, uniqueness conflicts, transactions, and builder write surprises.
 
