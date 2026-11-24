@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress'
-import { githubLinks, repository } from './github_links.mjs'
+import { registerGitHubLinkRewriter, repository } from './github_links.mjs'
 import { nav, sidebar } from './navigation.mjs'
 
 export default defineConfig({
@@ -10,7 +10,7 @@ export default defineConfig({
   lastUpdated: true,
   srcExclude: ['maintainers/**'],
   rewrites: { 'README.md': 'index.md', 'reference/README.md': 'reference/index.md' },
-  markdown: { config: githubLinks },
+  markdown: { config: registerGitHubLinkRewriter },
   transformPageData(pageData) {
     if (pageData.relativePath.startsWith('reference/api/')) {
       pageData.frontmatter.editLink = false

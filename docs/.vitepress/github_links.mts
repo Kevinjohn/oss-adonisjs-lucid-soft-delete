@@ -6,7 +6,7 @@ export const repository = 'https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-
  * Pages link to files outside docs/ (examples, source, changelog) and to maintainer records that
  * the site leaves out. Point those links at GitHub instead of reporting them as dead.
  */
-export function githubLinks(md: any) {
+export function registerGitHubLinkRewriter(md: any) {
   md.core.ruler.push('github_links', (state: any) => {
     const page: string = state.env.relativePath ?? ''
     for (const block of state.tokens) {
