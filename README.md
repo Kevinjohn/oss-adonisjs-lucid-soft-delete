@@ -22,7 +22,7 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 Requires Node.js 24+, AdonisJS 7, Lucid 22 and Luxon 3.4.4+ (3.x). TypeScript is an optional peer supported at `^5.9.3 || ^6.0.3`; install a supported version separately if your application uses TypeScript. The package's declarations expose Luxon's `DateTime` type, so TypeScript applications that do not already have Luxon declarations should install `@types/luxon`.
 
 ```sh
-pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.3.2/kevinjohn-adonisjs-lucid-soft-delete-0.3.2.tgz luxon
+pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.3.3/kevinjohn-adonisjs-lucid-soft-delete-0.3.3.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
