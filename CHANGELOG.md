@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-11-24
+
+### Changed
+
 - Document calls to the mixin, guard, standalone binding, model methods and query macros with type-checked API examples.
-- Expose each exception by class name and stable code in the `errors` namespace. Existing code constructors retain their identities, codes, statuses and messages. For instance type annotations, replace the former type aliases with the named classes:
+- Expose each exception by class name and stable code in the `errors` namespace. Existing code constructors retain their identities, codes, statuses and messages. **Breaking for instance type annotations:** Replace the former type aliases with the named classes:
 
   | Former type                           | Replacement                                      |
   | ------------------------------------- | ------------------------------------------------ |
