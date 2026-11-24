@@ -523,23 +523,24 @@ test.group('Builder receipts', (group) => {
     await createTables(db)
     const trx = await openTransaction(db)
     const base = LifecycleUser.query({ client: trx })
-    const shapes: Array<(query: typeof base) => typeof base> = [
-      (q) => q.join('posts', 'posts.user_id', 'users.id'),
-      (q) => q.groupBy('id'),
-      (q) => q.orderBy('id'),
-      (q) => q.limit(1),
-      (q) => q.limit(0),
-      (q) => q.offset(1),
-      (q) => q.offset(0),
-      (q) => q.count('* as total'),
-      (q) => q.from(db.from('users').as('sub')),
+    const shapes: Array<[(query: typeof base) => typeof base, string]> = [
+      [(q) => q.join('posts', 'posts.user_id', 'users.id'), 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'],
+      [(q) => q.groupBy('id'), 'E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED'],
+      [(q) => q.orderBy('id'), 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'],
+      [(q) => q.limit(1), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
+      [(q) => q.limit(0), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
+      [(q) => q.offset(1), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
+      [(q) => q.offset(0), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
+      [(q) => q.count('* as total'), 'E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED'],
+      [(q) => q.from(db.from('users').as('sub')), 'E_BULK_RECEIPT_SOURCE_UNSUPPORTED'],
     ]
-    for (const shape of shapes) {
+    for (const [shape, code] of shapes) {
       const start = statements.length
-      await assert.rejects(
-        () => shape(LifecycleUser.query({ client: trx })).softDelete({ receipt: true }),
-        errors.E_BULK_RECEIPT_UNSUPPORTED
-      )
+      const error = await shape(LifecycleUser.query({ client: trx }))
+        .softDelete({ receipt: true })
+        .catch((failure: unknown) => failure)
+      assert.instanceOf(error, errors.E_BULK_RECEIPT_UNSUPPORTED)
+      assert.propertyVal(error, 'code', code)
       assert.lengthOf(statements.slice(start), 0)
     }
     await trx.rollback()

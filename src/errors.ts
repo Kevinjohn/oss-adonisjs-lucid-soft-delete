@@ -99,3 +99,72 @@ export const E_MODEL_UNKNOWN_DELETION_STATE = ModelUnknownDeletionStateException
 export const E_BULK_RECEIPT_REQUIRES_TRANSACTION = BulkReceiptRequiresTransactionException
 export const E_BULK_RECEIPT_UNSUPPORTED = BulkReceiptUnsupportedException
 export const E_BULK_RECEIPT_DIVERGED = BulkReceiptDivergedException
+
+/** The lifecycle write includes a limit, offset or group limit. */
+export class LifecycleWriteWindowUnsupportedException extends LifecycleWriteUnsupportedException {
+  static code = 'E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED = LifecycleWriteWindowUnsupportedException
+
+/** The soft-delete model does not declare its deletedAt column. */
+export class ModelSoftDeleteColumnMissingException extends ModelSoftDeleteException {
+  static code = 'E_MODEL_SOFT_DELETE_COLUMN_MISSING'
+  static status = 500
+
+  constructor(modelName: string) {
+    super(modelName)
+    this.message = `${modelName} does not declare its deletedAt column`
+  }
+}
+
+export const E_MODEL_SOFT_DELETE_COLUMN_MISSING = ModelSoftDeleteColumnMissingException
+
+/** The receipt cannot preserve constraints from a single-parent relation builder. */
+export class BulkReceiptRelationUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_RELATION_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_RELATION_UNSUPPORTED = BulkReceiptRelationUnsupportedException
+
+/** The receipt query has a group limit or group ordering that cloning would lose. */
+export class BulkReceiptGroupWindowUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED = BulkReceiptGroupWindowUnsupportedException
+
+/** The receipt query aggregates or combines rows instead of selecting model identities. */
+export class BulkReceiptAggregationUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED = BulkReceiptAggregationUnsupportedException
+
+/** The receipt query has clauses whose write semantics differ across drivers. */
+export class BulkReceiptClausesUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_CLAUSES_UNSUPPORTED = BulkReceiptClausesUnsupportedException
+
+/** The receipt query limits or offsets the rows selected for a write. */
+export class BulkReceiptWindowUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_WINDOW_UNSUPPORTED = BulkReceiptWindowUnsupportedException
+
+/** The receipt query uses a raw or sub-query source instead of a model table. */
+export class BulkReceiptSourceUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_SOURCE_UNSUPPORTED'
+  static status = 500
+}
+
+export const E_BULK_RECEIPT_SOURCE_UNSUPPORTED = BulkReceiptSourceUnsupportedException

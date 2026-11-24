@@ -9,7 +9,7 @@
 
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
-import { E_MODEL_SOFT_DELETE } from './errors.js'
+import { E_MODEL_SOFT_DELETE_COLUMN_MISSING } from './errors.js'
 import { getSoftDeletesMode } from './mode.js'
 import {
   parseTableAlias,
@@ -69,7 +69,7 @@ function resolveGroupLimit(query: ModelQueryBuilderContract<LucidModel>): GroupL
 
 function requireDeletedAtColumnName(query: ModelQueryBuilderContract<LucidModel>): string {
   const column = query.model.$getColumn('deletedAt')?.columnName
-  if (!column) throw new E_MODEL_SOFT_DELETE(query.model.name)
+  if (!column) throw new E_MODEL_SOFT_DELETE_COLUMN_MISSING(query.model.name)
   return column
 }
 

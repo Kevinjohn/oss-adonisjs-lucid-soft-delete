@@ -8,7 +8,12 @@ import {
   countAffectedRows,
   executeWithReceipt,
 } from '../receipts.js'
-import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.js'
+import {
+  E_LIFECYCLE_WRITE_UNSUPPORTED,
+  E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED,
+  E_MODEL_SOFT_DELETE,
+  E_MODEL_SOFT_DELETE_COLUMN_MISSING,
+} from '../errors.js'
 import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
 import { installModePropagation } from '../propagation.js'
@@ -31,7 +36,8 @@ function assertSoftDeleteModel(model: LucidModel) {
  */
 function assertLifecycleWriteSupported(query: ModelQueryBuilderContract<LucidModel>) {
   assertSoftDeleteModel(query.model)
-  if (!query.model.$getColumn('deletedAt')) throw new E_MODEL_SOFT_DELETE(query.model.name)
+  if (!query.model.$getColumn('deletedAt'))
+    throw new E_MODEL_SOFT_DELETE_COLUMN_MISSING(query.model.name)
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   if (type === 'manyToMany' || type === 'hasManyThrough') {
     throw new E_LIFECYCLE_WRITE_UNSUPPORTED(
@@ -81,7 +87,7 @@ function assertSupportedRowWindow(query: ModelQueryBuilderContract<LucidModel>) 
     (single.offset !== undefined && single.offset !== null) ||
     groupConstraints?.limit !== undefined
   ) {
-    throw new E_LIFECYCLE_WRITE_UNSUPPORTED('limit, offset or groupLimit clauses')
+    throw new E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED('limit, offset or groupLimit clauses')
   }
   return singleRow
 }

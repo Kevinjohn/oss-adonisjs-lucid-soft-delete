@@ -14,6 +14,12 @@ import {
   E_BULK_RECEIPT_DIVERGED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
+  E_BULK_RECEIPT_RELATION_UNSUPPORTED,
+  E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED,
+  E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED,
+  E_BULK_RECEIPT_CLAUSES_UNSUPPORTED,
+  E_BULK_RECEIPT_WINDOW_UNSUPPORTED,
+  E_BULK_RECEIPT_SOURCE_UNSUPPORTED,
 } from './errors.js'
 import { parseTableAlias, qualifyColumnReference } from './table_reference.js'
 
@@ -85,7 +91,7 @@ export function assertReceiptSupported(query: Query): void {
   if (knexQuery.client?.transacting !== true) throw new E_BULK_RECEIPT_REQUIRES_TRANSACTION()
   const type = (query as unknown as { relation?: { type?: string } }).relation?.type
   if (type === 'hasOne' || type === 'belongsTo') {
-    throw new E_BULK_RECEIPT_UNSUPPORTED(
+    throw new E_BULK_RECEIPT_RELATION_UNSUPPORTED(
       `${type} relation builders; query the related model by its IDs instead`
     )
   }
@@ -94,7 +100,7 @@ export function assertReceiptSupported(query: Query): void {
     query as unknown as { groupConstraints?: { limit?: unknown; orderBy?: unknown } }
   ).groupConstraints
   if (groupConstraints?.limit !== undefined || groupConstraints?.orderBy !== undefined) {
-    throw new E_BULK_RECEIPT_UNSUPPORTED('groupLimit or groupOrderBy clauses')
+    throw new E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED('groupLimit or groupOrderBy clauses')
   }
   const flags = query as unknown as {
     hasAggregates?: boolean
@@ -110,20 +116,22 @@ export function assertReceiptSupported(query: Query): void {
     flags.hasGroupBy ||
     flags.hasUnion
   ) {
-    throw new E_BULK_RECEIPT_UNSUPPORTED('aggregate, group by or union queries')
+    throw new E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED('aggregate, group by or union queries')
   }
   if (knexQuery._statements.some((statement) => REJECTED_GROUPINGS.has(statement.grouping))) {
-    throw new E_BULK_RECEIPT_UNSUPPORTED('joins, group by, having, order by or union clauses')
+    throw new E_BULK_RECEIPT_CLAUSES_UNSUPPORTED(
+      'joins, group by, having, order by or union clauses'
+    )
   }
   if (
     (knexQuery._single.limit !== undefined && knexQuery._single.limit !== null) ||
     (knexQuery._single.offset !== undefined && knexQuery._single.offset !== null)
   ) {
-    throw new E_BULK_RECEIPT_UNSUPPORTED('limit or offset clauses')
+    throw new E_BULK_RECEIPT_WINDOW_UNSUPPORTED('limit or offset clauses')
   }
   const table = knexQuery._single.table
   if (typeof table !== 'string' && !parseTableAlias(table)) {
-    throw new E_BULK_RECEIPT_UNSUPPORTED('raw or sub-query from clauses')
+    throw new E_BULK_RECEIPT_SOURCE_UNSUPPORTED('raw or sub-query from clauses')
   }
 }
 

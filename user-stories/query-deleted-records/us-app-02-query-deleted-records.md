@@ -16,7 +16,7 @@ As application code using a `SoftDeletes` model, I want to query active rows or 
 - `ignoreDeletedPaginate()` copies the selected mode to the count query before applying the same read filter.
 - Relation counts, aggregates and existence queries (`withCount`, `withAggregate`, `has`, `whereHas` and variants) automatically apply, once the provider has installed the builder extension, the related model’s read filter even without fetch hooks. Each related model query uses its own mode; callers set `withTrashed()` or `onlyTrashed()` in that relation callback when needed.
 - Fetch paths that bypass model hooks, including `pojo()`, raw queries and manually joined tables, need explicit predicates; the read filter does not cover arbitrary joined or subquery tables.
-- Reads installing a deleted-row predicate require a mapped `deletedAt` column or reject with `E_MODEL_SOFT_DELETE`; `withTrashed()` bypasses that mapping check.
+- Reads installing a deleted-row predicate require a mapped `deletedAt` column or reject with `E_MODEL_SOFT_DELETE_COLUMN_MISSING`; `withTrashed()` bypasses that mapping check.
 
 ## User flow
 
@@ -44,7 +44,7 @@ flowchart TD
     G --> H
     H -->|with| I["Remove read filter"] --> J["Hand off to Lucid applyWhere and query execution"]
     H -->|default or only| K{"Mapped deletion column?"}
-    K -->|No| L["Throw E_MODEL_SOFT_DELETE"]
+    K -->|No| L["Throw E_MODEL_SOFT_DELETE_COLUMN_MISSING"]
     K -->|Yes| M["Add qualified null or not-null predicate, inside the inner query for grouped model fetches"] --> J
 ```
 
