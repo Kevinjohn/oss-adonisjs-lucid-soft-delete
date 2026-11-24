@@ -87,7 +87,7 @@ function assertSupportedRowWindow(query: ModelQueryBuilderContract<LucidModel>) 
     (single.offset !== undefined && single.offset !== null) ||
     groupConstraints?.limit !== undefined
   ) {
-    throw new E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED('limit, offset or groupLimit clauses')
+    throw new E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED()
   }
   return singleRow
 }

@@ -524,9 +524,16 @@ test.group('Builder receipts', (group) => {
     const trx = await openTransaction(db)
     const base = LifecycleUser.query({ client: trx })
     const shapes: Array<[(query: typeof base) => typeof base, string]> = [
-      [(q) => q.join('posts', 'posts.user_id', 'users.id'), 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'],
-      [(q) => q.groupBy('id'), 'E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED'],
-      [(q) => q.orderBy('id'), 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'],
+      [(q) => q.join('posts', 'posts.user_id', 'users.id'), 'E_BULK_RECEIPT_JOIN_UNSUPPORTED'],
+      [(q) => q.groupBy('id'), 'E_BULK_RECEIPT_GROUP_UNSUPPORTED'],
+      [
+        (q) => {
+          q.knexQuery.groupBy('id')
+          return q
+        },
+        'E_BULK_RECEIPT_GROUP_UNSUPPORTED',
+      ],
+      [(q) => q.orderBy('id'), 'E_BULK_RECEIPT_ORDER_UNSUPPORTED'],
       [(q) => q.limit(1), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
       [(q) => q.limit(0), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],
       [(q) => q.offset(1), 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'],

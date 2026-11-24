@@ -104,6 +104,11 @@ export const E_BULK_RECEIPT_DIVERGED = BulkReceiptDivergedException
 export class LifecycleWriteWindowUnsupportedException extends LifecycleWriteUnsupportedException {
   static code = 'E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED'
   static status = 500
+  static message = 'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
+
+  constructor() {
+    super('limit, offset or groupLimit clauses')
+  }
 }
 
 export const E_LIFECYCLE_WRITE_WINDOW_UNSUPPORTED = LifecycleWriteWindowUnsupportedException
@@ -133,6 +138,11 @@ export const E_BULK_RECEIPT_RELATION_UNSUPPORTED = BulkReceiptRelationUnsupporte
 export class BulkReceiptGroupWindowUnsupportedException extends BulkReceiptUnsupportedException {
   static code = 'E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED'
   static status = 500
+  static message = 'Bulk lifecycle receipts do not support groupLimit or groupOrderBy clauses'
+
+  constructor() {
+    super('groupLimit or groupOrderBy clauses')
+  }
 }
 
 export const E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED = BulkReceiptGroupWindowUnsupportedException
@@ -141,22 +151,24 @@ export const E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED = BulkReceiptGroupWindowUns
 export class BulkReceiptAggregationUnsupportedException extends BulkReceiptUnsupportedException {
   static code = 'E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED'
   static status = 500
+  static message = 'Bulk lifecycle receipts do not support aggregate queries'
+
+  constructor() {
+    super('aggregate queries')
+  }
 }
 
 export const E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED = BulkReceiptAggregationUnsupportedException
-
-/** The receipt query has clauses whose write semantics differ across drivers. */
-export class BulkReceiptClausesUnsupportedException extends BulkReceiptUnsupportedException {
-  static code = 'E_BULK_RECEIPT_CLAUSES_UNSUPPORTED'
-  static status = 500
-}
-
-export const E_BULK_RECEIPT_CLAUSES_UNSUPPORTED = BulkReceiptClausesUnsupportedException
 
 /** The receipt query limits or offsets the rows selected for a write. */
 export class BulkReceiptWindowUnsupportedException extends BulkReceiptUnsupportedException {
   static code = 'E_BULK_RECEIPT_WINDOW_UNSUPPORTED'
   static status = 500
+  static message = 'Bulk lifecycle receipts do not support limit or offset clauses'
+
+  constructor() {
+    super('limit or offset clauses')
+  }
 }
 
 export const E_BULK_RECEIPT_WINDOW_UNSUPPORTED = BulkReceiptWindowUnsupportedException
@@ -165,6 +177,76 @@ export const E_BULK_RECEIPT_WINDOW_UNSUPPORTED = BulkReceiptWindowUnsupportedExc
 export class BulkReceiptSourceUnsupportedException extends BulkReceiptUnsupportedException {
   static code = 'E_BULK_RECEIPT_SOURCE_UNSUPPORTED'
   static status = 500
+  static message = 'Bulk lifecycle receipts do not support raw or sub-query from clauses'
+
+  constructor() {
+    super('raw or sub-query from clauses')
+  }
 }
 
 export const E_BULK_RECEIPT_SOURCE_UNSUPPORTED = BulkReceiptSourceUnsupportedException
+
+/** Receipt row selection cannot preserve group by queries. */
+export class BulkReceiptGroupUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_GROUP_UNSUPPORTED'
+  static status = 500
+  static message = 'Bulk lifecycle receipts do not support group by queries'
+
+  constructor() {
+    super('group by queries')
+  }
+}
+
+export const E_BULK_RECEIPT_GROUP_UNSUPPORTED = BulkReceiptGroupUnsupportedException
+
+/** Receipt row selection cannot preserve union queries. */
+export class BulkReceiptUnionUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_UNION_UNSUPPORTED'
+  static status = 500
+  static message = 'Bulk lifecycle receipts do not support union queries'
+
+  constructor() {
+    super('union queries')
+  }
+}
+
+export const E_BULK_RECEIPT_UNION_UNSUPPORTED = BulkReceiptUnionUnsupportedException
+
+/** Receipt row selection cannot preserve join clauses. */
+export class BulkReceiptJoinUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_JOIN_UNSUPPORTED'
+  static status = 500
+  static message = 'Bulk lifecycle receipts do not support join clauses'
+
+  constructor() {
+    super('join clauses')
+  }
+}
+
+export const E_BULK_RECEIPT_JOIN_UNSUPPORTED = BulkReceiptJoinUnsupportedException
+
+/** Receipt row selection cannot preserve having clauses. */
+export class BulkReceiptHavingUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_HAVING_UNSUPPORTED'
+  static status = 500
+  static message = 'Bulk lifecycle receipts do not support having clauses'
+
+  constructor() {
+    super('having clauses')
+  }
+}
+
+export const E_BULK_RECEIPT_HAVING_UNSUPPORTED = BulkReceiptHavingUnsupportedException
+
+/** Receipt row selection cannot preserve order by clauses. */
+export class BulkReceiptOrderUnsupportedException extends BulkReceiptUnsupportedException {
+  static code = 'E_BULK_RECEIPT_ORDER_UNSUPPORTED'
+  static status = 500
+  static message = 'Bulk lifecycle receipts do not support order by clauses'
+
+  constructor() {
+    super('order by clauses')
+  }
+}
+
+export const E_BULK_RECEIPT_ORDER_UNSUPPORTED = BulkReceiptOrderUnsupportedException

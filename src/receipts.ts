@@ -17,7 +17,11 @@ import {
   E_BULK_RECEIPT_RELATION_UNSUPPORTED,
   E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED,
   E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED,
-  E_BULK_RECEIPT_CLAUSES_UNSUPPORTED,
+  E_BULK_RECEIPT_GROUP_UNSUPPORTED,
+  E_BULK_RECEIPT_UNION_UNSUPPORTED,
+  E_BULK_RECEIPT_JOIN_UNSUPPORTED,
+  E_BULK_RECEIPT_HAVING_UNSUPPORTED,
+  E_BULK_RECEIPT_ORDER_UNSUPPORTED,
   E_BULK_RECEIPT_WINDOW_UNSUPPORTED,
   E_BULK_RECEIPT_SOURCE_UNSUPPORTED,
 } from './errors.js'
@@ -63,7 +67,6 @@ type KnexLike = {
 }
 
 const SUPPORTED_DIALECTS = new Set(['postgres', 'mysql', 'sqlite3', 'better-sqlite3'])
-const REJECTED_GROUPINGS = new Set(['join', 'group', 'having', 'order', 'union'])
 
 /** Returns true for receipt mode. Throws InvalidArgumentsException for malformed options. */
 export function requireValidReceiptMode(options: unknown): boolean {
@@ -100,7 +103,7 @@ export function assertReceiptSupported(query: Query): void {
     query as unknown as { groupConstraints?: { limit?: unknown; orderBy?: unknown } }
   ).groupConstraints
   if (groupConstraints?.limit !== undefined || groupConstraints?.orderBy !== undefined) {
-    throw new E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED('groupLimit or groupOrderBy clauses')
+    throw new E_BULK_RECEIPT_GROUP_WINDOW_UNSUPPORTED()
   }
   const flags = query as unknown as {
     hasAggregates?: boolean
@@ -112,26 +115,37 @@ export function assertReceiptSupported(query: Query): void {
       (statement) =>
         statement.grouping === 'columns' &&
         (statement.type === 'aggregate' || statement.type === 'aggregateRaw')
-    ) ||
-    flags.hasGroupBy ||
-    flags.hasUnion
-  ) {
-    throw new E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED('aggregate, group by or union queries')
-  }
-  if (knexQuery._statements.some((statement) => REJECTED_GROUPINGS.has(statement.grouping))) {
-    throw new E_BULK_RECEIPT_CLAUSES_UNSUPPORTED(
-      'joins, group by, having, order by or union clauses'
     )
+  ) {
+    throw new E_BULK_RECEIPT_AGGREGATION_UNSUPPORTED()
+  }
+  if (
+    flags.hasGroupBy ||
+    knexQuery._statements.some((statement) => statement.grouping === 'group')
+  ) {
+    throw new E_BULK_RECEIPT_GROUP_UNSUPPORTED()
+  }
+  if (flags.hasUnion || knexQuery._statements.some((statement) => statement.grouping === 'union')) {
+    throw new E_BULK_RECEIPT_UNION_UNSUPPORTED()
+  }
+  if (knexQuery._statements.some((statement) => statement.grouping === 'join')) {
+    throw new E_BULK_RECEIPT_JOIN_UNSUPPORTED()
+  }
+  if (knexQuery._statements.some((statement) => statement.grouping === 'having')) {
+    throw new E_BULK_RECEIPT_HAVING_UNSUPPORTED()
+  }
+  if (knexQuery._statements.some((statement) => statement.grouping === 'order')) {
+    throw new E_BULK_RECEIPT_ORDER_UNSUPPORTED()
   }
   if (
     (knexQuery._single.limit !== undefined && knexQuery._single.limit !== null) ||
     (knexQuery._single.offset !== undefined && knexQuery._single.offset !== null)
   ) {
-    throw new E_BULK_RECEIPT_WINDOW_UNSUPPORTED('limit or offset clauses')
+    throw new E_BULK_RECEIPT_WINDOW_UNSUPPORTED()
   }
   const table = knexQuery._single.table
   if (typeof table !== 'string' && !parseTableAlias(table)) {
-    throw new E_BULK_RECEIPT_SOURCE_UNSUPPORTED('raw or sub-query from clauses')
+    throw new E_BULK_RECEIPT_SOURCE_UNSUPPORTED()
   }
 }
 
