@@ -10,11 +10,7 @@
 import { test } from '@japa/runner'
 import { InvalidArgumentsException } from '@adonisjs/core/exceptions'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
-import {
-  E_BULK_RECEIPT_DIVERGED,
-  E_BULK_RECEIPT_REQUIRES_TRANSACTION,
-  E_BULK_RECEIPT_UNSUPPORTED,
-} from '../index.js'
+import { errors } from '../index.js'
 import {
   assertReceiptSupported,
   executeWithReceipt,
@@ -100,14 +96,14 @@ test.group('Receipt helpers', () => {
     const unsupported = {
       client: { dialect: { name: 'mssql' } },
     } as unknown as ModelQueryBuilderContract<LucidModel>
-    assert.throws(() => assertReceiptSupported(unsupported), E_BULK_RECEIPT_UNSUPPORTED)
+    assert.throws(() => assertReceiptSupported(unsupported), errors.E_BULK_RECEIPT_UNSUPPORTED)
     const missingTransaction = {
       client: { dialect: { name: 'postgres' } },
       knexQuery: {},
     } as unknown as ModelQueryBuilderContract<LucidModel>
     assert.throws(
       () => assertReceiptSupported(missingTransaction),
-      E_BULK_RECEIPT_REQUIRES_TRANSACTION
+      errors.E_BULK_RECEIPT_REQUIRES_TRANSACTION
     )
   })
 
@@ -196,8 +192,8 @@ test.group('Receipt helpers', () => {
       caught = error
     }
     assert.isTrue(wrote)
-    assert.instanceOf(caught, E_BULK_RECEIPT_DIVERGED)
-    const error = caught as E_BULK_RECEIPT_DIVERGED
+    assert.instanceOf(caught, errors.E_BULK_RECEIPT_DIVERGED)
+    const error = caught as errors.BulkReceiptDivergedException
     assert.equal(error.expected, 2)
     assert.equal(error.actual, 0)
     assert.equal(error.code, 'E_BULK_RECEIPT_DIVERGED')

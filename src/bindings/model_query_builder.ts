@@ -87,7 +87,16 @@ function assertSupportedRowWindow(query: ModelQueryBuilderContract<LucidModel>) 
 }
 
 /**
- * Define SoftDeletes binding to ModelQueryBuilder
+ * Registers the soft-delete macros and query wrappers on a Lucid model query builder.
+ * The package provider calls this during boot. Call it directly for a standalone Lucid setup.
+ *
+ * @example
+ * ```ts
+ * import { extendModelQueryBuilder } from '@kevinjohn/adonisjs-lucid-soft-delete/bindings'
+ * import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
+ *
+ * extendModelQueryBuilder(ModelQueryBuilder)
+ * ```
  */
 export function extendModelQueryBuilder(builder: any) {
   installModePropagation(builder)

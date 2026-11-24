@@ -20,6 +20,16 @@ export type SoftDeletesModel = LucidModel & {
  * typed as a Lucid model narrows to `SoftDeletesModel`; any other value gains only the marker, so a
  * true result does not prove a Lucid model, and a plain object carrying the marker also passes. A
  * `deletedAt` column alone does not set the marker.
+ *
+ * @example
+ * ```ts
+ * import { hasSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+ * import type { LucidModel } from '@adonisjs/lucid/types/model'
+ *
+ * function queryAll(model: LucidModel) {
+ *   return hasSoftDeletes(model) ? model.query().withTrashed() : model.query()
+ * }
+ * ```
  */
 export function hasSoftDeletes<Model>(
   model: Model

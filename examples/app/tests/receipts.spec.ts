@@ -12,10 +12,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import {
-  E_BULK_RECEIPT_REQUIRES_TRANSACTION,
-  SoftDeletes,
-} from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { errors, SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
 class Parent extends compose(BaseModel, SoftDeletes) {
   static table = 'lifecycle_parents'
@@ -116,7 +113,7 @@ test.group('Installed receipts', (group) => {
     const row = await seed('outside-transaction')
     await assert.rejects(
       () => Parent.query().where('id', row.id).softDelete({ receipt: true }),
-      E_BULK_RECEIPT_REQUIRES_TRANSACTION
+      errors.E_BULK_RECEIPT_REQUIRES_TRANSACTION
     )
     const unchanged = await Parent.findOrFail(row.id)
     assert.isFalse(unchanged.trashed)

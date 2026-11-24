@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Document calls to the mixin, guard, standalone binding, model methods and query macros with type-checked API examples.
+- Expose each exception by class name and stable code in the `errors` namespace. Existing code constructors retain their identities, codes, statuses and messages. For instance type annotations, replace the former type aliases with the named classes:
+
+  | Former type                           | Replacement                                      |
+  | ------------------------------------- | ------------------------------------------------ |
+  | `E_MODEL_SOFT_DELETE`                 | `errors.ModelSoftDeleteException`                |
+  | `E_MODEL_FORCE_DELETED`               | `errors.ModelForceDeletedException`              |
+  | `E_MODEL_NOT_PERSISTED`               | `errors.ModelNotPersistedException`              |
+  | `E_MODEL_UNKNOWN_DELETION_STATE`      | `errors.ModelUnknownDeletionStateException`      |
+  | `E_BULK_RECEIPT_REQUIRES_TRANSACTION` | `errors.BulkReceiptRequiresTransactionException` |
+  | `E_BULK_RECEIPT_UNSUPPORTED`          | `errors.BulkReceiptUnsupportedException`         |
+  | `E_BULK_RECEIPT_DIVERGED`             | `errors.BulkReceiptDivergedException`            |
+
 ## 0.3.3 - 2026-11-24
 
 - Clarify the documentation link rewriter’s registration and refresh the user story catalogue.

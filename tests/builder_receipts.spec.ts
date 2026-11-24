@@ -20,12 +20,7 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
 import { randomUUID } from 'node:crypto'
-import {
-  E_BULK_RECEIPT_DIVERGED,
-  E_BULK_RECEIPT_REQUIRES_TRANSACTION,
-  E_BULK_RECEIPT_UNSUPPORTED,
-  SoftDeletes,
-} from '../index.js'
+import { errors, SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { executeWithReceipt } from '../src/receipts.js'
 import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.js'
@@ -467,12 +462,12 @@ test.group('Builder receipts', (group) => {
     const start = statements.length
     await assert.rejects(
       () => parent.related('profile').query().useTransaction(trx).softDelete({ receipt: true }),
-      E_BULK_RECEIPT_UNSUPPORTED
+      errors.E_BULK_RECEIPT_UNSUPPORTED
     )
     assert.lengthOf(statements.slice(start), 0)
     await assert.rejects(
       () => posts[0].related('user').query().useTransaction(trx).softDelete({ receipt: true }),
-      E_BULK_RECEIPT_UNSUPPORTED
+      errors.E_BULK_RECEIPT_UNSUPPORTED
     )
     await assert.rejects(
       () => parent.related('industries').query().useTransaction(trx).softDelete({ receipt: true }),
@@ -513,7 +508,7 @@ test.group('Builder receipts', (group) => {
         const start = statements.length
         await assert.rejects(
           () => shape(query())[operation]({ receipt: true }),
-          E_BULK_RECEIPT_UNSUPPORTED
+          errors.E_BULK_RECEIPT_UNSUPPORTED
         )
         assert.lengthOf(statements.slice(start), 0)
       }
@@ -543,7 +538,7 @@ test.group('Builder receipts', (group) => {
       const start = statements.length
       await assert.rejects(
         () => shape(LifecycleUser.query({ client: trx })).softDelete({ receipt: true }),
-        E_BULK_RECEIPT_UNSUPPORTED
+        errors.E_BULK_RECEIPT_UNSUPPORTED
       )
       assert.lengthOf(statements.slice(start), 0)
     }
@@ -575,7 +570,7 @@ test.group('Builder receipts', (group) => {
     const start = statements.length
     await assert.rejects(
       () => LifecycleUser.query().where('id', user.id).softDelete({ receipt: true }),
-      E_BULK_RECEIPT_REQUIRES_TRANSACTION
+      errors.E_BULK_RECEIPT_REQUIRES_TRANSACTION
     )
     assert.lengthOf(statements.slice(start), 0)
     const unchanged = await db.from('users').where('id', user.id).firstOrFail()
@@ -754,9 +749,9 @@ test.group('Builder receipts', (group) => {
     } catch (error) {
       caught = error
     }
-    assert.instanceOf(caught, E_BULK_RECEIPT_DIVERGED)
-    assert.equal((caught as E_BULK_RECEIPT_DIVERGED).expected, 2)
-    assert.equal((caught as E_BULK_RECEIPT_DIVERGED).actual, 0)
+    assert.instanceOf(caught, errors.E_BULK_RECEIPT_DIVERGED)
+    assert.equal((caught as errors.BulkReceiptDivergedException).expected, 2)
+    assert.equal((caught as errors.BulkReceiptDivergedException).actual, 0)
     await trx.rollback()
     assert.lengthOf(await db.from('users').whereNull('deleted_at'), 2)
   }).skip(dbClient === 'pg', 'single-statement RETURNING path')
@@ -777,9 +772,9 @@ test.group('Builder receipts', (group) => {
     } catch (error) {
       caught = error
     }
-    assert.instanceOf(caught, E_BULK_RECEIPT_DIVERGED)
-    assert.equal((caught as E_BULK_RECEIPT_DIVERGED).expected, 2)
-    assert.equal((caught as E_BULK_RECEIPT_DIVERGED).actual, 0)
+    assert.instanceOf(caught, errors.E_BULK_RECEIPT_DIVERGED)
+    assert.equal((caught as errors.BulkReceiptDivergedException).expected, 2)
+    assert.equal((caught as errors.BulkReceiptDivergedException).actual, 0)
     await trx.rollback()
     assert.lengthOf(await db.from('users').whereNull('deleted_at'), 2)
   }).skip(dbClient !== 'mysql')

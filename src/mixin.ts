@@ -13,7 +13,7 @@ import {
 } from './errors.js'
 import { SOFT_DELETES } from './guard.js'
 
-/** Instance members `SoftDeletes` adds to every model instance; `delete()` keeps Lucid's signature. */
+/** Instance lifecycle methods and state provided by `SoftDeletes`. */
 export interface SoftDeletesInstance {
   /** Deletion time; null is active, while undefined can mean an omitted projection. */
   deletedAt?: DateTime | null
@@ -21,9 +21,23 @@ export interface SoftDeletesInstance {
   readonly trashed: boolean
   /** Used by the instance deletion path; prefer calling forceDelete(). */
   $forceDelete: boolean
-  /** Clears the deletion timestamp of a persisted instance through the normal save hooks. */
+  /**
+   * Clears the deletion timestamp of a persisted instance through the normal save hooks.
+   *
+   * @example
+   * ```ts
+   * await user.restore()
+   * ```
+   */
   restore(): Promise<this>
-  /** Physically deletes the instance. */
+  /**
+   * Physically deletes the instance.
+   *
+   * @example
+   * ```ts
+   * await user.forceDelete()
+   * ```
+   */
   forceDelete(): Promise<void>
 }
 
@@ -91,9 +105,25 @@ export interface SoftDeletesStatics {
     this: Model,
     query: ModelQueryBuilderContract<Model, Result>
   ): ModelQueryBuilderContract<Model, Result>
+  /**
+   * Starts a query that includes active and trashed rows.
+   *
+   * @example
+   * ```ts
+   * const record = await User.withTrashed().where('id', 42).first()
+   * ```
+   */
   withTrashed<Model extends LucidModel>(
     this: Model
   ): ModelQueryBuilderContract<Model, InstanceType<Model>>
+  /**
+   * Starts a query that includes only trashed rows.
+   *
+   * @example
+   * ```ts
+   * const record = await User.onlyTrashed().where('id', 42).first()
+   * ```
+   */
   onlyTrashed<Model extends LucidModel>(
     this: Model
   ): ModelQueryBuilderContract<Model, InstanceType<Model>>
@@ -101,14 +131,34 @@ export interface SoftDeletesStatics {
 
 /**
  * The class `SoftDeletes(superclass)` returns: the superclass statics plus `SoftDeletesStatics`,
- * constructing instances of the superclass that also carry `SoftDeletesInstance`.
+ * constructing instances with `SoftDeletesInstance` and the overridden Lucid delete methods.
  */
 export type SoftDeletesConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
   T,
   'constructor'
 > &
   SoftDeletesStatics & {
-    new (...args: any[]): InstanceType<T> & SoftDeletesInstance
+    new (...args: any[]): InstanceType<T> &
+      SoftDeletesInstance & {
+        /**
+         * Marks a persisted instance as deleted through the normal model hooks.
+         *
+         * @example
+         * ```ts
+         * await user.delete()
+         * ```
+         */
+        delete(): Promise<void>
+        /**
+         * Marks a persisted instance as deleted without running model hooks.
+         *
+         * @example
+         * ```ts
+         * await user.deleteQuietly()
+         * ```
+         */
+        deleteQuietly(): Promise<void>
+      }
   }
 
 type ScopedModelQueryBuilder<
@@ -120,6 +170,15 @@ type ScopedModelQueryBuilder<
  * Composes a Lucid model with the soft-delete lifecycle and read filter.
  * Model fetch hooks exclude deleted rows by default. Register the provider for the
  * builder macros and prototype wrappers. Applications own authorisation and transactions.
+ *
+ * @example
+ * ```ts
+ * import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+ * import { compose } from '@adonisjs/core/helpers'
+ * import { UserSchema } from '#database/schema'
+ *
+ * export default class User extends compose(UserSchema, SoftDeletes) {}
+ * ```
  */
 export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
   superclass: T

@@ -17,7 +17,7 @@ import {
 } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE, SoftDeletes } from '../index.js'
+import { errors, SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
 import { CustomPost, RelationComment, RelationUser, RelationPost } from './fixtures/models.js'
@@ -202,7 +202,7 @@ test.group('Builder lifecycle', (group) => {
     } catch (caught) {
       error = caught
     }
-    assert.instanceOf(error, E_LIFECYCLE_WRITE_UNSUPPORTED)
+    assert.instanceOf(error, errors.E_LIFECYCLE_WRITE_UNSUPPORTED)
     assert.equal((error as { code?: string }).code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
     assert.equal((error as { status?: number }).status, 500)
     await assert.rejects(() => parent.related('industries').query().forceDelete(), /many-to-many/)
@@ -289,7 +289,7 @@ test.group('Builder lifecycle', (group) => {
       await assert.rejects(
         () =>
           (PlainUser.query() as unknown as Record<typeof method, () => Promise<number>>)[method](),
-        E_MODEL_SOFT_DELETE
+        errors.E_MODEL_SOFT_DELETE
       )
     }
     await db

@@ -14,88 +14,70 @@ export class LifecycleWriteUnsupportedException extends Exception {
   static status = 500
 
   constructor(reason: string) {
-    super(`Bulk lifecycle writes do not support ${reason}`, {
-      code: LifecycleWriteUnsupportedException.code,
-      status: LifecycleWriteUnsupportedException.status,
-    })
+    super(`Bulk lifecycle writes do not support ${reason}`)
   }
 }
 
-export const E_LIFECYCLE_WRITE_UNSUPPORTED = LifecycleWriteUnsupportedException
-
-class ModelSoftDeleteException extends Exception {
+export class ModelSoftDeleteException extends Exception {
   static code = 'E_MODEL_SOFT_DELETE'
   static status = 500
 
   constructor(modelName: string) {
-    super(`${modelName} does not use SoftDeletes`, {
-      code: ModelSoftDeleteException.code,
-      status: ModelSoftDeleteException.status,
-    })
+    super(`${modelName} does not use SoftDeletes`)
   }
 }
 
-class ModelForceDeletedException extends Exception {
+export class ModelForceDeletedException extends Exception {
   static code = 'E_MODEL_FORCE_DELETED'
   static status = 500
+  static message = 'Cannot restore a model instance that was force deleted'
 
   constructor() {
-    super('Cannot restore a model instance that was force deleted', {
-      code: ModelForceDeletedException.code,
-      status: ModelForceDeletedException.status,
-    })
+    super()
   }
 }
 
-class ModelNotPersistedException extends Exception {
+export class ModelNotPersistedException extends Exception {
   static code = 'E_MODEL_NOT_PERSISTED'
   static status = 500
+  static message = 'Cannot mutate a model instance that is not persisted'
 
   constructor() {
-    super('Cannot mutate a model instance that is not persisted', {
-      code: ModelNotPersistedException.code,
-      status: ModelNotPersistedException.status,
-    })
+    super()
   }
 }
 
-class ModelUnknownDeletionStateException extends Exception {
+export class ModelUnknownDeletionStateException extends Exception {
   static code = 'E_MODEL_UNKNOWN_DELETION_STATE'
   static status = 500
+  static message =
+    'Cannot restore a model without loading deletedAt; select deletedAt or call refresh()'
 
   constructor() {
-    super('Cannot restore a model without loading deletedAt; select deletedAt or call refresh()', {
-      code: ModelUnknownDeletionStateException.code,
-      status: ModelUnknownDeletionStateException.status,
-    })
+    super()
   }
 }
 
-class BulkReceiptRequiresTransactionException extends Exception {
+export class BulkReceiptRequiresTransactionException extends Exception {
   static code = 'E_BULK_RECEIPT_REQUIRES_TRANSACTION'
   static status = 500
+  static message = 'Bulk lifecycle receipts require a caller-owned transaction client'
 
   constructor() {
-    super('Bulk lifecycle receipts require a caller-owned transaction client', {
-      code: BulkReceiptRequiresTransactionException.code,
-      status: BulkReceiptRequiresTransactionException.status,
-    })
+    super()
   }
 }
 
-class BulkReceiptUnsupportedException extends Exception {
+export class BulkReceiptUnsupportedException extends Exception {
   static code = 'E_BULK_RECEIPT_UNSUPPORTED'
   static status = 500
 
   constructor(reason: string) {
-    super(`Bulk lifecycle receipts do not support ${reason}`, {
-      code: BulkReceiptUnsupportedException.code,
-      status: BulkReceiptUnsupportedException.status,
-    })
+    super(`Bulk lifecycle receipts do not support ${reason}`)
   }
 }
 
-class BulkReceiptDivergedException extends Exception {
+export class BulkReceiptDivergedException extends Exception {
   static code = 'E_BULK_RECEIPT_DIVERGED'
   static status = 500
 
@@ -104,21 +86,16 @@ class BulkReceiptDivergedException extends Exception {
     public readonly actual: number
   ) {
     super(
-      `Bulk lifecycle write changed ${actual} rows but ${expected} were selected; roll back the transaction`,
-      {
-        code: BulkReceiptDivergedException.code,
-        status: BulkReceiptDivergedException.status,
-      }
+      `Bulk lifecycle write changed ${actual} rows but ${expected} were selected; roll back the transaction`
     )
   }
 }
 
-export {
-  BulkReceiptRequiresTransactionException as E_BULK_RECEIPT_REQUIRES_TRANSACTION,
-  BulkReceiptUnsupportedException as E_BULK_RECEIPT_UNSUPPORTED,
-  BulkReceiptDivergedException as E_BULK_RECEIPT_DIVERGED,
-  ModelSoftDeleteException as E_MODEL_SOFT_DELETE,
-  ModelForceDeletedException as E_MODEL_FORCE_DELETED,
-  ModelNotPersistedException as E_MODEL_NOT_PERSISTED,
-  ModelUnknownDeletionStateException as E_MODEL_UNKNOWN_DELETION_STATE,
-}
+export const E_LIFECYCLE_WRITE_UNSUPPORTED = LifecycleWriteUnsupportedException
+export const E_MODEL_SOFT_DELETE = ModelSoftDeleteException
+export const E_MODEL_FORCE_DELETED = ModelForceDeletedException
+export const E_MODEL_NOT_PERSISTED = ModelNotPersistedException
+export const E_MODEL_UNKNOWN_DELETION_STATE = ModelUnknownDeletionStateException
+export const E_BULK_RECEIPT_REQUIRES_TRANSACTION = BulkReceiptRequiresTransactionException
+export const E_BULK_RECEIPT_UNSUPPORTED = BulkReceiptUnsupportedException
+export const E_BULK_RECEIPT_DIVERGED = BulkReceiptDivergedException

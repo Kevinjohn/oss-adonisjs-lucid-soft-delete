@@ -10,7 +10,7 @@
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
-import { E_MODEL_SOFT_DELETE } from '../src/errors.js'
+import { errors } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
 
@@ -50,8 +50,8 @@ test.group('Builder macro runtime guard', (group) => {
         error = thrown
       }
 
-      assert.instanceOf(error, E_MODEL_SOFT_DELETE)
-      const exception = error as E_MODEL_SOFT_DELETE
+      assert.instanceOf(error, errors.E_MODEL_SOFT_DELETE)
+      const exception = error as errors.ModelSoftDeleteException
       assert.equal(exception.code, 'E_MODEL_SOFT_DELETE')
       assert.equal(exception.status, 500)
       assert.equal(exception.message, 'PlainModel does not use SoftDeletes')

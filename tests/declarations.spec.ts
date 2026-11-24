@@ -9,7 +9,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { test } from '@japa/runner'
-import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_UNKNOWN_DELETION_STATE } from '../index.js'
+import { errors } from '../index.js'
 
 test.group('Emitted declarations', () => {
   if (!process.env.TEST_BUILT_EXPORTS) return
@@ -25,27 +25,94 @@ test.group('Emitted declarations', () => {
     assert.include(augmentation, "declare module '@adonisjs/lucid/types/model'")
   })
 
-  test('the root entry exports the unknown deletion state exception', ({ assert }) => {
-    assert.equal(E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
-  })
-
-  test('the built root entry exports the lifecycle write unsupported exception', async ({
+  test('the built root exposes every exception under its name and stable code', async ({
     assert,
   }) => {
-    assert.equal(E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
-
-    const builtRoot = await import(new URL('../build/index.js', import.meta.url).href)
-    const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
-
-    assert.isDefined(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED)
-    assert.equal(builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED.code, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
-    assert.equal(
-      builtRoot.LifecycleWriteUnsupportedException,
-      builtRoot.E_LIFECYCLE_WRITE_UNSUPPORTED
+    const built: typeof import('../index.js') = await import(
+      new URL('../build/index.js', import.meta.url).href
     )
-    assert.equal(builtRoot.LifecycleWriteUnsupportedException.status, 500)
-    assert.include(rootDeclaration, 'E_LIFECYCLE_WRITE_UNSUPPORTED')
-    assert.include(rootDeclaration, 'LifecycleWriteUnsupportedException')
+    const namespace = built.errors
+    const cases = [
+      [
+        new namespace.E_LIFECYCLE_WRITE_UNSUPPORTED('limit clauses'),
+        namespace.LifecycleWriteUnsupportedException,
+        'E_LIFECYCLE_WRITE_UNSUPPORTED',
+        'Bulk lifecycle writes do not support limit clauses',
+      ],
+      [
+        new namespace.E_MODEL_SOFT_DELETE('PlainUser'),
+        namespace.ModelSoftDeleteException,
+        'E_MODEL_SOFT_DELETE',
+        'PlainUser does not use SoftDeletes',
+      ],
+      [
+        new namespace.E_MODEL_FORCE_DELETED(),
+        namespace.ModelForceDeletedException,
+        'E_MODEL_FORCE_DELETED',
+        'Cannot restore a model instance that was force deleted',
+      ],
+      [
+        new namespace.E_MODEL_NOT_PERSISTED(),
+        namespace.ModelNotPersistedException,
+        'E_MODEL_NOT_PERSISTED',
+        'Cannot mutate a model instance that is not persisted',
+      ],
+      [
+        new namespace.E_MODEL_UNKNOWN_DELETION_STATE(),
+        namespace.ModelUnknownDeletionStateException,
+        'E_MODEL_UNKNOWN_DELETION_STATE',
+        'Cannot restore a model without loading deletedAt; select deletedAt or call refresh()',
+      ],
+      [
+        new namespace.E_BULK_RECEIPT_REQUIRES_TRANSACTION(),
+        namespace.BulkReceiptRequiresTransactionException,
+        'E_BULK_RECEIPT_REQUIRES_TRANSACTION',
+        'Bulk lifecycle receipts require a caller-owned transaction client',
+      ],
+      [
+        new namespace.E_BULK_RECEIPT_UNSUPPORTED('order by clauses'),
+        namespace.BulkReceiptUnsupportedException,
+        'E_BULK_RECEIPT_UNSUPPORTED',
+        'Bulk lifecycle receipts do not support order by clauses',
+      ],
+      [
+        new namespace.E_BULK_RECEIPT_DIVERGED(2, 1),
+        namespace.BulkReceiptDivergedException,
+        'E_BULK_RECEIPT_DIVERGED',
+        'Bulk lifecycle write changed 1 rows but 2 were selected; roll back the transaction',
+      ],
+    ] as const
+
+    for (const [exception, constructor, code, message] of cases) {
+      assert.instanceOf(exception, constructor)
+      assert.strictEqual(namespace[code], constructor)
+      assert.strictEqual(built[code], constructor)
+      assert.equal(constructor.code, code)
+      assert.equal(constructor.status, 500)
+      assert.equal(exception.code, code)
+      assert.equal(exception.status, 500)
+      assert.equal(exception.message, message)
+      assert.isUndefined(exception.cause)
+    }
+    assert.strictEqual(
+      built.LifecycleWriteUnsupportedException,
+      namespace.LifecycleWriteUnsupportedException
+    )
+    assert.equal(errors.E_MODEL_UNKNOWN_DELETION_STATE.code, 'E_MODEL_UNKNOWN_DELETION_STATE')
+  })
+
+  test('the mixed model declaration carries examples for the overridden Lucid methods', async ({
+    assert,
+  }) => {
+    const mixin = await readFile(new URL('../build/src/mixin.d.ts', import.meta.url), 'utf8')
+    for (const method of ['delete', 'deleteQuietly']) {
+      assert.match(
+        mixin,
+        new RegExp(
+          `@example\\s+\\* \`\`\`ts\\s+\\* await user\\.${method}\\(\\)\\s+\\* \`\`\`\\s+\\*/\\s+${method}\\(`
+        )
+      )
+    }
   })
 
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {
@@ -55,7 +122,6 @@ test.group('Emitted declarations', () => {
       'utf8'
     )
     assert.include(rootDeclaration, 'SoftDeleteReceipt')
-    assert.include(rootDeclaration, 'E_BULK_RECEIPT_DIVERGED')
     assert.include(augmentation, 'receipt: true')
   })
 
