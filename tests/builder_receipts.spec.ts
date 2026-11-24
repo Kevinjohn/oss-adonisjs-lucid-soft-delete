@@ -526,6 +526,8 @@ test.group('Builder receipts', (group) => {
     const shapes: Array<[(query: typeof base) => typeof base, string]> = [
       [(q) => q.join('posts', 'posts.user_id', 'users.id'), 'E_BULK_RECEIPT_JOIN_UNSUPPORTED'],
       [(q) => q.groupBy('id'), 'E_BULK_RECEIPT_GROUP_UNSUPPORTED'],
+      [(q) => q.union(LifecycleUser.query({ client: trx })), 'E_BULK_RECEIPT_UNION_UNSUPPORTED'],
+      [(q) => q.havingRaw('1 = 1'), 'E_BULK_RECEIPT_HAVING_UNSUPPORTED'],
       [
         (q) => {
           q.knexQuery.groupBy('id')
