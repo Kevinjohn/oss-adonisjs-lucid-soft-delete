@@ -11,9 +11,10 @@ As application code in the example app, I want to restore a recovery group once 
 
 ## Acceptance criteria
 
+- `trx` and `input` with numeric `tenantId` and string `groupId` are required; there are no defaults. The ownership guarantee depends on all writers following the documented per-tenant and ID serialisation protocol; the function checks current association and trashed state, not the recorded deletion timestamp.
 - `restoreGroup` requires a `usable` group for the tenant; a missing, `invalidated` or `consumed` group throws.
 - The group must have current row associations, and every associated row must exist for the tenant and still be trashed; otherwise it throws before any write.
-- It conditionally marks the group `consumed` and requires one affected group row, restores the rows with `onlyTrashed().restore()`, throws if fewer rows were restored than expected, deletes the group's associations and returns the restored count. A group restores once.
+- It conditionally marks the group `consumed` and requires one affected group row, restores the rows with `onlyTrashed().restore()`, throws if the restored count differs from the expected count, deletes the group's associations and returns the restored count. A group restores once.
 - It runs inside the caller's transaction and never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
 
 ## User flow

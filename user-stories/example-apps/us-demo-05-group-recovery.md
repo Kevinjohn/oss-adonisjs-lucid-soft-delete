@@ -11,17 +11,17 @@ As application code in the example app, I want to soft-delete selected rows as o
 
 ## Acceptance criteria
 
-- `deleteGroup` removes duplicate ids and rejects an empty id list before any write.
+- `trx` is required; `input` requires numeric `tenantId`, numeric `ids` and string `label`, with no defaults. `deleteGroup` removes duplicate ids and rejects an empty id list before any write.
 - It locks the tenant's active rows among the ids, creates a `usable` group, and calls `softDelete()` for each row. Only rows where `softDelete()` reports one update join the group, with their recorded `deletedAt`; a missing timestamp or row fails the operation. Any older association for that row is replaced.
 - If no row was soft-deleted, it throws. It returns the new group id otherwise.
 - It runs inside the caller's transaction and never rolls back itself; on a thrown error the caller must roll back to discard row and bookkeeping changes together.
-- [US-DEMO-06](us-demo-06-restore-recovery-group.md) restores the group; [US-DEMO-07](us-demo-07-purge-recovery-group.md) invalidates and purges it.
+- [US-DEMO-06](us-demo-06-restore-recovery-group.md) restores the group; [US-DEMO-13](us-demo-13-invalidate-recovery-group.md) invalidates it and [US-DEMO-07](us-demo-07-purge-recovery-group.md) purges selected rows.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    A["Supply selected tenant IDs"] --> B{"Any distinct IDs?"}
+    A["Supply tenant, selected row IDs and label"] --> B{"Any distinct IDs?"}
     B -->|No| C["Receive error"]
     B -->|Yes| D["Create group and try to delete active matches"] --> E{"Any rows captured and all operations succeeded?"}
     E -->|No| F["Receive error and roll back"]

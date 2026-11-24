@@ -12,6 +12,7 @@ As an application developer, I want to register the package provider, add the nu
 ## Acceptance criteria
 
 - Ace configure adds the package provider to `adonisrc.ts`. Rerunning configuration keeps a single provider entry. After application startup, the provider's `boot()` imports Lucid's `ModelQueryBuilder` and calls `extendModelQueryBuilder`.
+- For standalone Lucid without the provider, call `extendModelQueryBuilder(ModelQueryBuilder)` from the package bindings before using builder macros and wrappers.
 - A soft-deletable table has a nullable timestamp column corresponding to the mixin's `deletedAt` column mapping.
 - Composing `SoftDeletes` into the model installs Lucid fetch hooks and instance lifecycle methods for that model.
 - This package does not create application routes, authentication, authorization, migrations, or a user interface.
