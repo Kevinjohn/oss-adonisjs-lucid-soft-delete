@@ -1,0 +1,9 @@
+{
+  "allowedInFiles": [
+    { "path": "package.json", "terms": ["adonis"], "reason": "npm search keywords" }
+  ],
+  "allowedPhrases": [
+    { "phrase": "adonis lucid soft delete", "reason": "the name of another project's package" },
+    { "phrase": "adonis lucid filter", "reason": "the name of another project's package" }
+  ]
+}

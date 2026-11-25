@@ -110,7 +110,7 @@ This log records implementation decisions made while delivering version 0.1.0-al
 
 ## 2026-10-25: Keep strict fixture typechecking across declaration gaps
 
-- **Decision:** Pin the fixture to TypeScript 5.9.3 and Node types 25.9.9, include the optional peer declarations imported by Adonis, and load Ace command modules through dynamic module IDs. Retain `skipLibCheck: false`.
+- **Decision:** Pin the fixture to TypeScript 5.9.3 and Node types 25.9.9, include the optional peer declarations imported by AdonisJS, and load Ace command modules through dynamic module IDs. Retain `skipLibCheck: false`.
 - **Reason:** Node 26 types change tracing declarations, while generated core and Lucid command indexes import a `Command` type absent from the installed Ace declarations. Ace's configuration contract already accepts dynamic command loaders, which preserve runtime command registration without depending on those generated command-index types.
 - **Evidence:** The fixture's strict typecheck and runtime configure, schema, migration, build and consumer test pass with these dependencies and loaders.
 

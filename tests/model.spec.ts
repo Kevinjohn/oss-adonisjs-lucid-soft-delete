@@ -105,7 +105,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     await user1.save()
 
     const user2 = new User()
-    user2.fill({ username: 'Adonis', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
+    user2.fill({ username: 'AdonisJS', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
     await user2.save()
     await user2.delete()
 
@@ -149,7 +149,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     await user1.delete()
 
     const user2 = new User()
-    user2.fill({ username: 'Adonis', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
+    user2.fill({ username: 'AdonisJS', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
     await user2.save()
 
     const user3 = new User()
@@ -194,7 +194,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     await user1.delete()
 
     const user2 = new User()
-    user2.fill({ username: 'Adonis', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
+    user2.fill({ username: 'AdonisJS', email: 'test@test.ru', isAdmin: 0, companyId: 2 })
     await user2.save()
 
     const users = await User.query().onlyTrashed().exec()
@@ -306,7 +306,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     await post1.save()
 
     const post2 = new Post()
-    post2.fill({ title: 'Adonis the best' })
+    post2.fill({ title: 'AdonisJS the best' })
     await post2.save()
     await post2.delete()
 
@@ -343,7 +343,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     await post1.delete()
 
     const post2 = new Post()
-    post2.fill({ title: 'Adonis the best' })
+    post2.fill({ title: 'AdonisJS the best' })
     await post2.save()
 
     const posts = await Post.onlyTrashed().exec()
