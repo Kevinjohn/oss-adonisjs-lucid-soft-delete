@@ -121,4 +121,4 @@ and [SECURITY.md](SECURITY.md) for vulnerability reports and the support window.
 
 ## User story catalogue
 
-See the [source-reviewed user story catalogue](user-stories/README.md) for capability coverage and code-backed action flows. Its demo stories link to the tested [starter app examples](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.13.0/apps).
+See the [source-reviewed user story catalogue](user-stories/README.md) for capability coverage and code-backed action flows. Its demo stories link to the tested [starter app examples](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.17.0/apps).
