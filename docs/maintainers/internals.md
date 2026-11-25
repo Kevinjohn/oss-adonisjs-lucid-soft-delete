@@ -8,13 +8,13 @@ The `exports` map in [package.json](../../package.json) defines supported import
 routes below are relative to the documentation site's base; run `pnpm docs:api` to regenerate
 their Markdown sources under `docs/reference/api/`.
 
-| Public subpath                 | Source                                    | Reference coverage                                                                                                                                |
-| ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| package root                   | `index.ts`                                | `reference/api/index/index`: mixin, capability guard, error aliases and receipt types through root reexports                                      |
-| `./types`                      | `src/types/index.ts`                      | Type barrel; its receipt and mixin types are documented through root reexports; no separate TypeDoc entry is needed                               |
-| `./types/*`                    | `src/types/*.ts`                          | Current files are `index` (the same barrel) and `querybuilder`; Lucid declaration augmentation is at `reference/api/src/types/querybuilder/index` |
-| `./bindings`                   | `src/bindings/model_query_builder.ts`     | `reference/api/src/bindings/model_query_builder/index`                                                                                            |
-| `./lucid_soft_delete_provider` | `providers/lucid_soft_delete_provider.ts` | `reference/api/providers/lucid_soft_delete_provider/index`                                                                                        |
+| Public subpath                 | Source                                    | Reference coverage                                                                                                                          |
+| ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| package root                   | `index.ts`                                | `reference/api/index/index`: mixin, capability guard, error aliases and receipt types through root reexports                                |
+| `./types`                      | `src/types/index.ts`                      | Type barrel; its receipt and mixin types are documented through root reexports; no separate TypeDoc entry is needed                         |
+| `./types/*`                    | `src/types/*.ts`                          | Current files are `index` (the same barrel) and `querybuilder`; the query builder entry loads the Lucid type augmentation from the provider |
+| `./bindings`                   | `src/bindings/model_query_builder.ts`     | `reference/api/src/bindings/model_query_builder/index`                                                                                      |
+| `./lucid_soft_delete_provider` | `providers/lucid_soft_delete_provider.ts` | `reference/api/providers/lucid_soft_delete_provider/index`                                                                                  |
 
 `configure.ts` also has a generated page at `reference/api/configure/index` and is reexported
 from the root. It is not a separate declared package subpath. Use the authored

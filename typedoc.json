@@ -3,7 +3,6 @@
   "entryPoints": [
     "index.ts",
     "configure.ts",
-    "src/types/querybuilder.ts",
     "src/bindings/model_query_builder.ts",
     "providers/lucid_soft_delete_provider.ts"
   ],
