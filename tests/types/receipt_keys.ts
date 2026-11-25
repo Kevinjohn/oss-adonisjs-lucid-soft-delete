@@ -4,8 +4,8 @@ import type {
   SoftDeleteReceipt,
   RestoreReceipt,
   ForceDeleteReceipt,
-} from '../../index.js'
-import type { PrimaryKeyValue as SubpathPrimaryKeyValue } from '../../src/types/index.js'
+} from '../../index.ts'
+import type { PrimaryKeyValue as SubpathPrimaryKeyValue } from '../../src/types/index.ts'
 
 export function assertReceiptKeyContracts(deletedAt: SoftDeleteReceipt['deletedAt']): void {
   const bytes: PrimaryKeyValue = new Uint8Array([1, 2, 3])

@@ -10,8 +10,8 @@
 /** Compile-time contracts for the `hasSoftDeletes` type guard. */
 
 import type { LucidModel } from '@adonisjs/lucid/types/model'
-import { hasSoftDeletes, SOFT_DELETES } from '../../index.js'
-import type { SoftDeletesModel } from '../../index.js'
+import { hasSoftDeletes, SOFT_DELETES } from '../../index.ts'
+import type { SoftDeletesModel } from '../../index.ts'
 
 export function assertGuardTypeContracts(candidate: unknown, model: LucidModel): void {
   if (hasSoftDeletes(candidate)) {

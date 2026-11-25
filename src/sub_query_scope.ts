@@ -8,9 +8,9 @@
  */
 
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
-import { hasSoftDeletes } from './guard.js'
-import { applySubQueryScope } from './scope.js'
-import { reapplyScopeFilter } from './where_stack.js'
+import { hasSoftDeletes } from './guard.ts'
+import { applySubQueryScope } from './scope.ts'
+import { reapplyScopeFilter } from './where_stack.ts'
 
 const PATCHED = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/sub-query-scope')
 

@@ -20,9 +20,9 @@ import {
 } from '@adonisjs/lucid/orm'
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { createDatabase, createTables } from './helpers.js'
-import { SoftDeletes } from '../src/mixin.js'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.ts'
+import { SoftDeletes } from '../src/mixin.ts'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 const SoftDeleteModel = compose(BaseModel, SoftDeletes)
 type Hook = (query: ModelQueryBuilderContract<typeof SoftDeleteModel>) => void

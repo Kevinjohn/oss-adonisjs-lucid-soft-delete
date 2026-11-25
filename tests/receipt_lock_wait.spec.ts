@@ -7,7 +7,7 @@ import {
   waitForReceiptLock,
   type ReceiptConnection,
 } from './helpers/receipt_lock_wait.ts'
-import { createDatabase, dbClient } from './helpers.js'
+import { createDatabase, dbClient } from './helpers.ts'
 
 function pending<T>() {
   let resolve!: (value: T) => void

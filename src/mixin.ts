@@ -4,14 +4,14 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 import type { QueryClientContract } from '@adonisjs/lucid/types/database'
 import { column, beforeFind, beforeFetch, beforePaginate } from '@adonisjs/lucid/orm'
 import type { BaseModel } from '@adonisjs/lucid/orm'
-import { getSoftDeletesMode, setSoftDeletesMode } from './mode.js'
-import { applyScope } from './scope.js'
+import { getSoftDeletesMode, setSoftDeletesMode } from './mode.ts'
+import { applyScope } from './scope.ts'
 import {
   E_MODEL_FORCE_DELETED,
   E_MODEL_NOT_PERSISTED,
   E_MODEL_UNKNOWN_DELETION_STATE,
-} from './errors.js'
-import { SOFT_DELETES } from './guard.js'
+} from './errors.ts'
+import { SOFT_DELETES } from './guard.ts'
 
 /** Instance lifecycle methods and state provided by `SoftDeletes`. */
 export interface SoftDeletesInstance {

@@ -9,7 +9,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { test } from '@japa/runner'
-import { errors } from '../index.js'
+import { errors } from '../index.ts'
 
 test.group('Emitted declarations', () => {
   if (!process.env.TEST_BUILT_EXPORTS) return
@@ -25,7 +25,7 @@ test.group('Emitted declarations', () => {
       'utf8'
     )
 
-    assert.include(rootDeclaration, "import './src/types/querybuilder.js'")
+    assert.match(rootDeclaration, /^import '\.\/src\/types\/querybuilder\.(?:js|ts)'/m)
     assert.match(
       querybuilderTypes,
       /export type {} from '..\/..\/providers\/lucid_soft_delete_provider\.(?:ts|js)'/

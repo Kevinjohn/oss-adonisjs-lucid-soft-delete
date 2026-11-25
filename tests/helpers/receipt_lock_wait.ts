@@ -1,4 +1,4 @@
-import type { createDatabase } from '../helpers.js'
+import type { createDatabase } from '../helpers.ts'
 
 type Database = Awaited<ReturnType<typeof createDatabase>>
 type Client = 'pg' | 'mysql'

@@ -9,7 +9,7 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { createDatabase, createTables } from './helpers.js'
+import { createDatabase, createTables } from './helpers.ts'
 import {
   RelationComment,
   RelationIndustry,
@@ -17,7 +17,7 @@ import {
   RelationProfile,
   RelationUser,
 } from './helpers/models.ts'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 test.group('Default soft-delete scope on relations', (group) => {
   group.setup(() => {

@@ -9,14 +9,14 @@
 
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { RawBuilderContract } from '@adonisjs/lucid/types/querybuilder'
-import { E_MODEL_SOFT_DELETE } from './errors.js'
-import { getSoftDeletesMode } from './mode.js'
+import { E_MODEL_SOFT_DELETE } from './errors.ts'
+import { getSoftDeletesMode } from './mode.ts'
 import {
   parseTableAlias,
   qualifyColumnReference,
   resolveTableReference,
-} from './table_reference.js'
-import { addScopeFilter, removeScopeFilter } from './where_stack.js'
+} from './table_reference.ts'
+import { addScopeFilter, removeScopeFilter } from './where_stack.ts'
 
 type FilterableQuery = {
   whereNull(column: string | RawBuilderContract | KnexRawReference): unknown

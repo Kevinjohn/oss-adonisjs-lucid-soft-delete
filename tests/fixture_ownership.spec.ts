@@ -1,5 +1,5 @@
 import { getActiveTest, test } from '@japa/runner'
-import { acquireOwnedNamespace, createDatabase, createTables, dbClient } from './helpers.js'
+import { acquireOwnedNamespace, createDatabase, createTables, dbClient } from './helpers.ts'
 
 test.group('fixture ownership', () => {
   test('a users collision leaves existing tables intact', async ({ assert }) => {

@@ -14,8 +14,8 @@ import {
   E_BULK_RECEIPT_DIVERGED,
   E_BULK_RECEIPT_REQUIRES_TRANSACTION,
   E_BULK_RECEIPT_UNSUPPORTED,
-} from './errors.js'
-import { parseTableAlias, qualifyColumnReference } from './table_reference.js'
+} from './errors.ts'
+import { parseTableAlias, qualifyColumnReference } from './table_reference.ts'
 
 /**
  * Raw driver value of the model's primary key. A bigint from the driver is converted with String().

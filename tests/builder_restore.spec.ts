@@ -13,9 +13,9 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
 import { DateTime as LuxonDateTime } from 'luxon'
-import { SoftDeletes } from '../index.js'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
-import { createDatabase, createTables } from './helpers.js'
+import { SoftDeletes } from '../index.ts'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
+import { createDatabase, createTables } from './helpers.ts'
 import { RelationPost, RelationProfile, RelationUser } from './helpers/models.ts'
 
 class CustomPost extends compose(BaseModel, SoftDeletes) {

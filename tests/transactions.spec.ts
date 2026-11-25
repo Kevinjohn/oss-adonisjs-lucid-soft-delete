@@ -10,9 +10,9 @@
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { createDatabase, createSecondaryConnection, createTables } from './helpers.js'
+import { createDatabase, createSecondaryConnection, createTables } from './helpers.ts'
 import { RelationPost, RelationUser } from './helpers/models.ts'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 async function createUser(username: string) {
   const user = new RelationUser()

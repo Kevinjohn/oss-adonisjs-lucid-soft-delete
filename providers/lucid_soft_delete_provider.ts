@@ -6,7 +6,7 @@ import type {
 } from '../src/receipts.ts'
 import type { SoftDeletesModel } from '../src/guard.ts'
 import type { ApplicationService } from '@adonisjs/core/types'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 export default class LucidSoftDeleteProvider {
   constructor(protected app: ApplicationService) {}

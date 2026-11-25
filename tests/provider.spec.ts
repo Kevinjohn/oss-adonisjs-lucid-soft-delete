@@ -10,7 +10,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import LucidSoftDeleteProvider from '../providers/lucid_soft_delete_provider.js'
+import LucidSoftDeleteProvider from '../providers/lucid_soft_delete_provider.ts'
 
 test.group('Provider', () => {
   test('boot installs the lifecycle macros on the Lucid model query builder', async ({

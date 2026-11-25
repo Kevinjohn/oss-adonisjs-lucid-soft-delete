@@ -9,8 +9,8 @@
 
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
-import { createDatabase, createTables, dbClient } from './helpers.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
+import { createDatabase, createTables, dbClient } from './helpers.ts'
 import { RelationUser } from './helpers/models.ts'
 
 test.group('Punctuation alias lifecycle writes', (group) => {

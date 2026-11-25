@@ -16,9 +16,9 @@ import type {
   SoftDeleteReceipt,
   RestoreReceipt,
   ForceDeleteReceipt,
-} from '../../index.js'
+} from '../../index.ts'
 import type { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { User } from './mixin.js'
+import { User } from './mixin.ts'
 
 export function assertBuilderTypeContracts(expectTypeOf: TestContext['expectTypeOf']): void {
   const original = User.query()
