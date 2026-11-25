@@ -37,7 +37,7 @@ Scope: instance call through Lucid save; application route and authorization are
 
 ```mermaid
 flowchart TD
-    A["Call delete or deleteQuietly"] --> B["resolveDeleteAction"] --> C{"Action?"}
+    A["Call delete or deleteQuietly"] --> B["resolveDeleteOperation"] --> C{"Operation?"}
     C -->|Not persisted| D["Throw E_MODEL_NOT_PERSISTED"]
     C -->|Physical| E["Delegate to matching Lucid delete method"]
     C -->|Skip, including stored trashed projection| F["Return without write"]
@@ -48,4 +48,4 @@ flowchart TD
     K -->|Failure| M
 ```
 
-**Code references:** [resolveDeleteAction, persistDeletedAt and instance methods](../../src/mixin.ts), `@adonisjs/lucid` 22.4.2 `BaseModel.delete` (before:delete, adapter delete, after:delete), [lifecycle tests](../../tests/lifecycle.spec.ts), [instance API contract](../../docs/reference/README.md#delete).
+**Code references:** [resolveDeleteOperation, persistDeletedAt and instance methods](../../src/mixin.ts), `@adonisjs/lucid` 22.4.2 `BaseModel.delete` (before:delete, adapter delete, after:delete), [lifecycle tests](../../tests/lifecycle.spec.ts), [instance API contract](../../docs/reference/README.md#delete).

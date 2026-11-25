@@ -17,7 +17,7 @@ import {
   RelationPost,
   RelationProfile,
   RelationUser,
-} from './fixtures/models.ts'
+} from './helpers/models.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 async function createUser(username: string, managerId: number | null = null) {

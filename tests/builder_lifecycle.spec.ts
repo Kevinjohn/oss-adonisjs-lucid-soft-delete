@@ -20,7 +20,7 @@ import { DateTime, Settings } from 'luxon'
 import { errors, SoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
-import { CustomPost, RelationComment, RelationUser, RelationPost } from './fixtures/models.ts'
+import { CustomPost, RelationComment, RelationUser, RelationPost } from './helpers/models.ts'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'

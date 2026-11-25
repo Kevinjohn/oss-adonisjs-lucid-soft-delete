@@ -6,7 +6,7 @@ import {
   ReceiptLockConnections,
   waitForReceiptLock,
   type ReceiptConnection,
-} from './fixtures/receipt_lock_wait.ts'
+} from './helpers/receipt_lock_wait.ts'
 import { createDatabase, dbClient } from './helpers.ts'
 
 function pending<T>() {
@@ -178,8 +178,7 @@ for (const dialect of ['pg', 'mysql'] as const) {
     assert,
   }) => {
     const { createServer } = await import('node:net')
-    const { createRequire } = await import('node:module')
-    const require = createRequire(import.meta.url)
+    const { default: driver } = dialect === 'pg' ? await import('pg') : await import('mysql2')
     const accepted = pending<import('node:net').Socket>()
     const server = createServer((socket) => accepted.resolve(socket))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -187,13 +186,15 @@ for (const dialect of ['pg', 'mysql'] as const) {
     const owner = new ReceiptLockConnections(dialect, 100)
     let socket: import('node:net').Socket | undefined
     try {
-      const driver = require(dialect === 'pg' ? 'pg' : 'mysql2')
-      const connection = owner.connect(driver, {
-        host: '127.0.0.1',
-        port: address.port,
-        user: 'fixture',
-        connectTimeout: 0,
-      })
+      const connection = owner.connect(
+        driver as unknown as Parameters<ReceiptLockConnections['connect']>[0],
+        {
+          host: '127.0.0.1',
+          port: address.port,
+          user: 'fixture',
+          connectTimeout: 0,
+        }
+      )
       socket = await owner.wait(accepted.promise)
       const closed = new Promise<void>((resolve) => socket!.once('close', resolve))
       // Neither server sends the protocol handshake; the driver connection stays pending.

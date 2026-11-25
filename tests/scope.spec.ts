@@ -14,7 +14,7 @@ import { SoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { applySubQueryScope } from '../src/scope.ts'
 import { createDatabase, createTables, dbClient } from './helpers.ts'
-import { RelationPost, RelationUser } from './fixtures/models.ts'
+import { RelationPost, RelationUser } from './helpers/models.ts'
 
 class User extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })

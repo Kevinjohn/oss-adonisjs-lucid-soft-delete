@@ -12,7 +12,7 @@ import { FactoryManager } from '@adonisjs/lucid/factories'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { createDatabase, createTables } from './helpers.ts'
-import { RelationUser } from './fixtures/models.ts'
+import { RelationUser } from './helpers/models.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 test.group('Soft-delete factories, seeders, and transactions', (group) => {

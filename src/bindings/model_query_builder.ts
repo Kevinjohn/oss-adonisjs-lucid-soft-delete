@@ -1,5 +1,8 @@
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
+// A standalone binding import also makes the registration visible to TypeScript.
+export type {} from '../types/querybuilder.ts'
+
 import type { BulkReceiptOptions } from '../receipts.ts'
 import {
   requireValidReceiptMode,

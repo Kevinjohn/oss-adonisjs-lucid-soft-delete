@@ -188,7 +188,7 @@ Physically deletes one persisted model through Lucid's instance delete path.
 - **Hooks:** Runs `beforeDelete` → physical delete → `afterDelete`; it does not run update/save hooks. Hook and database errors propagate. An `afterDelete` error can follow a completed physical delete.
 - **Dirty fields and timestamps:** Other dirty attributes are not saved. `updatedAt` is not advanced and column `prepare` does not run for a model update because no model update occurs.
 - **Client:** Uses the instance's client, including an attached caller transaction.
-- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `resolveDeleteAction` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
+- **Flag/error precedence:** It saves the prior `$forceDelete` value, sets it to `true`, calls `delete()`, and restores the prior flag in `finally`. `resolveDeleteOperation` checks persistence before the force flag; `E_MODEL_NOT_PERSISTED` therefore takes precedence for an unpersisted model. Restore checks persistence, then force-deleted state, then loaded deletion state.
 
 ```ts
 const user = await User.withTrashed().where('id', userId).firstOrFail()
@@ -390,15 +390,15 @@ The package also exports `./types` and `./types/*` (receipt and query-builder ty
 
 The entry point loads the package's TypeScript module augmentations. They add `withTrashed`, `onlyTrashed`, `restore`, `softDelete`, and `forceDelete` to both `ModelQueryBuilderContract` in `@adonisjs/lucid/types/model` and `ModelQueryBuilder` in `@adonisjs/lucid/orm`; lifecycle methods include `{ receipt: true }` overloads. Lifecycle methods are typed only when the builder model has the `SOFT_DELETES` marker. The runtime provider must also be configured before calling builder macros.
 
-Type registry values as `LucidModel` (from `@adonisjs/lucid/types/model`) so a successful check yields a `SoftDeletesModel`. The example imports `hasSoftDeletes` and `SoftDeletesModel` from the package root:
+Type the values in the model map as `LucidModel` (from `@adonisjs/lucid/types/model`) so a successful check yields a `SoftDeletesModel`. The example imports `hasSoftDeletes` and `SoftDeletesModel` from the package root:
 
-<!-- source: ../../tests/types/guard.ts#lucid_model_registry -->
+<!-- source: ../../tests/types/guard.ts#lucid_model_map -->
 
 ```ts
-const registry = new Map<string, LucidModel>()
+const modelsByName = new Map<string, LucidModel>()
 
 export function findSoftDeletesModel(name: string): SoftDeletesModel | undefined {
-  const model = registry.get(name)
+  const model = modelsByName.get(name)
   if (model && hasSoftDeletes(model)) {
     return model
   }

@@ -64,12 +64,12 @@ async function persistDeletedAt(
   }
 }
 
-type DeleteAction = 'physical' | 'skip' | 'soft'
+type DeleteOperation = 'physical' | 'skip' | 'soft'
 
 /** Shared delete decision for `delete()` and `deleteQuietly()`. Throws for a model that was never saved. */
-async function resolveDeleteAction(
+async function resolveDeleteOperation(
   model: InstanceType<typeof BaseModel> & { $forceDelete: boolean; trashed: boolean }
-): Promise<DeleteAction> {
+): Promise<DeleteOperation> {
   if (!model.$isPersisted) throw new E_MODEL_NOT_PERSISTED()
   if (model.$isDeleted || model.$forceDelete) return 'physical'
   if (model.trashed && !('deletedAt' in model.$dirty)) return 'skip'
@@ -275,9 +275,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
      * Override default delete method
      */
     async delete(): Promise<void> {
-      const action = await resolveDeleteAction(this)
-      if (action === 'skip') return
-      if (action === 'physical') return super.delete()
+      const operation = await resolveDeleteOperation(this)
+      if (operation === 'skip') return
+      if (operation === 'physical') return super.delete()
       try {
         await super.delete()
       } finally {
@@ -286,9 +286,9 @@ export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
     }
 
     async deleteQuietly(): Promise<void> {
-      const action = await resolveDeleteAction(this)
-      if (action === 'skip') return
-      if (action === 'physical') return super.deleteQuietly()
+      const operation = await resolveDeleteOperation(this)
+      if (operation === 'skip') return
+      if (operation === 'physical') return super.deleteQuietly()
       await persistDeletedAt(this, { deletedAt: DateTime.local(), skipHooks: true })
     }
 

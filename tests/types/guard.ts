@@ -27,14 +27,14 @@ export function assertGuardTypeContracts(candidate: unknown, model: LucidModel):
   }
 }
 
-// #region lucid_model_registry
-const registry = new Map<string, LucidModel>()
+// #region lucid_model_map
+const modelsByName = new Map<string, LucidModel>()
 
 export function findSoftDeletesModel(name: string): SoftDeletesModel | undefined {
-  const model = registry.get(name)
+  const model = modelsByName.get(name)
   if (model && hasSoftDeletes(model)) {
     return model
   }
   return undefined
 }
-// #endregion lucid_model_registry
+// #endregion lucid_model_map

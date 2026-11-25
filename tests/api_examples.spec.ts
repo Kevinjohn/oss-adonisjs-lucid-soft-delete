@@ -24,7 +24,7 @@ test.group('Public API examples', () => {
       'src/mixin.ts',
       'src/guard.ts',
       'src/bindings/model_query_builder.ts',
-      'src/types/querybuilder.ts',
+      'providers/lucid_soft_delete_provider.ts',
     ]
     for (const source of sources) {
       const text = await readFile(join(root, source), 'utf8')

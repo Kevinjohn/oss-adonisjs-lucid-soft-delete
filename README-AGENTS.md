@@ -39,7 +39,7 @@ Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-luc
 
 ## Source map
 
-`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply the soft-delete read filter to model queries and relation subqueries; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` registers the query builder macros and `src/types/querybuilder.ts` augments the Lucid types. `providers/` registers the runtime and `tests/` covers behavior, tooling and types.
+`src/mixin.ts` defines the mixin and instance lifecycle; `src/scope.ts` and `src/sub_query_scope.ts` apply the soft-delete read filter to model queries and relation subqueries; `src/receipts.ts` handles bulk receipts; `src/bindings/model_query_builder.ts` defines the query builder macros. The provider registers them during boot and carries the Lucid type augmentation and `tests/` covers behavior, tooling and types.
 
 ## Further reading
 

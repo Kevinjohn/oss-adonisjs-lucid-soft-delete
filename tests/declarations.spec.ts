@@ -16,12 +16,20 @@ test.group('Emitted declarations', () => {
 
   test('the root entry loads the query builder augmentation', async ({ assert }) => {
     const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
-    const augmentation = await readFile(
+    const querybuilderTypes = await readFile(
       new URL('../build/src/types/querybuilder.d.ts', import.meta.url),
+      'utf8'
+    )
+    const augmentation = await readFile(
+      new URL('../build/providers/lucid_soft_delete_provider.d.ts', import.meta.url),
       'utf8'
     )
 
     assert.match(rootDeclaration, /^import '\.\/src\/types\/querybuilder\.(?:js|ts)'/m)
+    assert.match(
+      querybuilderTypes,
+      /export type {} from '..\/..\/providers\/lucid_soft_delete_provider\.(?:ts|js)'/
+    )
     assert.include(augmentation, "declare module '@adonisjs/lucid/types/model'")
   })
 
@@ -118,7 +126,7 @@ test.group('Emitted declarations', () => {
   test('the root entry exports receipts and their builder overloads', async ({ assert }) => {
     const rootDeclaration = await readFile(new URL('../build/index.d.ts', import.meta.url), 'utf8')
     const augmentation = await readFile(
-      new URL('../build/src/types/querybuilder.d.ts', import.meta.url),
+      new URL('../build/providers/lucid_soft_delete_provider.d.ts', import.meta.url),
       'utf8'
     )
     assert.include(rootDeclaration, 'SoftDeleteReceipt')
@@ -131,9 +139,9 @@ test.group('Emitted declarations', () => {
     assert.include(rootDeclaration, 'export * as errors')
   })
 
-  test('the types barrel emits a declaration', async ({ assert }) => {
+  test('the canonical types barrel emits a declaration', async ({ assert }) => {
     const typesDeclaration = await readFile(
-      new URL('../build/src/types/index.d.ts', import.meta.url),
+      new URL('../build/src/types.d.ts', import.meta.url),
       'utf8'
     )
 

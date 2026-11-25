@@ -31,6 +31,12 @@ test.group('Package exports', () => {
 
   if (!process.env.TEST_BUILT_EXPORTS) return
 
+  test('loads the canonical types export and both existing types subpaths', async () => {
+    await import('@kevinjohn/adonisjs-lucid-soft-delete/types')
+    await import('@kevinjohn/adonisjs-lucid-soft-delete/types/index')
+    await import('@kevinjohn/adonisjs-lucid-soft-delete/types/querybuilder')
+  })
+
   test('loads the renamed provider export and rejects the old alias', async ({ assert }) => {
     const provider =
       await import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider')
