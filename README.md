@@ -19,18 +19,21 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 
 ## Install
 
-Requires Node.js 24+, AdonisJS 7, Lucid 22 and Luxon 3.4.4+ (3.x). TypeScript is an optional peer supported at `^5.9.3 || ^6.0.3`; install a supported version separately if your application uses TypeScript. The package's declarations expose Luxon's `DateTime` type, so TypeScript applications that do not already have Luxon declarations should install `@types/luxon`.
-
 ```sh
 pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.4.0/kevinjohn-adonisjs-lucid-soft-delete-0.4.0.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
 ```
 
 `@adonisjs/assembler` `^8.0.0` is an optional peer used only by the configure command's codemods.
+Configure adds `@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider` to the providers
+in `adonisrc.ts`. That provider installs the lifecycle methods on Lucid's model query builder.
 The installed-consumer gate exercises configure twice and compiles the installed declarations with
 TypeScript 5.9.3 and 6.0.3.
 
-Then add a nullable `deleted_at` timestamp column to each soft-deletable table. The
+## Configure your models
+
+The package is configured per model. Add a nullable `deleted_at` timestamp column to each
+soft-deletable table, then compose the `SoftDeletes` mixin into its model as shown below. The
 [getting started guide](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 
 ## Quick example
@@ -80,18 +83,6 @@ Calling `await demonstrateRecovery('alex@example.test')` with an unused email re
 database. The [getting started guide](docs/guide/getting-started.md) gives the full setup and also shows how to
 purge a row deliberately.
 
-## Tested against
-
-|                         | Every pull request | Weekly and before each release          |
-| ----------------------- | ------------------ | --------------------------------------- |
-| Node.js                 | 24                 | 24                                      |
-| AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
-| Lucid                   | locked version     | lowest supported and latest 22.x        |
-| Assembler (configure)   | locked version     | lowest supported (8.0.0) and latest 8.x |
-| SQLite (better-sqlite3) | yes                | before each release only                |
-| PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
-| MySQL 8.4               | yes                | yes, with the locked peers              |
-
 ## Documentation
 
 - [Getting started](docs/guide/getting-started.md): add soft deletes to an application.
@@ -108,6 +99,22 @@ Import `errors` from `@kevinjohn/adonisjs-lucid-soft-delete` and identify packag
 their stable code constructors, such as `error instanceof errors.E_MODEL_NOT_PERSISTED`.
 Each named class is also available in the namespace for instance type annotations.
 See the [error reference](docs/reference/README.md#errors) for all exports.
+
+## Supported versions
+
+Requires Node.js 24+, AdonisJS 7, Lucid 22 and Luxon 3.4.4+ (3.x). TypeScript is an optional peer supported at `^5.9.3 || ^6.0.3`; install a supported version separately if your application uses TypeScript. The package's declarations expose Luxon's `DateTime` type, so TypeScript applications that do not already have Luxon declarations should install `@types/luxon`.
+
+### Tested against
+
+|                         | Every pull request | Weekly and before each release          |
+| ----------------------- | ------------------ | --------------------------------------- |
+| Node.js                 | 24                 | 24                                      |
+| AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
+| Lucid                   | locked version     | lowest supported and latest 22.x        |
+| Assembler (configure)   | locked version     | lowest supported (8.0.0) and latest 8.x |
+| SQLite (better-sqlite3) | yes                | before each release only                |
+| PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
+| MySQL 8.4               | yes                | yes, with the locked peers              |
 
 ## Contributing
 
