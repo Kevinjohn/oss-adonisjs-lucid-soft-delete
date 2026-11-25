@@ -4,14 +4,14 @@ import { column, BaseModel, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
 import { createDatabase, createTables } from './helpers.ts'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 
 test.group('Relations', () => {
   test('querying model relation with soft delete', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -35,7 +35,7 @@ test.group('Relations', () => {
     }
     User.boot()
 
-    class Industry extends compose(BaseModel, SoftDeletes) {
+    class Industry extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -83,7 +83,7 @@ test.group('Relations', () => {
     const db = await createDatabase()
     await createTables(db)
 
-    class MyBaseModel extends compose(BaseModel, SoftDeletes) {
+    class MyBaseModel extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 

@@ -10,10 +10,10 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime, Settings } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import { deleteGroup, invalidateGroup, purgeGroup, restoreGroup } from '#services/group_recovery'
 
-class TestRecord extends compose(BaseModel, SoftDeletes) {
+class TestRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number

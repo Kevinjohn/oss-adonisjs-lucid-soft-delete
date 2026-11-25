@@ -1,12 +1,12 @@
 # US-APP-02 — Select active, all, or deleted models
 
-As application code using a `SoftDeletes` model, I want to query active rows or explicitly include deleted rows so that ordinary reads stay clean while recovery workflows can inspect the recycle bin.
+As application code using a `withSoftDeletes` model, I want to query active rows or explicitly include deleted rows so that ordinary reads stay clean while recovery workflows can inspect the recycle bin.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
 **Access:** Application code. The host application owns access policy. To reload an existing model by its primary key, see [refresh an instance](../integration/us-app-13-refresh-instance.md). Builder `withTrashed()`/`onlyTrashed()` and the read filter on relation subqueries require the booted provider, which calls `extendModelQueryBuilder`. Install it wherever the model is used: without it a cloned query loses its read mode and falls back to active rows, and predicates a later fetch hook adds are not regrouped with the read filter.
 **Entry:** Model queries, `withTrashed()`, or `onlyTrashed()`.
 **Documentation:** [Read modes](../../docs/reference/README.md#read-modes), [scope-contract.md](../../docs/reference/scope-contract.md).
-**Source:** [SoftDeletes hooks and read modes](../../src/mixin.ts), [src/scope.ts](../../src/scope.ts).
+**Source:** [withSoftDeletes hooks and read modes](../../src/mixin.ts), [src/scope.ts](../../src/scope.ts).
 **Coverage:** [read filter tests](../../tests/scope.spec.ts), [bypass tests](../../tests/scope_bypass.spec.ts), [relation tests](../../tests/scope_relations.spec.ts).
 
 ## Acceptance criteria

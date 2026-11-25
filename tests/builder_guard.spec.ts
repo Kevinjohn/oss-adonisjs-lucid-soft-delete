@@ -14,7 +14,7 @@ import { errors } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 
-/** A deletedAt column without SoftDeletes, so only the capability guard can reject restore(). */
+/** A deletedAt column without withSoftDeletes, so only the capability guard can reject restore(). */
 class PlainModel extends BaseModel {
   static table = 'users'
 
@@ -36,7 +36,7 @@ test.group('Builder macro runtime guard', (group) => {
     extendModelQueryBuilder(ModelQueryBuilder)
   })
 
-  test('{$self} rejects a model without SoftDeletes')
+  test('{$self} rejects a model without withSoftDeletes')
     .with(['withTrashed', 'onlyTrashed', 'restore'] as const)
     .run(async ({ assert }, macro) => {
       const db = await createDatabase()
@@ -54,6 +54,6 @@ test.group('Builder macro runtime guard', (group) => {
       const exception = error as errors.ModelSoftDeleteException
       assert.equal(exception.code, 'E_MODEL_SOFT_DELETE')
       assert.equal(exception.status, 500)
-      assert.equal(exception.message, 'PlainModel does not use SoftDeletes')
+      assert.equal(exception.message, 'PlainModel does not use withSoftDeletes')
     })
 })

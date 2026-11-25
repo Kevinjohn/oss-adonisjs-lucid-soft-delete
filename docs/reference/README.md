@@ -5,7 +5,7 @@ This reference documents the public API of `0.4.0`. Check the [README](../../REA
 ## Contents
 
 - [Choose an operation](#choose-an-operation)
-- [SoftDeletes composition](#softdeletes-composition)
+- [withSoftDeletes composition](#withsoftdeletes-composition)
 - [Model state](#model-state)
   - [`deletedAt`](#deletedat)
   - [`trashed`](#trashed)
@@ -42,18 +42,18 @@ This reference documents the public API of `0.4.0`. Check the [README](../../REA
 
 Receipts describe an uncommitted mutation and are not an audit log.
 
-## SoftDeletes composition
+## withSoftDeletes composition
 
 Use Node.js 24 or newer, AdonisJS core 7, Lucid 22, Luxon 3.4.4 or newer within 3.x, and (for TypeScript applications) a supported compiler in `^5.9.3 || ^6.0.3`. Install the provider through the configure command or register it in `adonisrc.ts`. Create a nullable timestamp column for every table whose model uses the mixin. See the [README](../../README.md#install) for installation and migration setup, or the [tutorial](../guide/getting-started.md) for a complete project example.
 
-Compose `SoftDeletes` with `BaseModel`:
+Compose `withSoftDeletes` with `BaseModel`:
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export default class User extends compose(BaseModel, SoftDeletes) {
+export default class User extends compose(BaseModel, withSoftDeletes) {
   static table = 'users'
 
   @column({ isPrimary: true })
@@ -202,7 +202,7 @@ There is no dedicated `forceDeleteQuietly()` method; `deleteQuietly()` uses the 
 
 Builder lifecycle methods operate on matching database rows, not hydrated instances. They return affected counts where noted, never run model hooks, never update model `updatedAt`, and bypass custom column `prepare` functions. `softDelete()` formats its local Luxon timestamp for the query connection's dialect. Pass a caller-owned client with `User.query({ client: trx })` or attach it with `.useTransaction(trx)`; the package does not begin, commit, or roll back a transaction.
 
-The lifecycle macros require a model composed with `SoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`: Lucid redirects many-to-many writes to the pivot table and builds has-many-through writes with a sub-query the database rejects. Select related IDs and use a normal related-model query instead. A builder that has already run keeps the soft-delete filter from that run, so a later `delete()` on the same builder removes only the rows that run's mode selected. Start a new query for a bulk write.
+The lifecycle macros require a model composed with `withSoftDeletes` and a mapped `deletedAt` column. Missing model capability/column rejects with `E_MODEL_SOFT_DELETE`. Query and database errors propagate. Builder `restore()`, `softDelete()` and `forceDelete()` reject many-to-many and has-many-through relation builders before writing with `E_LIFECYCLE_WRITE_UNSUPPORTED`: Lucid redirects many-to-many writes to the pivot table and builds has-many-through writes with a sub-query the database rejects. Select related IDs and use a normal related-model query instead. A builder that has already run keeps the soft-delete filter from that run, so a later `delete()` on the same builder removes only the rows that run's mode selected. Start a new query for a bulk write.
 
 ### `softDelete()`
 
@@ -378,7 +378,7 @@ The package root exports:
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `errors`                                                                                                            | Namespace with every package exception under its class name and stable `E_*` code.                                                                                                                                                                                        |
 | `configure`                                                                                                         | The `node ace configure` hook. Registers the provider in `adonisrc.ts` through the host's Assembler codemods; a second run changes nothing.                                                                                                                               |
-| `SoftDeletes`                                                                                                       | Model mixin.                                                                                                                                                                                                                                                              |
+| `withSoftDeletes`                                                                                                   | Model mixin.                                                                                                                                                                                                                                                              |
 | `SoftDeletesInstance`, `SoftDeletesStatics`, `SoftDeletesConstructor`                                               | `SoftDeletesInstance`: deletion state and the added `restore()` and `forceDelete()` methods. `SoftDeletesStatics`: the marker, read modes and fetch hooks. `SoftDeletesConstructor<T>`: the mixed model, with the overrides for Lucid’s `delete()` and `deleteQuietly()`. |
 | `SOFT_DELETES`, `hasSoftDeletes`, `SoftDeletesModel`                                                                | Symbol marker, TypeScript type guard for the mixin capability, and marker-narrowed model type. A `deletedAt` column alone does not qualify a model.                                                                                                                       |
 | `E_MODEL_SOFT_DELETE`, `E_MODEL_FORCE_DELETED`, `E_MODEL_NOT_PERSISTED`, `E_MODEL_UNKNOWN_DELETION_STATE`           | Named exception classes and error-code definitions.                                                                                                                                                                                                                       |

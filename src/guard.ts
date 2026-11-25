@@ -16,7 +16,7 @@ export type SoftDeletesModel = LucidModel & {
 }
 
 /**
- * Reports whether a value carries the soft-delete marker that the `SoftDeletes` mixin sets. A value
+ * Reports whether a value carries the soft-delete marker that the `withSoftDeletes` mixin sets. A value
  * typed as a Lucid model narrows to `SoftDeletesModel`; any other value gains only the marker, so a
  * true result does not prove a Lucid model, and a plain object carrying the marker also passes. A
  * `deletedAt` column alone does not set the marker.

@@ -19,6 +19,10 @@ rows permanently. See [the operation guide](docs/reference/README.md#choose-an-o
 
 ## Install
 
+The command below installs `v0.4.0`, which exports the mixin as `SoftDeletes`. The examples in
+this checkout use the unreleased `withSoftDeletes` name. Use the name from your installed version
+in both the import and `compose()` call. See the [upgrade example](CHANGELOG.md#unreleased).
+
 ```sh
 pnpm add https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/releases/download/v0.4.0/kevinjohn-adonisjs-lucid-soft-delete-0.4.0.tgz luxon
 node ace configure @kevinjohn/adonisjs-lucid-soft-delete
@@ -33,7 +37,7 @@ TypeScript 5.9.3 and 6.0.3.
 ## Configure your models
 
 The package is configured per model. Add a nullable `deleted_at` timestamp column to each
-soft-deletable table, then compose the `SoftDeletes` mixin into its model as shown below. The
+soft-deletable table, then compose the `withSoftDeletes` mixin into its model as shown below. The
 [getting started guide](docs/guide/getting-started.md#add-the-column-to-an-existing-application) shows the migration.
 
 ## Quick example
@@ -43,9 +47,9 @@ Compose the mixin into a model:
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export default class User extends compose(BaseModel, SoftDeletes) {
+export default class User extends compose(BaseModel, withSoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 

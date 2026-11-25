@@ -13,9 +13,9 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export class RecoverableRecord extends compose(BaseModel, SoftDeletes) {
+export class RecoverableRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number

@@ -35,13 +35,16 @@ export default class AddDeletedAtToUsers extends BaseSchema {
 
 ## 2. Model
 
+These examples use the unreleased `withSoftDeletes` name. In an app using `v0.4.0`, use
+`SoftDeletes` in both the import and the `compose()` call.
+
 ```ts
 // app/models/user.ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export default class User extends compose(BaseModel, SoftDeletes) {
+export default class User extends compose(BaseModel, withSoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 
@@ -56,7 +59,7 @@ The mixin declares `deletedAt` and the `trashed` getter. Add nothing else for th
 
 Use the complete [API starter fixture](starter/api/README.md) rather than mounting unauthenticated
 lifecycle endpoints. Its [User model](starter/api/app/models/user.ts) combines native authentication
-with `SoftDeletes`, and its [administrator migration](starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts)
+with `withSoftDeletes`, and its [administrator migration](starter/api/database/migrations/1768620766696_add_soft_delete_admin_to_users.ts)
 adds `is_soft_delete_admin`, defaulting to false. Only operators grant that flag to an existing
 account; the [signup validator](starter/api/app/validators/user.ts) does not allow callers to grant it.
 

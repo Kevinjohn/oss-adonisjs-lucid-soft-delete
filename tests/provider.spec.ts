@@ -7,30 +7,20 @@
  * file that was distributed with this source code.
  */
 
-import type { ApplicationService } from '@adonisjs/core/types'
-import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
-import LucidSoftDeleteProvider from '../providers/lucid_soft_delete_provider.ts'
 
 test.group('Provider', () => {
-  test('boot installs the lifecycle macros on the Lucid model query builder', async ({
-    assert,
-  }) => {
-    // A fresh subclass: other specs already install the macros on the shared prototype.
-    class Builder extends ModelQueryBuilder {}
-    const requested: string[] = []
-    const app = {
-      import: async (specifier: string) => {
-        requested.push(specifier)
-        return { ModelQueryBuilder: Builder }
-      },
-    } as unknown as ApplicationService
-
-    await new LucidSoftDeleteProvider(app).boot()
-
-    assert.deepEqual(requested, ['@adonisjs/lucid/orm'])
-    for (const name of ['restore', 'softDelete', 'forceDelete', 'withTrashed', 'onlyTrashed']) {
-      assert.isTrue(Object.hasOwn(Builder.prototype, name), name)
-    }
+  test('application boot installs lifecycle macros used by native Lucid queries', ({ assert }) => {
+    // Other specs install the macros on the shared Lucid prototype in the Japa process.
+    const fixture = fileURLToPath(new URL('./fixtures/provider_app.ts', import.meta.url))
+    const result = spawnSync(process.execPath, ['--import=@poppinss/ts-exec', fixture], {
+      cwd: fileURLToPath(new URL('..', import.meta.url)),
+      encoding: 'utf8',
+      timeout: 10_000,
+    })
+    if (result.error) throw result.error
+    assert.equal(result.status, 0, result.stderr)
   })
 })

@@ -13,7 +13,7 @@ with the other packages' examples.
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `adonisrc.ts`                                                         | The provider, added by `node ace configure @kevinjohn/adonisjs-lucid-soft-delete`    |
 | `database/migrations/*_add_deleted_at_to_users.ts`                    | A nullable `deleted_at` column on `users`                                            |
-| `app/models/user.ts`                                                  | `SoftDeletes` composed into the user model                                           |
+| `app/models/user.ts`                                                  | `withSoftDeletes` composed into the user model                                       |
 | `app/services/soft_delete_admins.ts`, `app/models/user.ts`, migration | An operator grants an existing account a database flag; signup defaults to no access |
 | `app/controllers/account_deletion_controller.ts`                      | `/account/delete`: confirm, soft delete the signed-in account and sign out           |
 | `app/controllers/deleted_users_controller.ts`, `start/routes.ts`      | `/admin/deleted-users`: the deleted accounts, each with a **Restore** button         |

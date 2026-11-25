@@ -3,7 +3,7 @@ import { test } from '@japa/runner'
 import { column, BaseModel, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { compose } from '@adonisjs/core/helpers'
 import { createDatabase, createTables } from './helpers.ts'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 test.group('BaseModelWithSoftDeletes', (group) => {
@@ -12,14 +12,14 @@ test.group('BaseModelWithSoftDeletes', (group) => {
   })
 
   test('exists methods `withTrashed` and `onlyTrashed`', async ({ assert }) => {
-    class TestModel extends compose(BaseModel, SoftDeletes) {}
+    class TestModel extends compose(BaseModel, withSoftDeletes) {}
     TestModel.boot()
 
     assert.isFunction(TestModel.withTrashed)
     assert.isFunction(TestModel.onlyTrashed)
   })
 
-  test('not exists methods `withTrashed` and `onlyTrashed` of model without SoftDeletes', ({
+  test('not exists methods `withTrashed` and `onlyTrashed` of model without withSoftDeletes', ({
     assert,
   }) => {
     class TestModel extends BaseModel {}
@@ -30,7 +30,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
   })
 
   test('exists methods `restore` and `forceDelete` of model instance', ({ assert }) => {
-    class TestModel extends compose(BaseModel, SoftDeletes) {}
+    class TestModel extends compose(BaseModel, withSoftDeletes) {}
     TestModel.boot()
 
     const model = new TestModel()
@@ -42,14 +42,14 @@ test.group('BaseModelWithSoftDeletes', (group) => {
   })
 
   test('exists `deletedAt` of model', ({ assert }) => {
-    class TestModel extends compose(BaseModel, SoftDeletes) {}
+    class TestModel extends compose(BaseModel, withSoftDeletes) {}
     TestModel.boot()
 
     assert.equal(TestModel.$hasColumn('deletedAt'), true)
   })
 
   test('custom column name for deletedAt of model', ({ assert }) => {
-    class TestModel extends compose(BaseModel, SoftDeletes) {
+    class TestModel extends compose(BaseModel, withSoftDeletes) {
       @column.dateTime({ columnName: 'deletedAt' })
       declare deletedAt?: DateTime | null
     }
@@ -60,10 +60,10 @@ test.group('BaseModelWithSoftDeletes', (group) => {
   })
 
   test('correct name and table name of model', ({ assert }) => {
-    class User extends compose(BaseModel, SoftDeletes) {}
+    class User extends compose(BaseModel, withSoftDeletes) {}
     User.boot()
 
-    class Industry extends compose(BaseModel, SoftDeletes) {}
+    class Industry extends compose(BaseModel, withSoftDeletes) {}
     Industry.boot()
 
     assert.equal(User.table, 'users')
@@ -76,7 +76,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -125,7 +125,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -170,7 +170,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -208,7 +208,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -250,7 +250,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class User extends compose(BaseModel, SoftDeletes) {
+    class User extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -289,7 +289,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class Post extends compose(BaseModel, SoftDeletes) {
+    class Post extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -325,7 +325,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class Post extends compose(BaseModel, SoftDeletes) {
+    class Post extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 
@@ -357,7 +357,7 @@ test.group('BaseModelWithSoftDeletes', (group) => {
     const db = await createDatabase()
     await createTables(db)
 
-    class Post extends compose(BaseModel, SoftDeletes) {
+    class Post extends compose(BaseModel, withSoftDeletes) {
       @column({ isPrimary: true })
       declare id: number
 

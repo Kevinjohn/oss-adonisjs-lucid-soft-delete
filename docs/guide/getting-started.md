@@ -75,15 +75,17 @@ migrations.
 ## Model and service
 
 For a new application model, compose Lucid's `BaseModel` with the installed package's public
-`SoftDeletes` export. The default mapping uses the nullable `deleted_at` migration column:
+mixin. The `v0.4.0` checkout above uses `SoftDeletes` for the import and composition. The example
+below uses the unreleased `withSoftDeletes` name from this checkout. The default mapping uses the
+nullable `deleted_at` migration column:
 
 ```ts
 // app/models/user.ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export default class User extends compose(BaseModel, SoftDeletes) {
+export default class User extends compose(BaseModel, withSoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 

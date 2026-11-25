@@ -51,7 +51,7 @@ test.group('Emitted declarations', () => {
         new namespace.E_MODEL_SOFT_DELETE('PlainUser'),
         namespace.ModelSoftDeleteException,
         'E_MODEL_SOFT_DELETE',
-        'PlainUser does not use SoftDeletes',
+        'PlainUser does not use withSoftDeletes',
       ],
       [
         new namespace.E_MODEL_FORCE_DELETED(),

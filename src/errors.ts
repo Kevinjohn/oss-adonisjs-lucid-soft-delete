@@ -23,7 +23,7 @@ export class ModelSoftDeleteException extends Exception {
   static status = 500
 
   constructor(modelName: string) {
-    super(`${modelName} does not use SoftDeletes`)
+    super(`${modelName} does not use withSoftDeletes`)
   }
 }
 

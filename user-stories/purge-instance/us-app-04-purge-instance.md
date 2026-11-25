@@ -1,12 +1,12 @@
 # US-APP-04 — Permanently remove an active or trashed model
 
-As application code using a `SoftDeletes` model, I want to permanently delete one selected active or trashed model so that its row is physically removed when application policy requires it.
+As application code using a `withSoftDeletes` model, I want to permanently delete one selected active or trashed model so that its row is physically removed when application policy requires it.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
 **Access:** Application code; application authorization, confirmation and retention policy are host-owned.
 **Entry:** Call `forceDelete()` on a persisted active or trashed model instance.
 **Documentation:** [Instance forceDelete contract](../../docs/reference/README.md#instance-forcedelete).
-**Source:** [SoftDeletes.forceDelete and delete](../../src/mixin.ts).
+**Source:** [Model forceDelete and delete](../../src/mixin.ts).
 **Coverage:** [Lifecycle tests](../../tests/lifecycle.spec.ts), [force-delete behavior](../../tests/model.spec.ts).
 
 ## Acceptance criteria

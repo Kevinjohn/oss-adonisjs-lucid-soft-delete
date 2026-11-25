@@ -11,11 +11,11 @@ import { DateTime, Settings } from 'luxon'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 
-class Post extends compose(BaseModel, SoftDeletes) {
+class Post extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })
@@ -25,7 +25,7 @@ class Post extends compose(BaseModel, SoftDeletes) {
   declare title: string
 }
 
-class HiddenDeletedAtPost extends compose(BaseModel, SoftDeletes) {
+class HiddenDeletedAtPost extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })
@@ -38,7 +38,7 @@ class HiddenDeletedAtPost extends compose(BaseModel, SoftDeletes) {
   declare deletedAt: DateTime | null
 }
 
-class RenamedDeletedAtPost extends compose(BaseModel, SoftDeletes) {
+class RenamedDeletedAtPost extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })

@@ -11,7 +11,7 @@ As an application developer, I want to select the right related rows so details 
 
 ## Acceptance criteria
 
-- When the related model uses `SoftDeletes`, has-one, has-many, belongs-to, many-to-many and nested or through reads default to active rows. A hidden has-one can yield no related record.
+- When the related model uses `withSoftDeletes`, has-one, has-many, belongs-to, many-to-many and nested or through reads default to active rows. A hidden has-one can yield no related record.
 - An explicit mode on the related query can include or isolate trashed children. With the provider installed, counts, aggregates and existence checks apply the related model’s read filter. For a grouped relation fetch, the filter runs inside the grouped query before the window selects rows. Raw joins and arbitrary SQL subqueries need explicit predicates.
 
 ## User flow

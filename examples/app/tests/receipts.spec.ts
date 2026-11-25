@@ -12,9 +12,9 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { errors, SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { errors, withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-class Parent extends compose(BaseModel, SoftDeletes) {
+class Parent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
