@@ -24,7 +24,7 @@
   "main": "./build/index.js",
   "exports": {
     ".": "./build/index.js",
-    "./types": "./build/src/types/index.js",
+    "./types": "./build/src/types.js",
     "./types/*": "./build/src/types/*.js",
     "./bindings": "./build/src/bindings/model_query_builder.js",
     "./lucid_soft_delete_provider": "./build/providers/lucid_soft_delete_provider.js"
@@ -61,6 +61,7 @@
     "exclude": [
       "tests/**",
       "bin/**",
+      "src/types.ts",
       "src/types/index.ts"
     ],
     "all": true,
@@ -141,6 +142,7 @@
     "entry": [
       "./index.ts",
       "./configure.ts",
+      "./src/types.ts",
       "./src/types/index.ts",
       "./src/types/querybuilder.ts",
       "./src/bindings/model_query_builder.ts",
