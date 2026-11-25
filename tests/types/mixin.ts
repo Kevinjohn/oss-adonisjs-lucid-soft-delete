@@ -13,7 +13,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { SoftDeletes, configure } from '../../index.ts'
+import { withSoftDeletes, configure } from '../../index.ts'
 import type {
   SoftDeletesConstructor,
   SoftDeletesInstance,
@@ -21,7 +21,7 @@ import type {
 } from '../../index.ts'
 import type Configure from '@adonisjs/core/commands/configure'
 
-class User extends compose(BaseModel, SoftDeletes) {}
+class User extends compose(BaseModel, withSoftDeletes) {}
 
 interface User {
   id: number
@@ -29,7 +29,7 @@ interface User {
   posts: HasMany<typeof Post>
 }
 
-class Post extends compose(BaseModel, SoftDeletes) {}
+class Post extends compose(BaseModel, withSoftDeletes) {}
 
 interface Post {
   id: number
@@ -42,7 +42,7 @@ interface TenantBase {
   tenantId: number
 }
 
-class TenantUser extends compose(TenantBase, SoftDeletes) {}
+class TenantUser extends compose(TenantBase, withSoftDeletes) {}
 
 interface TenantUser {
   username: string
@@ -53,12 +53,12 @@ const WithMarker = <T extends new (...args: any[]) => object>(superclass: T) =>
     marker = 'present' as const
   }
 
-class DeletesThenMarker extends compose(BaseModel, SoftDeletes, WithMarker) {}
+class DeletesThenMarker extends compose(BaseModel, withSoftDeletes, WithMarker) {}
 interface DeletesThenMarker {
   marker: 'present'
 }
 
-class MarkerThenDeletes extends compose(BaseModel, WithMarker, SoftDeletes) {}
+class MarkerThenDeletes extends compose(BaseModel, WithMarker, withSoftDeletes) {}
 interface MarkerThenDeletes {
   marker: 'present'
 }
@@ -122,9 +122,9 @@ export function assertMixinTypeContracts(): void {
   void secondMarker
 }
 
-/** The documented root types describe what `compose(..., SoftDeletes)` infers. */
+/** The documented root types describe what `compose(..., withSoftDeletes)` infers. */
 export function assertPublicContractTypes(): void {
-  const constructor: SoftDeletesConstructor<typeof BaseModel> = SoftDeletes(BaseModel)
+  const constructor: SoftDeletesConstructor<typeof BaseModel> = withSoftDeletes(BaseModel)
   const statics: SoftDeletesStatics = User
   const instance: SoftDeletesInstance = new User()
   const lifecycleOnly: SoftDeletesInstance = {

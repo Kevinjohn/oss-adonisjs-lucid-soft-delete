@@ -10,12 +10,12 @@
 import { compose } from '@adonisjs/core/helpers'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 import { UserSchema } from './fixtures/schema_user.ts'
 
-class User extends compose(UserSchema, SoftDeletes) {}
+class User extends compose(UserSchema, withSoftDeletes) {}
 
 test.group('Generated schema classes with soft deletes', (group) => {
   group.setup(() => {

@@ -14,9 +14,9 @@ import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-class Parent extends compose(BaseModel, SoftDeletes) {
+class Parent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -24,7 +24,7 @@ class Parent extends compose(BaseModel, SoftDeletes) {
   @column.dateTime() declare archivedAt: DateTime | null
   @hasMany(() => Child, { foreignKey: 'parentId' }) declare children: HasMany<typeof Child>
 }
-class Child extends compose(BaseModel, SoftDeletes) {
+class Child extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_children'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number

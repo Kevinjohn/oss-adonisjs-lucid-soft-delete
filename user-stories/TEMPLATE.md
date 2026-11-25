@@ -12,10 +12,10 @@ A story records one meaningful action and why it matters. Use actual roles, entr
 As an application service, I want to soft-delete a persisted model so that ordinary model queries hide it while the row remains recoverable.
 
 **Status:** Current; source-reviewed availability, not runtime-tested.
-**Access:** Application code using a model composed with `SoftDeletes`; application authorization is host-owned.
+**Access:** Application code using a model composed with `withSoftDeletes`; application authorization is host-owned.
 **Entry:** Instance `delete()` or `deleteQuietly()`.
 **Documentation:** [Instance lifecycle reference](../../docs/reference/README.md#instance-lifecycle-methods).
-**Source:** [SoftDeletes mixin](../../src/mixin.ts).
+**Source:** [withSoftDeletes mixin](../../src/mixin.ts).
 **Coverage:** [Model lifecycle tests](../../tests/model.spec.ts).
 
 ## Acceptance criteria
@@ -58,7 +58,7 @@ flowchart TD
     L --> N["Return, or propagate persistence error"]
 ```
 
-**Code references:** [SoftDeletes mixin](../../src/mixin.ts), [model lifecycle tests](../../tests/model.spec.ts), [lifecycle reference](../../docs/reference/README.md#instance-lifecycle-methods).
+**Code references:** [withSoftDeletes mixin](../../src/mixin.ts), [model lifecycle tests](../../tests/model.spec.ts), [lifecycle reference](../../docs/reference/README.md#instance-lifecycle-methods).
 ````
 
 ## Actions with input fields

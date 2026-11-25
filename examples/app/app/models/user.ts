@@ -8,7 +8,7 @@
  */
 
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import { UserSchema } from '#database/schema'
 
-export default class User extends compose(UserSchema, SoftDeletes) {}
+export default class User extends compose(UserSchema, withSoftDeletes) {}

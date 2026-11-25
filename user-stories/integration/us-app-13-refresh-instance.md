@@ -1,12 +1,12 @@
 # US-APP-13 — Refresh an instance with its deletion state
 
-As application code using a `SoftDeletes` model, I want to reload an instance by its primary key so I can inspect its current deletion state even if an ordinary find would hide it.
+As application code using a `withSoftDeletes` model, I want to reload an instance by its primary key so I can inspect its current deletion state even if an ordinary find would hide it.
 
 **Status:** Current, source-reviewed.
 **Access:** Application code holding a model instance. The host application owns access policy and any attached transaction.
 **Entry:** Call the Lucid instance method `refresh()`.
 **Documentation:** [Model fetches and builder lifecycle](../../docs/reference/scope-contract.md#model-fetches-and-builder-lifecycle).
-**Source:** [SoftDeletes query override](../../src/mixin.ts#L256).
+**Source:** [withSoftDeletes query override](../../src/mixin.ts#L256).
 **Coverage:** [Scope tests](../../tests/scope.spec.ts#L426), [custom deletion column and transaction](../../tests/lifecycle.spec.ts#L875), [rollback tests](../../tests/transactions.spec.ts#L73).
 
 ## Acceptance criteria

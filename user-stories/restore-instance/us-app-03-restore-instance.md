@@ -1,12 +1,12 @@
 # US-APP-03 — Restore a soft-deleted model
 
-As application code using a `SoftDeletes` model, I want to clear a deleted model's timestamp so that ordinary queries can find it again.
+As application code using a `withSoftDeletes` model, I want to clear a deleted model's timestamp so that ordinary queries can find it again.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
 **Access:** Application code. The host application owns authorization and conflict handling.
 **Entry:** Fetch using `withTrashed()` or `onlyTrashed()`, then call instance `restore()`.
 **Documentation:** [Instance restore contract](../../docs/reference/README.md#restore).
-**Source:** [SoftDeletes.restore](../../src/mixin.ts).
+**Source:** [Model restore](../../src/mixin.ts).
 **Coverage:** [Instance lifecycle tests](../../tests/lifecycle.spec.ts).
 
 ## Acceptance criteria

@@ -49,4 +49,4 @@ flowchart TD
     G -->|Success| H["Redirect session.create"]
 ```
 
-**Code references:** [routes](../../examples/starter/hypermedia/start/routes.ts), [controller](../../examples/starter/hypermedia/app/controllers/account_deletion_controller.ts), [view](../../examples/starter/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge), [SoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts).
+**Code references:** [routes](../../examples/starter/hypermedia/start/routes.ts), [controller](../../examples/starter/hypermedia/app/controllers/account_deletion_controller.ts), [view](../../examples/starter/hypermedia/resources/views/pages/account/delete.edge), [shared navigation](../../examples/starter/hypermedia/resources/views/components/layouts/app.edge), [withSoftDeletes mixin](../../src/mixin.ts), [local functional tests](../../examples/starter/hypermedia/tests/functional/soft_delete.spec.ts).

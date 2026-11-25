@@ -14,7 +14,7 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { hasSoftDeletes, SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { hasSoftDeletes, withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import type {
   ForceDeleteReceipt,
   RestoreReceipt,
@@ -29,7 +29,7 @@ class ExtendedUser extends User {
   declare role: string
 }
 
-class Post extends compose(BaseModel, SoftDeletes) {
+class Post extends compose(BaseModel, withSoftDeletes) {
   declare title: string
 }
 
@@ -43,7 +43,7 @@ class TenantBase extends BaseModel {
   declare tenantId: number
 }
 
-class TenantUser extends compose(TenantBase, SoftDeletes) {
+class TenantUser extends compose(TenantBase, withSoftDeletes) {
   declare username: string
 }
 
@@ -52,8 +52,8 @@ const WithMarker = <T extends new (...args: any[]) => object>(superclass: T) =>
     marker = 'present' as const
   }
 
-class DeletesThenMarker extends compose(BaseModel, SoftDeletes, WithMarker) {}
-class MarkerThenDeletes extends compose(BaseModel, WithMarker, SoftDeletes) {}
+class DeletesThenMarker extends compose(BaseModel, withSoftDeletes, WithMarker) {}
+class MarkerThenDeletes extends compose(BaseModel, WithMarker, withSoftDeletes) {}
 
 type Assert<T extends true> = T
 type IsAny<T> = 0 extends 1 & T ? true : false

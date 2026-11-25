@@ -8,7 +8,9 @@ Requires Node.js 24+, AdonisJS 7 and Lucid 22; supported test databases are SQLi
 
 ## Requirements
 
-Use peer dependencies `@adonisjs/core` 7, `@adonisjs/lucid` 22 and `luxon` 3.4.4+, with TypeScript 5.9.3 or 6.0.3+. Compose `SoftDeletes` with `BaseModel`, map nullable `deletedAt` to `deleted_at`, and register the package provider before using query builder macros.
+Use peer dependencies `@adonisjs/core` 7, `@adonisjs/lucid` 22 and `luxon` 3.4.4+, with TypeScript 5.9.3 or 6.0.3+. Compose `withSoftDeletes` with `BaseModel`, map nullable `deletedAt` to `deleted_at`, and register the package provider before using query builder macros.
+
+The `v0.4.0` archive below exports the mixin as `SoftDeletes`. Use that name for its import and `compose()` call. This checkout uses the unreleased `withSoftDeletes` name.
 
 ## Install
 

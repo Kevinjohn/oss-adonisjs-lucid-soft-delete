@@ -13,7 +13,7 @@ import {
 } from './errors.ts'
 import { SOFT_DELETES } from './guard.ts'
 
-/** Instance lifecycle methods and state provided by `SoftDeletes`. */
+/** Instance lifecycle methods and state provided by `withSoftDeletes`. */
 export interface SoftDeletesInstance {
   /** Deletion time; null is active, while undefined can mean an omitted projection. */
   deletedAt?: DateTime | null
@@ -92,7 +92,7 @@ async function resolveDeleteOperation(
 }
 
 /**
- * Static members `SoftDeletes` adds to the model class. `withTrashed()` and `onlyTrashed()` select
+ * Static members `withSoftDeletes` adds to the model class. `withTrashed()` and `onlyTrashed()` select
  * a read mode; the other three are the model fetch hooks and their bypass, not application API.
  */
 export interface SoftDeletesStatics {
@@ -130,7 +130,7 @@ export interface SoftDeletesStatics {
 }
 
 /**
- * The class `SoftDeletes(superclass)` returns: the superclass statics plus `SoftDeletesStatics`,
+ * The class `withSoftDeletes(superclass)` returns: the superclass statics plus `SoftDeletesStatics`,
  * constructing instances with `SoftDeletesInstance` and the overridden Lucid delete methods.
  */
 export type SoftDeletesConstructor<T extends NormalizeConstructor<typeof BaseModel>> = Omit<
@@ -173,14 +173,14 @@ type ScopedModelQueryBuilder<
  *
  * @example
  * ```ts
- * import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+ * import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
  * import { compose } from '@adonisjs/core/helpers'
  * import { UserSchema } from '#database/schema'
  *
- * export default class User extends compose(UserSchema, SoftDeletes) {}
+ * export default class User extends compose(UserSchema, withSoftDeletes) {}
  * ```
  */
-export function SoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
+export function withSoftDeletes<T extends NormalizeConstructor<typeof BaseModel>>(
   superclass: T
 ): SoftDeletesConstructor<T> {
   class ModelWithSoftDeletes extends superclass {

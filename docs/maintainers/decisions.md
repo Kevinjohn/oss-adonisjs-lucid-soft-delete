@@ -1,6 +1,6 @@
 # Decision log
 
-This log records implementation decisions made while delivering version 0.1.0-alpha. The PRD defines the product contract; an entry here records how that contract was carried out or why evidence required a change.
+This log records implementation decisions made during and after the delivery of version 0.1.0-alpha. Each entry records a choice and the evidence behind it.
 
 ## 2026-10-25: Preserve project history with a merge commit
 
@@ -210,3 +210,9 @@ This log records implementation decisions made while delivering version 0.1.0-al
   - The preselect uses `pojo()` on a clone because Lucid fetch hooks can replace lifecycle predicates.
 
 - **Evidence:** `tests/builder_receipts.spec.ts`, `examples/app/tests/receipts.spec.ts`, `examples/app/tests/types.ts`, and `examples/app/tests/recipes.spec.ts`.
+
+## 2026-11-25: Use `withSoftDeletes` for the model mixin
+
+- **Decision:** Export the model mixin as `withSoftDeletes` in the next release and retain the existing public type names. Use the [Unreleased upgrade example](../../CHANGELOG.md#unreleased) to update model imports and composition calls.
+- **Reason:** Match AdonisJS mixin naming while the package is in pre-release. The `v0.4.0` archive still exposes `SoftDeletes`.
+- **Evidence:** `tests/package_exports.spec.ts` checks the built exports. The [installed-consumer fixture](../../examples/app/) compiles and exercises models composed with the renamed mixin.

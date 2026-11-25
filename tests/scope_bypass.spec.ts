@@ -13,7 +13,7 @@ import { BaseModel, belongsTo, column, hasMany, ModelQueryBuilder } from '@adoni
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
 import { createDatabase, createTables } from './helpers.ts'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 test.group('Scope bypasses', (group) => {
@@ -303,7 +303,7 @@ test.group('Scope bypasses', (group) => {
 })
 
 function createModels() {
-  class User extends compose(BaseModel, SoftDeletes) {
+  class User extends compose(BaseModel, withSoftDeletes) {
     @column({ isPrimary: true })
     declare id: number
 
@@ -325,7 +325,7 @@ function createModels() {
     declare activePosts: HasMany<typeof Post>
   }
 
-  class Post extends compose(BaseModel, SoftDeletes) {
+  class Post extends compose(BaseModel, withSoftDeletes) {
     @column({ isPrimary: true })
     declare id: number
 

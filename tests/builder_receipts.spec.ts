@@ -20,7 +20,7 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
 import { randomUUID } from 'node:crypto'
-import { errors, SoftDeletes } from '../index.ts'
+import { errors, withSoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { executeWithReceipt } from '../src/receipts.ts'
 import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.ts'
@@ -33,7 +33,7 @@ import {
   waitForReceiptLock,
 } from './helpers/receipt_lock_wait.ts'
 
-class LifecycleUser extends compose(BaseModel, SoftDeletes) {
+class LifecycleUser extends compose(BaseModel, withSoftDeletes) {
   static table = 'users'
   static hooksRun = 0
   @column({ isPrimary: true }) declare id: number
@@ -47,20 +47,20 @@ class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   }
 }
 
-class HandleUser extends compose(BaseModel, SoftDeletes) {
+class HandleUser extends compose(BaseModel, withSoftDeletes) {
   static table = 'users'
   static primaryKey = 'handle'
   @column({ isPrimary: true, columnName: 'username' }) declare handle: string
   @column() declare companyId: number
 }
 
-class BigKey extends compose(BaseModel, SoftDeletes) {
+class BigKey extends compose(BaseModel, withSoftDeletes) {
   static table = 'big_keys'
   @column({ isPrimary: true }) declare id: number | string
   @column() declare label: string
 }
 
-class BinaryKey extends compose(BaseModel, SoftDeletes) {
+class BinaryKey extends compose(BaseModel, withSoftDeletes) {
   static table = 'binary_keys'
   @column({ isPrimary: true }) declare id: Uint8Array
 }
@@ -628,28 +628,32 @@ test.group('Builder receipts', (group) => {
     const db = await createDatabase()
     await createTables(db)
     for (const entry of ['client', 'useTransaction'] as const) {
-      for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+      for (const operation of ['softDelete', 'restore', 'forceDelete'] as const) {
         for (const commit of [false, true]) {
           const row = await LifecycleUser.create({
-            username: `commit-rollback-${entry}-${action}-${commit}`,
+            username: `commit-rollback-${entry}-${operation}-${commit}`,
           })
-          if (action !== 'softDelete') await LifecycleUser.query().where('id', row.id).softDelete()
+          if (operation !== 'softDelete')
+            await LifecycleUser.query().where('id', row.id).softDelete()
           const trx = await openTransaction(db)
           const query =
             entry === 'client'
               ? LifecycleUser.query({ client: trx })
               : LifecycleUser.query().useTransaction(trx)
-          const receipt = await query.where('id', row.id)[action]({ receipt: true })
+          const receipt = await query.where('id', row.id)[operation]({ receipt: true })
           assert.equal(receipt.count, 1)
           const inside = await trx.from('users').where('id', row.id).first()
-          if (action === 'forceDelete') assert.isNull(inside)
-          else assert.equal(inside?.deleted_at !== null, action === 'softDelete')
+          if (operation === 'forceDelete') assert.isNull(inside)
+          else assert.equal(inside?.deleted_at !== null, operation === 'softDelete')
           if (commit) await trx.commit()
           else await trx.rollback()
           const persisted = await db.from('users').where('id', row.id).first()
-          if (action === 'forceDelete') assert.equal(persisted !== null, !commit)
+          if (operation === 'forceDelete') assert.equal(persisted !== null, !commit)
           else
-            assert.equal(persisted?.deleted_at !== null, action === 'softDelete' ? commit : !commit)
+            assert.equal(
+              persisted?.deleted_at !== null,
+              operation === 'softDelete' ? commit : !commit
+            )
         }
       }
     }
@@ -693,7 +697,7 @@ test.group('Builder receipts', (group) => {
     await db.table('books').insert({ id: 1, name: 'receipt-book' })
     await db.table('authors').insert({ id: 1, name: 'receipt-author' })
     await db.table('author_book').insert({ book_id: 1, author_id: 1 })
-    class Book extends compose(BaseModel, SoftDeletes) {
+    class Book extends compose(BaseModel, withSoftDeletes) {
       static table = 'books'
       @column({ isPrimary: true }) declare id: number
     }
@@ -728,7 +732,7 @@ test.group('Builder receipts', (group) => {
     assert.lengthOf(await db.from('books'), 1)
   })
 
-  test('the divergence guard throws with both counts', async ({ assert }) => {
+  test('the count divergence check throws with both counts', async ({ assert }) => {
     const db = await createDatabase()
     await createTables(db)
     const rows = await LifecycleUser.createMany([

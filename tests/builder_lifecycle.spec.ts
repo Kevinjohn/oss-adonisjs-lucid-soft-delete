@@ -17,12 +17,12 @@ import {
 } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
-import { errors, SoftDeletes } from '../index.ts'
+import { errors, withSoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 import { CustomPost, RelationComment, RelationUser, RelationPost } from './helpers/models.ts'
 
-class LifecycleUser extends compose(BaseModel, SoftDeletes) {
+class LifecycleUser extends compose(BaseModel, withSoftDeletes) {
   static table = 'users'
   static hooksRun = 0
   @column({ isPrimary: true }) declare id: number
@@ -299,7 +299,7 @@ test.group('Builder lifecycle', (group) => {
     await db.table('books').insert({ id: 1, name: 'book' })
     await db.table('authors').insert({ id: 1, name: 'author' })
     await db.table('author_book').insert({ book_id: 1, author_id: 1 })
-    class Book extends compose(BaseModel, SoftDeletes) {
+    class Book extends compose(BaseModel, withSoftDeletes) {
       static table = 'books'
       @column({ isPrimary: true }) declare id: number
     }

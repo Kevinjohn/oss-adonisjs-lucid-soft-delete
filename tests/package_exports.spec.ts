@@ -31,6 +31,12 @@ test.group('Package exports', () => {
 
   if (!process.env.TEST_BUILT_EXPORTS) return
 
+  test('exports withSoftDeletes as the model mixin', async ({ assert }) => {
+    const packageExports = await import('@kevinjohn/adonisjs-lucid-soft-delete')
+    assert.isFunction(packageExports.withSoftDeletes)
+    assert.notProperty(packageExports, 'SoftDeletes')
+  })
+
   test('loads the canonical types export and both existing types subpaths', async () => {
     await import('@kevinjohn/adonisjs-lucid-soft-delete/types')
     await import('@kevinjohn/adonisjs-lucid-soft-delete/types/index')

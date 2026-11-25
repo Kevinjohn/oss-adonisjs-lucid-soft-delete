@@ -21,13 +21,13 @@ import {
 import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { createDatabase, createTables } from './helpers.ts'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
-const SoftDeleteModel = compose(BaseModel, SoftDeletes)
+const SoftDeleteModel = compose(BaseModel, withSoftDeletes)
 type Hook = (query: ModelQueryBuilderContract<typeof SoftDeleteModel>) => void
 function models(hook: Hook, countHook?: Hook) {
-  class User extends compose(BaseModel, SoftDeletes) {
+  class User extends compose(BaseModel, withSoftDeletes) {
     static table = 'users'
     @column({ isPrimary: true }) declare id: number
     @column() declare username: string
@@ -45,7 +45,7 @@ function models(hook: Hook, countHook?: Hook) {
     }
     @hasMany(() => Post) declare posts: HasMany<typeof Post>
   }
-  class Post extends compose(BaseModel, SoftDeletes) {
+  class Post extends compose(BaseModel, withSoftDeletes) {
     static table = 'posts'
     @column({ isPrimary: true }) declare id: number
     @column() declare userId: number

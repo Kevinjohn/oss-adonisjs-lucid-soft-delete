@@ -14,7 +14,7 @@ import {
   errors,
   hasSoftDeletes,
   SOFT_DELETES,
-  SoftDeletes,
+  withSoftDeletes,
 } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import User from '#models/user'
 
@@ -23,7 +23,7 @@ class PlainUser extends BaseModel {
 }
 
 test('installed package exports and soft-delete lifecycle', async ({ assert }) => {
-  assert.isFunction(SoftDeletes)
+  assert.isFunction(withSoftDeletes)
   assert.isFunction(ModelQueryBuilder.prototype.withTrashed)
   assert.isTrue(hasSoftDeletes(User))
   assert.isFalse(hasSoftDeletes(PlainUser))

@@ -12,7 +12,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
 import { createDatabase, dbClient } from './helpers.ts'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 
 test.group('Cascade boundaries', () => {
   test('soft delete leaves relations intact and force delete follows foreign keys', async ({
@@ -54,7 +54,7 @@ test.group('Cascade boundaries', () => {
         .onDelete('CASCADE')
     })
 
-    class Parent extends compose(BaseModel, SoftDeletes) {
+    class Parent extends compose(BaseModel, withSoftDeletes) {
       static table = 'parents'
 
       @column({ isPrimary: true })

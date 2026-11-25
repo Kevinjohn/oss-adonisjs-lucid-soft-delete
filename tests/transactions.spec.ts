@@ -26,28 +26,28 @@ test.group('Soft-delete transactions', (group) => {
     extendModelQueryBuilder(ModelQueryBuilder)
   })
 
-  const actions = ['delete', 'restore', 'forceDelete'] as const
+  const operations = ['delete', 'restore', 'forceDelete'] as const
   const attachments = ['useTransaction', 'queryClient'] as const
   const outcomes = ['commit', 'rollback'] as const
 
-  for (const action of actions) {
+  for (const operation of operations) {
     for (const attachment of attachments) {
       for (const outcome of outcomes) {
-        test(`${action} through ${attachment} and ${outcome}`, async ({ assert }) => {
+        test(`${operation} through ${attachment} and ${outcome}`, async ({ assert }) => {
           const db = await createDatabase()
           await createTables(db)
-          const user = await createUser(`${action}-${attachment}-${outcome}`)
-          if (action === 'restore') await user.delete()
+          const user = await createUser(`${operation}-${attachment}-${outcome}`)
+          if (operation === 'restore') await user.delete()
 
           const sourceQuery =
-            action === 'restore' ? RelationUser.withTrashed() : RelationUser.query()
+            operation === 'restore' ? RelationUser.withTrashed() : RelationUser.query()
           let instance: RelationUser
           let transaction: TransactionClientContract
 
           if (attachment === 'queryClient') {
             transaction = await db.transaction()
             instance = (await RelationUser.query({ client: transaction })
-              .if(action === 'restore', (query) => query.withTrashed())
+              .if(operation === 'restore', (query) => query.withTrashed())
               .where('id', user.id)
               .firstOrFail()) as RelationUser
           } else {
@@ -58,9 +58,9 @@ test.group('Soft-delete transactions', (group) => {
 
           const originalBefore = { ...instance.$original }
           if (outcome === 'rollback') instance.email = 'dirty@example.test'
-          if (action === 'delete') await instance.delete()
-          if (action === 'restore') await instance.restore()
-          if (action === 'forceDelete') await instance.forceDelete()
+          if (operation === 'delete') await instance.delete()
+          if (operation === 'restore') await instance.restore()
+          if (operation === 'forceDelete') await instance.forceDelete()
 
           const memoryAfterWrite = {
             deletedAt: instance.deletedAt,
@@ -75,14 +75,14 @@ test.group('Soft-delete transactions', (group) => {
             assert.strictEqual(instance.deletedAt, memoryAfterWrite.deletedAt)
             assert.deepEqual(instance.$dirty, memoryAfterWrite.dirty)
             assert.deepEqual(instance.$original, memoryAfterWrite.original)
-            assert.equal(instance.$isDeleted, action === 'forceDelete')
+            assert.equal(instance.$isDeleted, operation === 'forceDelete')
             assert.isFalse(instance.$forceDelete)
-            if (action === 'forceDelete') {
+            if (operation === 'forceDelete') {
               assert.deepEqual(instance.$original, originalBefore)
               assert.deepEqual(instance.$dirty, { email: 'dirty@example.test' })
               await assert.rejects(() => instance.refresh())
             } else {
-              assert.equal(instance.trashed, action === 'delete')
+              assert.equal(instance.trashed, operation === 'delete')
               assert.deepEqual(instance.$dirty, {})
               assert.equal(instance.$original.email, 'dirty@example.test')
             }
@@ -92,12 +92,12 @@ test.group('Soft-delete transactions', (group) => {
             .where('id', user.id)
             .first()) as RelationUser | null
 
-          if (action === 'forceDelete') {
+          if (operation === 'forceDelete') {
             assert.equal(after === null, outcome === 'commit')
           } else {
             assert.isNotNull(after)
             const shouldBeTrashed =
-              action === 'delete' ? outcome === 'commit' : outcome === 'rollback'
+              operation === 'delete' ? outcome === 'commit' : outcome === 'rollback'
             assert.equal(after!.trashed, shouldBeTrashed)
           }
           if (outcome === 'rollback') {
@@ -138,7 +138,7 @@ test.group('Soft-delete transactions', (group) => {
     })
   }
 
-  test('caller policy and bookkeeping share the mutation transaction', async ({
+  test('caller permission check and bookkeeping share the mutation transaction', async ({
     assert,
     cleanup,
   }) => {
@@ -155,7 +155,7 @@ test.group('Soft-delete transactions', (group) => {
     const user = await createUser('composition')
     async function remove(allowed: boolean, failAfterWrite: boolean) {
       await db.transaction(async (transaction) => {
-        if (!allowed) throw new Error('policy rejected')
+        if (!allowed) throw new Error('permission check rejected')
         const record = await RelationUser.query({ client: transaction })
           .where('id', user.id)
           .firstOrFail()
@@ -169,7 +169,7 @@ test.group('Soft-delete transactions', (group) => {
     await assert.rejects(() => remove(true, true), 'bookkeeping rejected')
     assert.isNotNull(await RelationUser.find(user.id))
     assert.deepEqual(await db.from('operation_notes'), [])
-    await assert.rejects(() => remove(false, false), 'policy rejected')
+    await assert.rejects(() => remove(false, false), 'permission check rejected')
     assert.isNotNull(await RelationUser.find(user.id))
     assert.deepEqual(await db.from('operation_notes'), [])
     await remove(true, false)

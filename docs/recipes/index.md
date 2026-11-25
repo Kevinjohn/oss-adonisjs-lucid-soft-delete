@@ -44,9 +44,9 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-class RecipeParent extends compose(BaseModel, SoftDeletes) {
+class RecipeParent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -57,7 +57,7 @@ class RecipeParent extends compose(BaseModel, SoftDeletes) {
   >
 }
 
-class RecipeChild extends compose(BaseModel, SoftDeletes) {
+class RecipeChild extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_children'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -65,7 +65,7 @@ class RecipeChild extends compose(BaseModel, SoftDeletes) {
   @column() declare label: string
 }
 
-class CustomDeletionParent extends compose(BaseModel, SoftDeletes) {
+class CustomDeletionParent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -576,9 +576,9 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export class RecoverableRecord extends compose(BaseModel, SoftDeletes) {
+export class RecoverableRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number

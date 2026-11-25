@@ -13,12 +13,12 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { test } from '@japa/runner'
 import type { DateTime } from 'luxon'
 import { DateTime as LuxonDateTime } from 'luxon'
-import { SoftDeletes } from '../index.ts'
+import { withSoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 import { RelationPost, RelationProfile, RelationUser } from './helpers/models.ts'
 
-class CustomPost extends compose(BaseModel, SoftDeletes) {
+class CustomPost extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })
@@ -162,14 +162,14 @@ test.group('Builder restore', (group) => {
     await createUser('one')
     await createUser('two')
 
-    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+    for (const operation of ['softDelete', 'restore', 'forceDelete'] as const) {
       for (const shape of ['limit', 'offset'] as const) {
         const query = RelationUser.query().withTrashed()[shape](1) as unknown as Record<
           string,
           () => Promise<number>
         >
         await assert.rejects(
-          () => query[action](),
+          () => query[operation](),
           'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
         )
       }
@@ -201,13 +201,13 @@ test.group('Builder restore', (group) => {
     const user = await createUser('parent')
     for (const title of ['a', 'b', 'c']) await RelationPost.create({ userId: user.id, title })
 
-    for (const action of ['softDelete', 'restore', 'forceDelete'] as const) {
+    for (const operation of ['softDelete', 'restore', 'forceDelete'] as const) {
       const query = user.related('posts').query().groupLimit(1) as unknown as Record<
         string,
         () => Promise<number>
       >
       await assert.rejects(
-        () => query[action](),
+        () => query[operation](),
         'Bulk lifecycle writes do not support limit, offset or groupLimit clauses'
       )
     }

@@ -10,11 +10,11 @@
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase } from './helpers.ts'
 
-class ReusableRecord extends compose(BaseModel, SoftDeletes) {
+class ReusableRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'unique_records_reuse'
 
   @column({ isPrimary: true })
@@ -24,7 +24,7 @@ class ReusableRecord extends compose(BaseModel, SoftDeletes) {
   declare code: string
 }
 
-class RestorableRecord extends compose(BaseModel, SoftDeletes) {
+class RestorableRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'unique_records_restore'
 
   @column({ isPrimary: true })

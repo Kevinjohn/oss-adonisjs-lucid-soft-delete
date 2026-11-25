@@ -2,13 +2,13 @@
 
 Use these checks when a query or lifecycle operation does not behave as expected. For setup and normal usage, see the [getting started](getting-started.md), [recipes](../recipes/index.md), and [API reference](../reference/). See [Contributing](../../CONTRIBUTING.md) for project development guidance.
 
-Examples below use `Record` for a model composed with `SoftDeletes`, and `db` for the configured Lucid database service. Code marked **Contextual fragment** assumes those names are already in scope. Database constraints and application policy remain the caller's responsibility.
+Examples below use `Record` for a model composed with `withSoftDeletes`, and `db` for the configured Lucid database service. Code marked **Contextual fragment** assumes those names are already in scope. Database constraints and application policy remain the caller's responsibility.
 
 ## `withTrashed`, `onlyTrashed`, or `softDelete` is missing
 
 **Likely cause:** The provider has not booted, the model does not use the mixin, or the installed package version is incompatible with the project's AdonisJS/Lucid versions. A `deletedAt` column by itself does not install model scopes or builder macros.
 
-**Check:** Confirm that `@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider` is listed under `providers` in `adonisrc.ts`, and that the model extends `compose(BaseModel, SoftDeletes)`. The provider registers the builder macros during `boot()`.
+**Check:** Confirm that `@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delete_provider` is listed under `providers` in `adonisrc.ts`, and that the model extends `compose(BaseModel, withSoftDeletes)`. The provider registers the builder macros during `boot()`.
 
 **Correction:** Register the provider (or run the package's configure command), and compose the model with the mixin:
 
@@ -20,9 +20,9 @@ providers: [() => import('@kevinjohn/adonisjs-lucid-soft-delete/lucid_soft_delet
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-export default class Record extends compose(BaseModel, SoftDeletes) {
+export default class Record extends compose(BaseModel, withSoftDeletes) {
   static table = 'records'
 
   @column({ isPrimary: true })
@@ -48,7 +48,7 @@ Source and tests: [provider](../../providers/lucid_soft_delete_provider.ts), [mo
 import { DateTime } from 'luxon'
 import { column } from '@adonisjs/lucid/orm'
 
-// Contextual fragment inside a SoftDeletes model.
+// Contextual fragment inside a withSoftDeletes model.
 @column.dateTime({ columnName: 'removed_at' })
 declare deletedAt: DateTime | null
 ```
@@ -280,7 +280,7 @@ Use builder lifecycle macros when their direct bulk-write behavior is acceptable
 For example, hide a mapped timestamp from serialized output while retaining its persistence mapping:
 
 ```ts
-// Contextual fragment inside a SoftDeletes model.
+// Contextual fragment inside a withSoftDeletes model.
 @column.dateTime({ columnName: 'removed_at', serializeAs: null })
 declare deletedAt: DateTime | null
 ```

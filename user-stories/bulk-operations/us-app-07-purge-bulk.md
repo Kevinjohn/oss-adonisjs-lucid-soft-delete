@@ -3,7 +3,7 @@
 As application code, I want to permanently remove matching rows in bulk so that application retention policy can physically erase a selected set of rows.
 
 **Status:** Current; source-reviewed API availability, not runtime-tested here.
-**Access:** Application code using a `SoftDeletes` model with the provider booted (or the builder extension installed directly); authorization and transaction lifecycle are caller-owned.
+**Access:** Application code using a `withSoftDeletes` model with the provider booted (or the builder extension installed directly); authorization and transaction lifecycle are caller-owned.
 **Entry:** A Lucid model query builder followed by `forceDelete(options?)`.
 **Documentation:** [Builder lifecycle reference](../../docs/reference/README.md#builder-lifecycle-methods).
 **Source:** [extendModelQueryBuilder](../../src/bindings/model_query_builder.ts), [receipt implementation](../../src/receipts.ts).
@@ -13,7 +13,7 @@ As application code, I want to permanently remove matching rows in bulk so that 
 
 - The caller selects rows with ordinary Lucid predicates and optionally supplies `{ receipt: true }`; omitted/false returns a count. Unknown option keys or a non-boolean receipt flag reject.
 - In `onlyTrashed()` mode it retains the non-null deletion predicate; otherwise it groups caller predicates and can delete active or trashed matches. This is irreversible at the package layer.
-- The model must use `SoftDeletes` and have a mapped `deletedAt` column. Many-to-many and has-many-through relation builders reject before writing; query the related model by selected IDs instead.
+- The model must use `withSoftDeletes` and have a mapped `deletedAt` column. Many-to-many and has-many-through relation builders reject before writing; query the related model by selected IDs instead.
 - Application authorization, tenant predicates and cascade policy are host-owned. Builder writes do not hydrate instances, run model hooks, update `updatedAt` or invoke custom column `prepare` functions.
 - Default output is an affected-row count. `{ receipt: true }` instead returns changed primary-key `ids` and `count`; it requires an explicit caller-owned transaction on a supported dialect, a supported query shape and no row window. PostgreSQL uses `RETURNING`; MySQL and SQLite select affected IDs first and compare counts. A divergence raises `E_BULK_RECEIPT_DIVERGED`; roll back the transaction. A receipt describes an uncommitted mutation, not an audit log.
 - Without receipts, `limit`, `offset` and relation `groupLimit` are refused; the narrow exception is a limit of one on a single-parent belongs-to query targeting the related primary key on its own unqualified table. If Lucid already applied the relation constraints, the required key equality must still hold. The permitted limit is cleared before the physical delete. A has-one limit or a widened previewed belongs-to query is refused. Database errors propagate. The caller owns commit or rollback.

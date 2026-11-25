@@ -24,10 +24,10 @@ import type {
   ManyToMany,
 } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '../../src/mixin.ts'
+import { withSoftDeletes } from '../../src/mixin.ts'
 import { type DateTime } from 'luxon'
 
-class SoftDeleteModel extends compose(BaseModel, SoftDeletes) {
+class SoftDeleteModel extends compose(BaseModel, withSoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 }
@@ -116,7 +116,7 @@ export class RelationIndustry extends SoftDeleteModel {
   declare title: string
 }
 
-export class CustomPost extends compose(BaseModel, SoftDeletes) {
+export class CustomPost extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })

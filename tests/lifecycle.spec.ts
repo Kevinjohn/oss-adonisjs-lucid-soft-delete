@@ -21,12 +21,12 @@ import {
 } from '@adonisjs/lucid/orm'
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import { SoftDeletes } from '../src/mixin.ts'
+import { withSoftDeletes } from '../src/mixin.ts'
 import { errors } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables, dbClient } from './helpers.ts'
 
-class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
+class LifecycleRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'users'
   static events: string[] = []
   static failOn:
@@ -84,7 +84,7 @@ class LifecycleRecord extends compose(BaseModel, SoftDeletes) {
   }
 }
 
-class CustomLifecycleRecord extends compose(BaseModel, SoftDeletes) {
+class CustomLifecycleRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
 
   @column({ isPrimary: true })
@@ -97,7 +97,7 @@ class CustomLifecycleRecord extends compose(BaseModel, SoftDeletes) {
   declare deletedAt?: DateTime | null
 }
 
-class SelfAssignedLifecycleRecord extends compose(BaseModel, SoftDeletes) {
+class SelfAssignedLifecycleRecord extends compose(BaseModel, withSoftDeletes) {
   static table = 'posts'
   static selfAssignPrimaryKey = true
 

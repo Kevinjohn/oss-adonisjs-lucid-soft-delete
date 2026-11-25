@@ -3,7 +3,7 @@ import './src/types/querybuilder.ts'
 export * as errors from './src/errors.ts'
 
 export { configure } from './configure.ts'
-export { SoftDeletes } from './src/mixin.ts'
+export { withSoftDeletes } from './src/mixin.ts'
 export type {
   SoftDeletesInstance,
   SoftDeletesStatics,

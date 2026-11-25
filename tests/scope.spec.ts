@@ -10,13 +10,13 @@
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../index.ts'
+import { withSoftDeletes } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { applySubQueryScope } from '../src/scope.ts'
 import { createDatabase, createTables, dbClient } from './helpers.ts'
 import { RelationPost, RelationUser } from './helpers/models.ts'
 
-class User extends compose(BaseModel, SoftDeletes) {
+class User extends compose(BaseModel, withSoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 

@@ -1,12 +1,12 @@
 # US-APP-01 — Soft-delete a model instance
 
-As application code using a `SoftDeletes` model, I want to delete a persisted instance so that it disappears from ordinary model queries while remaining recoverable.
+As application code using a `withSoftDeletes` model, I want to delete a persisted instance so that it disappears from ordinary model queries while remaining recoverable.
 
 **Status:** Current; source-reviewed behavior, not runtime-tested here.
 **Access:** Application code. Application authorization is not provided by this package.
 **Entry:** Instance `delete()` or `deleteQuietly()`.
 **Documentation:** [Instance lifecycle methods](../../docs/reference/README.md#instance-lifecycle-methods).
-**Source:** [SoftDeletes mixin](../../src/mixin.ts).
+**Source:** [withSoftDeletes mixin](../../src/mixin.ts).
 **Coverage:** [Model lifecycle tests](../../tests/model.spec.ts), [quiet deletion tests](../../tests/lifecycle.spec.ts).
 
 ## Acceptance criteria
