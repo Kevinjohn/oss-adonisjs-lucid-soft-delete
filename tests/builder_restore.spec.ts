@@ -16,7 +16,7 @@ import { DateTime as LuxonDateTime } from 'luxon'
 import { SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationPost, RelationProfile, RelationUser } from './fixtures/models.js'
+import { RelationPost, RelationProfile, RelationUser } from './helpers/models.ts'
 
 class CustomPost extends compose(BaseModel, SoftDeletes) {
   static table = 'posts'

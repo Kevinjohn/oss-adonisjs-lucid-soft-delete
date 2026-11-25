@@ -10,7 +10,7 @@
 import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { createDatabase, createTables, dbClient } from './helpers.js'
-import { RelationUser } from './fixtures/models.js'
+import { RelationUser } from './helpers/models.ts'
 import { getSoftDeletesMode, setSoftDeletesMode, SOFT_DELETES_MODE } from '../src/mode.js'
 import { installModePropagation } from '../src/propagation.js'
 import {

@@ -11,7 +11,7 @@ import { test } from '@japa/runner'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { createDatabase, createTables, dbClient } from './helpers.js'
-import { RelationUser } from './fixtures/models.js'
+import { RelationUser } from './helpers/models.ts'
 
 test.group('Punctuation alias lifecycle writes', (group) => {
   group.setup(() => extendModelQueryBuilder(ModelQueryBuilder))

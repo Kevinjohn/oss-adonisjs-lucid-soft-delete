@@ -6,7 +6,7 @@ import {
   ReceiptLockConnections,
   waitForReceiptLock,
   type ReceiptConnection,
-} from './fixtures/receipt_lock_wait.js'
+} from './helpers/receipt_lock_wait.ts'
 import { createDatabase, dbClient } from './helpers.js'
 
 function pending<T>() {
