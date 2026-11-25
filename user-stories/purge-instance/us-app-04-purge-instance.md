@@ -12,8 +12,8 @@ As application code using a `SoftDeletes` model, I want to permanently delete on
 ## Acceptance criteria
 
 - `forceDelete()` stores the prior `$forceDelete` flag, sets it to `true`, calls `delete()`, then restores the prior flag in `finally` even when Lucid throws.
-- The `resolveDeleteAction()` decision uses the force flag to choose Lucid's physical-delete path for persisted active or trashed instances; the operation is not limited to trashed records.
-- An unsaved instance is refused with `E_MODEL_NOT_PERSISTED` before `resolveDeleteAction()` checks the force flag to select the physical path.
+- The `resolveDeleteOperation()` decision uses the force flag to choose Lucid's physical-delete path for persisted active or trashed instances; the operation is not limited to trashed records.
+- An unsaved instance is refused with `E_MODEL_NOT_PERSISTED` before `resolveDeleteOperation()` checks the force flag to select the physical path.
 - The physical delete follows Lucid hooks and database constraints. The row is removed; related rows follow database rules, not automatic package cascades.
 - A failed operation propagates. If an enclosing caller-owned transaction later rolls back, the database row returns but the retained model instance remains marked deleted; fetch a new instance.
 
@@ -36,7 +36,7 @@ Scope: model method through Lucid physical delete and caller transaction boundar
 
 ```mermaid
 flowchart TD
-    A["forceDelete saves previous flag; sets true"] --> B["Call delete and resolveDeleteAction"] --> C{"Persisted?"}
+    A["forceDelete saves previous flag; sets true"] --> B["Call delete and resolveDeleteOperation"] --> C{"Persisted?"}
     C -->|No| D["Throw E_MODEL_NOT_PERSISTED"] --> F["finally restores previous flag"]
     C -->|Yes| E["Delegate super.delete to Lucid physical query and hooks"] --> F
     F --> G{"Call succeeded?"}
@@ -46,4 +46,4 @@ flowchart TD
     I -->|No| K["Row remains removed"]
 ```
 
-**Code references:** [forceDelete, resolveDeleteAction and $getQueryFor](../../src/mixin.ts), [instance API contract](../../docs/reference/README.md#instance-forcedelete), [lifecycle tests](../../tests/lifecycle.spec.ts).
+**Code references:** [forceDelete, resolveDeleteOperation and $getQueryFor](../../src/mixin.ts), [instance API contract](../../docs/reference/README.md#instance-forcedelete), [lifecycle tests](../../tests/lifecycle.spec.ts).

@@ -1,7 +1,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
-export default class LucidSoftDeletesProvider {
+export default class LucidSoftDeleteProvider {
   constructor(protected app: ApplicationService) {}
 
   async boot() {

@@ -10,7 +10,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import LucidSoftDeletesProvider from '../providers/lucid_soft_delete_provider.js'
+import LucidSoftDeleteProvider from '../providers/lucid_soft_delete_provider.js'
 
 test.group('Provider', () => {
   test('boot installs the lifecycle macros on the Lucid model query builder', async ({
@@ -26,7 +26,7 @@ test.group('Provider', () => {
       },
     } as unknown as ApplicationService
 
-    await new LucidSoftDeletesProvider(app).boot()
+    await new LucidSoftDeleteProvider(app).boot()
 
     assert.deepEqual(requested, ['@adonisjs/lucid/orm'])
     for (const name of ['restore', 'softDelete', 'forceDelete', 'withTrashed', 'onlyTrashed']) {
