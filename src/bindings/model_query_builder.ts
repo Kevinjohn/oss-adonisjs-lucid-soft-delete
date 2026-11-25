@@ -1,20 +1,20 @@
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
-import type { BulkReceiptOptions } from '../receipts.js'
+import type { BulkReceiptOptions } from '../receipts.ts'
 import {
   requireValidReceiptMode,
   assertReceiptSupported,
   readDeletionTimestamp,
   countAffectedRows,
   executeWithReceipt,
-} from '../receipts.js'
-import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.js'
-import { hasSoftDeletes, type SoftDeletesModel } from '../guard.js'
-import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.js'
-import { installModePropagation } from '../propagation.js'
-import { installSubQueryScope } from '../sub_query_scope.js'
-import { qualifyColumnReference } from '../table_reference.js'
-import { addScopeFilter, groupCallerPredicates, hasRequiredEquality } from '../where_stack.js'
+} from '../receipts.ts'
+import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.ts'
+import { hasSoftDeletes, type SoftDeletesModel } from '../guard.ts'
+import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.ts'
+import { installModePropagation } from '../propagation.ts'
+import { installSubQueryScope } from '../sub_query_scope.ts'
+import { qualifyColumnReference } from '../table_reference.ts'
+import { addScopeFilter, groupCallerPredicates, hasRequiredEquality } from '../where_stack.ts'
 
 /**
  * Raises exception when model not with soft delete

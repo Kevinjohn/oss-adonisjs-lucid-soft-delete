@@ -24,7 +24,7 @@ import type {
   ManyToMany,
 } from '@adonisjs/lucid/types/relations'
 import { compose } from '@adonisjs/core/helpers'
-import { SoftDeletes } from '../../src/mixin.js'
+import { SoftDeletes } from '../../src/mixin.ts'
 import { type DateTime } from 'luxon'
 
 class SoftDeleteModel extends compose(BaseModel, SoftDeletes) {

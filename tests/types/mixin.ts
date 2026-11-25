@@ -13,12 +13,12 @@ import { compose } from '@adonisjs/core/helpers'
 import { BaseModel } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { SoftDeletes, configure } from '../../index.js'
+import { SoftDeletes, configure } from '../../index.ts'
 import type {
   SoftDeletesConstructor,
   SoftDeletesInstance,
   SoftDeletesStatics,
-} from '../../index.js'
+} from '../../index.ts'
 import type Configure from '@adonisjs/core/commands/configure'
 
 class User extends compose(BaseModel, SoftDeletes) {}

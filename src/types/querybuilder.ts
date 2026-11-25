@@ -3,8 +3,8 @@ import type {
   ForceDeleteReceipt,
   RestoreReceipt,
   SoftDeleteReceipt,
-} from '../receipts.js'
-import type { SoftDeletesModel } from '../guard.js'
+} from '../receipts.ts'
+import type { SoftDeletesModel } from '../guard.ts'
 
 declare module '@adonisjs/lucid/types/model' {
   export interface ModelQueryBuilderContract<

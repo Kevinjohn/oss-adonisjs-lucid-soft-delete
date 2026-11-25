@@ -20,18 +20,18 @@ import {
 import { getActiveTest, test } from '@japa/runner'
 import { DateTime, Settings } from 'luxon'
 import { randomUUID } from 'node:crypto'
-import { errors, SoftDeletes } from '../index.js'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
-import { executeWithReceipt } from '../src/receipts.js'
-import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.js'
-import { CustomPost, RelationPost, RelationUser } from './fixtures/models.js'
+import { errors, SoftDeletes } from '../index.ts'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
+import { executeWithReceipt } from '../src/receipts.ts'
+import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.ts'
+import { CustomPost, RelationPost, RelationUser } from './fixtures/models.ts'
 import {
   cleanupReceiptLock,
   openReceiptConnection,
   openReceiptTransaction,
   ReceiptLockConnections,
   waitForReceiptLock,
-} from './fixtures/receipt_lock_wait.js'
+} from './fixtures/receipt_lock_wait.ts'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'

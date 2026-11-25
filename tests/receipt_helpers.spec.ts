@@ -10,13 +10,13 @@
 import { test } from '@japa/runner'
 import { InvalidArgumentsException } from '@adonisjs/core/exceptions'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
-import { errors } from '../index.js'
+import { errors } from '../index.ts'
 import {
   assertReceiptSupported,
   executeWithReceipt,
   countAffectedRows,
   requireValidReceiptMode,
-} from '../src/receipts.js'
+} from '../src/receipts.ts'
 
 /** Exercise the preselect algorithm independently of the suite's configured database driver. */
 function preselectQuery(dialect: string, rows: Record<string, unknown>[]) {

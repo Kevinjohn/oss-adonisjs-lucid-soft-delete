@@ -2,9 +2,9 @@ import type { DateTime } from 'luxon'
 import { test } from '@japa/runner'
 import { column, BaseModel, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { compose } from '@adonisjs/core/helpers'
-import { createDatabase, createTables } from './helpers.js'
-import { SoftDeletes } from '../src/mixin.js'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { createDatabase, createTables } from './helpers.ts'
+import { SoftDeletes } from '../src/mixin.ts'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 test.group('BaseModelWithSoftDeletes', (group) => {
   group.setup(() => {

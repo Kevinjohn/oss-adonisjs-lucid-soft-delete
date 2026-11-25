@@ -1,4 +1,4 @@
-import './querybuilder.js'
+import './querybuilder.ts'
 
 export type {
   BulkReceipt,
@@ -7,6 +7,6 @@ export type {
   PrimaryKeyValue,
   RestoreReceipt,
   SoftDeleteReceipt,
-} from '../receipts.js'
-export type { SoftDeletesInstance, SoftDeletesStatics, SoftDeletesConstructor } from '../mixin.js'
-export type { SoftDeletesModel } from '../guard.js'
+} from '../receipts.ts'
+export type { SoftDeletesInstance, SoftDeletesStatics, SoftDeletesConstructor } from '../mixin.ts'
+export type { SoftDeletesModel } from '../guard.ts'

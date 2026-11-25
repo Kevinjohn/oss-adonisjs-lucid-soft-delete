@@ -15,9 +15,9 @@ import type {
   SoftDeleteReceipt,
   RestoreReceipt,
   ForceDeleteReceipt,
-} from '../../index.js'
+} from '../../index.ts'
 import type { ModelQueryBuilder } from '@adonisjs/lucid/orm'
-import { User } from './mixin.js'
+import { User } from './mixin.ts'
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false
 type Assert<Condition extends true> = Condition

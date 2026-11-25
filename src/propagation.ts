@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import { getSoftDeletesMode, setSoftDeletesMode, type ScopedQuery } from './mode.js'
+import { getSoftDeletesMode, setSoftDeletesMode, type ScopedQuery } from './mode.ts'
 
 const PATCHED = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete/patched')
 

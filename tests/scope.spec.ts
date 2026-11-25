@@ -10,11 +10,11 @@
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { test } from '@japa/runner'
-import { SoftDeletes } from '../index.js'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
-import { applySubQueryScope } from '../src/scope.js'
-import { createDatabase, createTables, dbClient } from './helpers.js'
-import { RelationPost, RelationUser } from './fixtures/models.js'
+import { SoftDeletes } from '../index.ts'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
+import { applySubQueryScope } from '../src/scope.ts'
+import { createDatabase, createTables, dbClient } from './helpers.ts'
+import { RelationPost, RelationUser } from './fixtures/models.ts'
 
 class User extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })

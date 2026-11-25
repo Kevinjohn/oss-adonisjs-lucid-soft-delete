@@ -1,5 +1,5 @@
 import type { ApplicationService } from '@adonisjs/core/types'
-import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
+import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 
 export default class LucidSoftDeletesProvider {
   constructor(protected app: ApplicationService) {}

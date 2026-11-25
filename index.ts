@@ -1,16 +1,16 @@
-import './src/types/querybuilder.js'
+import './src/types/querybuilder.ts'
 
-export * as errors from './src/errors.js'
+export * as errors from './src/errors.ts'
 
-export { configure } from './configure.js'
-export { SoftDeletes } from './src/mixin.js'
+export { configure } from './configure.ts'
+export { SoftDeletes } from './src/mixin.ts'
 export type {
   SoftDeletesInstance,
   SoftDeletesStatics,
   SoftDeletesConstructor,
-} from './src/mixin.js'
-export { hasSoftDeletes, SOFT_DELETES } from './src/guard.js'
-export type { SoftDeletesModel } from './src/guard.js'
+} from './src/mixin.ts'
+export { hasSoftDeletes, SOFT_DELETES } from './src/guard.ts'
+export type { SoftDeletesModel } from './src/guard.ts'
 export {
   LifecycleWriteUnsupportedException,
   E_LIFECYCLE_WRITE_UNSUPPORTED,
@@ -21,7 +21,7 @@ export {
   E_MODEL_FORCE_DELETED,
   E_MODEL_NOT_PERSISTED,
   E_MODEL_UNKNOWN_DELETION_STATE,
-} from './src/errors.js'
+} from './src/errors.ts'
 export type {
   BulkReceipt,
   BulkReceiptOptions,
@@ -29,4 +29,4 @@ export type {
   PrimaryKeyValue,
   RestoreReceipt,
   SoftDeleteReceipt,
-} from './src/receipts.js'
+} from './src/receipts.ts'
