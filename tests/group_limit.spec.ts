@@ -11,7 +11,7 @@ import { test } from '@japa/runner'
 import type { Assert } from '@japa/assert'
 import { ModelQueryBuilder } from '@adonisjs/lucid/orm'
 import { createDatabase, createTables } from './helpers.js'
-import { RelationComment, RelationIndustry, RelationPost, RelationUser } from './fixtures/models.js'
+import { RelationComment, RelationIndustry, RelationPost, RelationUser } from './helpers/models.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 /**

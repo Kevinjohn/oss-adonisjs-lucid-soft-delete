@@ -24,14 +24,14 @@ import { errors, SoftDeletes } from '../index.js'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 import { executeWithReceipt } from '../src/receipts.js'
 import { createDatabase, createSecondaryConnection, createTables, dbClient } from './helpers.js'
-import { CustomPost, RelationPost, RelationUser } from './fixtures/models.js'
+import { CustomPost, RelationPost, RelationUser } from './helpers/models.ts'
 import {
   cleanupReceiptLock,
   openReceiptConnection,
   openReceiptTransaction,
   ReceiptLockConnections,
   waitForReceiptLock,
-} from './fixtures/receipt_lock_wait.js'
+} from './helpers/receipt_lock_wait.ts'
 
 class LifecycleUser extends compose(BaseModel, SoftDeletes) {
   static table = 'users'

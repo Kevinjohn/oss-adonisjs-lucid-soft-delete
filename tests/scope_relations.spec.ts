@@ -16,7 +16,7 @@ import {
   RelationPost,
   RelationProfile,
   RelationUser,
-} from './fixtures/models.js'
+} from './helpers/models.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.js'
 
 test.group('Default soft-delete scope on relations', (group) => {
