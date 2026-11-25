@@ -22,54 +22,54 @@ type Driver = {
 /** Owns native transports before connecting; no pending pool lease can escape the deadline. */
 export class ReceiptLockConnections {
   readonly error = new Error('Receipt lock journey exceeded its deadline')
-  private connections = new Set<ReceiptConnection>()
-  private expired = false
-  private deadline: Promise<never>
-  private timer!: ReturnType<typeof setTimeout>
+  #connections = new Set<ReceiptConnection>()
+  #expired = false
+  #deadline: Promise<never>
+  #timer!: ReturnType<typeof setTimeout>
 
-  constructor(
-    private client: Client,
-    timeoutMs = 10_000
-  ) {
-    this.deadline = new Promise((_, reject) => {
-      this.timer = setTimeout(() => {
-        this.expired = true
+  #client: Client
+
+  constructor(client: Client, timeoutMs = 10_000) {
+    this.#client = client
+    this.#deadline = new Promise((_, reject) => {
+      this.#timer = setTimeout(() => {
+        this.#expired = true
         reject(this.error)
       }, timeoutMs)
     })
     // The deadline may expire between operations.
-    void this.deadline.catch(() => {})
+    void this.#deadline.catch(() => {})
   }
 
   async wait<T>(operation: PromiseLike<T>): Promise<T> {
-    return Promise.race([operation, this.deadline])
+    return Promise.race([operation, this.#deadline])
   }
 
   async connect(driver: Driver, settings: unknown) {
-    if (this.expired) throw this.error
+    if (this.#expired) throw this.error
     const connection =
-      this.client === 'pg' ? new driver.Client(settings) : driver.createConnection(settings)
-    this.connections.add(connection)
+      this.#client === 'pg' ? new driver.Client(settings) : driver.createConnection(settings)
+    this.#connections.add(connection)
     connection.on('error', () => {})
     await this.wait(
       new Promise<void>((resolve, reject) => {
         connection.connect((error) => (error ? reject(error) : resolve()))
       })
     )
-    if (this.expired) throw this.error
+    if (this.#expired) throw this.error
     return connection
   }
 
   async close(primaryError?: unknown) {
-    clearTimeout(this.timer)
-    this.expired = true
-    const connections = [...this.connections].reverse()
-    this.connections.clear()
+    clearTimeout(this.#timer)
+    this.#expired = true
+    const connections = [...this.#connections].reverse()
+    this.#connections.clear()
     // Closing the stream aborts queued queries and connect attempts as well as active writes.
     await cleanupReceiptLock(
       primaryError,
       connections.map((connection) => async () => {
-        const stream = this.client === 'pg' ? connection.connection!.stream : connection.stream!
+        const stream = this.#client === 'pg' ? connection.connection!.stream : connection.stream!
         stream.destroy()
       })
     )
