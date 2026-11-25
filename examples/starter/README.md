@@ -1,6 +1,6 @@
 # Native authentication test fixtures
 
-For runnable examples and shared recipes, use the [four Starter Examples apps](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.13.0/apps) and their [cookbook](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.13.0/docs/cookbook).
+For runnable examples and shared recipes, use the [four Starter Examples apps](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.17.0/apps) and their [cookbook](https://github.com/Kevinjohn/oss-adonisjs-starter-examples/tree/v0.17.0/docs/cookbook).
 
 These four hosts exercise the locally packed Soft Delete package with native authentication.
 Each checks that public signup cannot grant administrator access and that withdrawing an
