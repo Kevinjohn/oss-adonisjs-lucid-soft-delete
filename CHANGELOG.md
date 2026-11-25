@@ -16,6 +16,8 @@
 
   Use your existing base or schema class in the composition. The provider path, query macros, lifecycle methods and exported `SoftDeletes*` types keep their names.
 
+  The old `SoftDeletes` export is removed without an alias. The `E_MODEL_SOFT_DELETE` diagnostic now names `withSoftDeletes`; its exception identity, code and status are unchanged.
+
 ## 0.4.0 - 2026-11-24
 
 ### Changed
