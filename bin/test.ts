@@ -1,11 +1,12 @@
 import { assert } from '@japa/assert'
 import { expectTypeOf } from '@japa/expect-type'
+import { fileSystem } from '@japa/file-system'
 import { processCLIArgs, configure, run } from '@japa/runner'
 
 processCLIArgs(process.argv.slice(2))
 configure({
   files: ['tests/**/*.spec.ts'],
-  plugins: [assert(), expectTypeOf()],
+  plugins: [assert(), expectTypeOf(), fileSystem()],
   timeout: 10_000,
   // Skipped tests and TODOs never exercise the selected behavior.
   teardown: [
