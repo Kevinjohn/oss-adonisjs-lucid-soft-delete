@@ -35,6 +35,10 @@ different domain; it is not a naming template for model lifecycle failures. This
 no separate `./errors` export; callers use the root exports. Its `./types/*` wildcard remains a
 supported declaration entry point. Add an alias only for a concrete compatibility need.
 
+The provider owns the Lucid query-builder type declarations and installs the macros during boot.
+The `./types/querybuilder` subpath forwards the declarations for consumers, including standalone
+`./bindings` imports.
+
 Preserve public error message wording and punctuation when making style changes. Preserve
 upstream credit, per-file copyright notices and license text; inherited header phrasing does
 not justify rewriting legal attribution.
