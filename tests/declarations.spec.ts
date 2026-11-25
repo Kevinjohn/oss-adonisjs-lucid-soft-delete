@@ -131,9 +131,9 @@ test.group('Emitted declarations', () => {
     assert.include(rootDeclaration, 'export * as errors')
   })
 
-  test('the types barrel emits a declaration', async ({ assert }) => {
+  test('the canonical types barrel emits a declaration', async ({ assert }) => {
     const typesDeclaration = await readFile(
-      new URL('../build/src/types/index.d.ts', import.meta.url),
+      new URL('../build/src/types.d.ts', import.meta.url),
       'utf8'
     )
 
