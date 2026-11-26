@@ -49,11 +49,11 @@ Follow the [getting started guide](https://github.com/Kevinjohn/oss-adonisjs-luc
 
 ## Tested against
 
-|                         | Every pull request | Weekly and before each release          |
+|                         | Every pull request | Weekly and on matching pull requests    |
 | ----------------------- | ------------------ | --------------------------------------- |
 | Node.js                 | 24                 | 24                                      |
 | AdonisJS core           | locked version     | lowest supported (7.0.0) and latest 7.x |
 | Lucid                   | locked version     | lowest supported and latest 22.x        |
-| SQLite (better-sqlite3) | yes                | before each release only                |
+| SQLite (better-sqlite3) | yes                | —                                       |
 | PostgreSQL 16           | yes                | yes, with the lowest and latest peers   |
 | MySQL 8.4               | yes                | yes, with the locked peers              |

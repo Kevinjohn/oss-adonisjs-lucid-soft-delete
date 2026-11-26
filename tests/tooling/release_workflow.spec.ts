@@ -36,10 +36,10 @@ test.group('release workflow', () => {
   test('every release job waits for the main-only guard', async ({ assert }) => {
     const workflow = await readFile(workflowPath, 'utf8')
     const all = jobs(workflow)
-    assert.match(all.get('guard')?.block ?? '', /run: test "\$GITHUB_REF" = "refs\/heads\/main"/)
+    assert.match(all.get('ci')?.block ?? '', /run: test "\$GITHUB_REF" = "refs\/heads\/main"/)
     const guarded = (job: string): boolean =>
-      (all.get(job)?.needs ?? []).some((need) => need === 'guard' || guarded(need))
-    const unguarded = [...all.keys()].filter((job) => job !== 'guard' && !guarded(job))
+      (all.get(job)?.needs ?? []).some((need) => need === 'ci' || guarded(need))
+    const unguarded = [...all.keys()].filter((job) => job !== 'ci' && !guarded(job))
     assert.isAbove(all.size, 1)
     assert.deepEqual(unguarded, [])
   })

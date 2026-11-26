@@ -18,6 +18,8 @@
 
   The old `SoftDeletes` export is removed without an alias. The `E_MODEL_SOFT_DELETE` diagnostic now names `withSoftDeletes`; its exception identity, code and status are unchanged.
 
+- Require successful main CI for the release commit before packaging the GitHub release archive.
+
 ## 0.4.0 - 2026-11-24
 
 ### Changed
