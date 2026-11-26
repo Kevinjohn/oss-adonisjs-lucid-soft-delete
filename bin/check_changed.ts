@@ -9,8 +9,8 @@
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { type Change, planChecks, readTestOutcome } from './check_changed_plan.js'
-import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.js'
+import { type Change, planChecks, readTestOutcome } from './check_changed_plan.ts'
+import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.ts'
 
 function git(args: string[]): string {
   const result = spawnSync('git', args, { encoding: 'utf8' })
@@ -157,5 +157,7 @@ else if (plan.skipped.includes('consumer')) console.log('consumer: skip (--stati
 else console.log('consumer: skip (no consumer inputs changed)')
 
 await runCheckStep('docs', 'pnpm', ['docs:check'])
+if (plan.docsBuild) await runCheckStep('docs build', 'pnpm', ['docs:build'])
+else console.log('docs build: skip (no documentation inputs changed)')
 
 process.exit(failed ? 1 : 0)

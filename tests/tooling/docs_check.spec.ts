@@ -14,7 +14,7 @@ import { dirname, join, relative } from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
-import { checkDocumentation } from '../../bin/docs_check.js'
+import { checkDocumentation } from '../../bin/docs_check.ts'
 
 async function fixture(files: Record<string, string>, cleanup: (fn: () => Promise<void>) => void) {
   const root = await mkdtemp(join(tmpdir(), 'documentation-check-'))

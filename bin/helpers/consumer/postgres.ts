@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import pg from 'pg'
-import { runCommand } from './harness.js'
+import { runCommand } from './harness.ts'
 
 const appSchemaCheck = `import pg from 'pg'
 const client = new pg.Client({

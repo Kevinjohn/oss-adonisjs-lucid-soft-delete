@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import { runConsumerApp } from './consumer_app.js'
+import { runConsumerApp } from './consumer_app.ts'
 
 /** Current compatible AdonisJS and Lucid peer releases. */
 export function runFresh(archive: string) {

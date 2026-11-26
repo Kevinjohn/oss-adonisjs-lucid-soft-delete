@@ -28,7 +28,7 @@ test.group('Emitted declarations', () => {
     assert.match(rootDeclaration, /^import '\.\/src\/types\/querybuilder\.(?:js|ts)'/m)
     assert.match(
       querybuilderTypes,
-      /export type {} from '..\/..\/providers\/lucid_soft_delete_provider\.(?:ts|js)'/
+      /export type \{\} from ['"]\.\.\/\.\.\/providers\/lucid_soft_delete_provider\.(?:ts|js)['"]/
     )
     assert.include(augmentation, "declare module '@adonisjs/lucid/types/model'")
   })
@@ -36,7 +36,7 @@ test.group('Emitted declarations', () => {
   test('the built root exposes every exception under its name and stable code', async ({
     assert,
   }) => {
-    const built: typeof import('../index.js') = await import(
+    const built: typeof import('../index.ts') = await import(
       new URL('../build/index.js', import.meta.url).href
     )
     const namespace = built.errors

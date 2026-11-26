@@ -16,6 +16,7 @@ export type Plan = {
   /** Spec files to run, or the full test suite. Empty skips the step. */
   tests: 'all' | string[]
   consumer: boolean
+  docsBuild: boolean
   builtExports: boolean
   /** Suites selected by the change but left out by `--static`. */
   skipped: string[]
@@ -25,6 +26,7 @@ const IGNORED = /^(build|tmp|examples|coverage)\//
 const LINTABLE = /\.(ts|mts|cts|js|mjs|cjs)$/
 const TYPED = /\.(ts|mts|cts)$/
 const SPEC = /^tests\/(?:tooling\/.+|[^/]+)\.spec\.ts$/
+const DOCS_BUILD = /^(docs|\.vitepress)\//
 const DEPENDENCIES = new Set(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'])
 const LINT_CONFIG = new Set(['eslint.config.js', ...DEPENDENCIES])
 const TYPE_CONFIG = new Set(['tsconfig.json', ...DEPENDENCIES])
@@ -69,6 +71,7 @@ export function planChecks(
     typecheck: false,
     tests: [],
     consumer: false,
+    docsBuild: false,
     builtExports: false,
     skipped: [],
   }
@@ -79,6 +82,9 @@ export function planChecks(
   let testAll = false
 
   for (const { path, deleted } of changes) {
+    if (DOCS_BUILD.test(path) || DEPENDENCIES.has(path) || path === 'typedoc.json') {
+      plan.docsBuild = true
+    }
     if (CONSUMER.test(path)) plan.consumer = true
     if (BUILT_EXPORTS.test(path)) plan.builtExports = true
     if (IGNORED.test(path)) continue

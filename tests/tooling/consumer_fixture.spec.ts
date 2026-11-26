@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from '@japa/runner'
-import { copyFixture } from '../../bin/helpers/consumer/fixture.js'
+import { copyFixture } from '../../bin/helpers/consumer/fixture.ts'
 
 test.group('consumer fixture inputs', (group) => {
   let directory: string

@@ -10,9 +10,9 @@
 import assert from 'node:assert/strict'
 import { readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { join, sep } from 'node:path'
-import { copyFixture } from './fixture.js'
-import { runCommand } from './harness.js'
-import { verifyAppPostgresSchema, verifyPostgresMigration, withPostgresSchema } from './postgres.js'
+import { copyFixture } from './fixture.ts'
+import { runCommand } from './harness.ts'
+import { verifyAppPostgresSchema, verifyPostgresMigration, withPostgresSchema } from './postgres.ts'
 import {
   readConsumerEnvironment,
   compatibility,
@@ -20,7 +20,7 @@ import {
   packageName,
   repoRoot,
   tempRoot,
-} from './settings.js'
+} from './settings.ts'
 
 const minimumPeers = {
   '@adonisjs/assembler': '8.0.0',
