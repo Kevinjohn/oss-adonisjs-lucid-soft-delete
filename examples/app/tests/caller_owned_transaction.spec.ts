@@ -10,18 +10,19 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
-import { RemovalForbiddenException, removeUser } from '#services/caller_owned_transaction'
-
-async function createUser(label: string) {
-  const suffix = `${Date.now()}-${Math.random()}`
-  return User.create({ email: `${label}-${suffix}@example.test`, username: label })
-}
-
-function notesFor(id: number) {
-  return db.from('lifecycle_notes').where('tenant_id', 0).where('parent_id', id)
-}
+import RemovalForbiddenException from '#exceptions/removal_forbidden_exception'
+import { removeUser } from '#services/caller_owned_transaction'
 
 test.group('caller-owned transaction example', () => {
+  async function createUser(label: string) {
+    const suffix = `${Date.now()}-${Math.random()}`
+    return User.create({ email: `${label}-${suffix}@example.test`, username: label })
+  }
+
+  function notesFor(id: number) {
+    return db.from('lifecycle_notes').where('tenant_id', 0).where('parent_id', id)
+  }
+
   test('a denied removal is a 403 refusal and writes neither table', async ({ assert }) => {
     const user = await createUser('denied')
 

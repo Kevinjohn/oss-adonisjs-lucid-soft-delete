@@ -16,53 +16,53 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-class Parent extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_parents'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare label: string
-  @column.dateTime() declare archivedAt: DateTime | null
-  @hasMany(() => Child, { foreignKey: 'parentId' }) declare children: HasMany<typeof Child>
-}
-class Child extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_children'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare parentId: number
-  @column() declare label: string
-}
-class HookedParent extends Parent {
-  static table = 'lifecycle_parents'
-  @beforeFind()
-  @beforeFetch()
-  static appendAlternative(query: ModelQueryBuilderContract<typeof HookedParent>) {
-    query.orWhere('label', 'hook-deleted')
-  }
-}
-const archivedAt = DateTime.fromISO('2026-01-02T03:04:05.000Z')
-async function seed() {
-  const selected = await Parent.create({ tenantId: 1, label: 'selected', archivedAt })
-  const other = await Parent.create({ tenantId: 2, label: 'other', archivedAt })
-  const child = await Child.create({ tenantId: 1, parentId: selected.id, label: 'active child' })
-  const deletedChild = await Child.create({
-    tenantId: 1,
-    parentId: selected.id,
-    label: 'deleted child',
-  })
-  await deletedChild.delete()
-  const otherChild = await Child.create({ tenantId: 2, parentId: other.id, label: 'other child' })
-  return { selected, other, child, deletedChild, otherChild }
-}
-const actions = [
-  'instanceDelete',
-  'instanceRestore',
-  'instanceForceDelete',
-  'builderSoftDelete',
-  'builderRestore',
-  'builderForceDelete',
-] as const
-
 test.group('Installed transactional lifecycle', (group) => {
+  class Parent extends compose(BaseModel, withSoftDeletes) {
+    static table = 'lifecycle_parents'
+    @column({ isPrimary: true }) declare id: number
+    @column() declare tenantId: number
+    @column() declare label: string
+    @column.dateTime() declare archivedAt: DateTime | null
+    @hasMany(() => Child, { foreignKey: 'parentId' }) declare children: HasMany<typeof Child>
+  }
+  class Child extends compose(BaseModel, withSoftDeletes) {
+    static table = 'lifecycle_children'
+    @column({ isPrimary: true }) declare id: number
+    @column() declare tenantId: number
+    @column() declare parentId: number
+    @column() declare label: string
+  }
+  class HookedParent extends Parent {
+    static table = 'lifecycle_parents'
+    @beforeFind()
+    @beforeFetch()
+    static appendAlternative(query: ModelQueryBuilderContract<typeof HookedParent>) {
+      query.orWhere('label', 'hook-deleted')
+    }
+  }
+  const archivedAt = DateTime.fromISO('2026-01-02T03:04:05.000Z')
+  async function seed() {
+    const selected = await Parent.create({ tenantId: 1, label: 'selected', archivedAt })
+    const other = await Parent.create({ tenantId: 2, label: 'other', archivedAt })
+    const child = await Child.create({ tenantId: 1, parentId: selected.id, label: 'active child' })
+    const deletedChild = await Child.create({
+      tenantId: 1,
+      parentId: selected.id,
+      label: 'deleted child',
+    })
+    await deletedChild.delete()
+    const otherChild = await Child.create({ tenantId: 2, parentId: other.id, label: 'other child' })
+    return { selected, other, child, deletedChild, otherChild }
+  }
+  const actions = [
+    'instanceDelete',
+    'instanceRestore',
+    'instanceForceDelete',
+    'builderSoftDelete',
+    'builderRestore',
+    'builderForceDelete',
+  ] as const
+
   group.each.setup(async () => {
     await db.from('lifecycle_notes').delete()
     await db.from('lifecycle_children').delete()

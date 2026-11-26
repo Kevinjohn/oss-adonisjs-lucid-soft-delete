@@ -106,19 +106,29 @@ typed exception that the exception handler renders as 403. The bookkeeping row g
 app's `lifecycle_notes` table. Send external notifications after this function resolves, because
 model after-hooks run before commit.
 
-<!-- source: app/app/services/caller_owned_transaction.ts#CALLER_OWNED_TRANSACTION -->
+In `app/exceptions/removal_forbidden_exception.ts`:
+
+<!-- source: app/app/exceptions/removal_forbidden_exception.ts#REMOVAL_FORBIDDEN_EXCEPTION -->
 
 ```ts
 import { Exception } from '@adonisjs/core/exceptions'
-import db from '@adonisjs/lucid/services/db'
-import User from '#models/user'
 
 /** A permission refusal; the AdonisJS exception handler renders it as 403 Forbidden. */
-export class RemovalForbiddenException extends Exception {
+export default class RemovalForbiddenException extends Exception {
   static status = 403
   static code = 'E_REMOVAL_FORBIDDEN'
   static message = 'Removal is not permitted'
 }
+```
+
+In `app/services/caller_owned_transaction.ts`:
+
+<!-- source: app/app/services/caller_owned_transaction.ts#CALLER_OWNED_TRANSACTION -->
+
+```ts
+import RemovalForbiddenException from '#exceptions/removal_forbidden_exception'
+import db from '@adonisjs/lucid/services/db'
+import User from '#models/user'
 
 /**
  * `mayRemove` is the host application's authorization callback for the verified actor, for

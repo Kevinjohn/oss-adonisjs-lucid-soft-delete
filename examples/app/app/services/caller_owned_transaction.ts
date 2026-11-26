@@ -8,16 +8,9 @@
  */
 
 // #region CALLER_OWNED_TRANSACTION
-import { Exception } from '@adonisjs/core/exceptions'
+import RemovalForbiddenException from '#exceptions/removal_forbidden_exception'
 import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
-
-/** A permission refusal; the AdonisJS exception handler renders it as 403 Forbidden. */
-export class RemovalForbiddenException extends Exception {
-  static status = 403
-  static code = 'E_REMOVAL_FORBIDDEN'
-  static message = 'Removal is not permitted'
-}
 
 /**
  * `mayRemove` is the host application's authorization callback for the verified actor, for

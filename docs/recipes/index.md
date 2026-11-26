@@ -36,17 +36,19 @@ must remain unique; the recipes do not create tables or authorization rules.
 The fixture uses `tenantId` in model queries, which Lucid maps to `tenant_id`. In your application,
 keep your own authorization and tenant conditions in each mutation query.
 
-<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RECIPE_SETUP -->
+In `app/models/recipe_parent.ts`:
+
+<!-- source: ../../examples/app/app/models/recipe_parent.ts#RECIPE_PARENT -->
 
 ```ts
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
-import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+import RecipeChild from '#models/recipe_child'
 
-class RecipeParent extends compose(BaseModel, withSoftDeletes) {
+export default class RecipeParent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -56,16 +58,37 @@ class RecipeParent extends compose(BaseModel, withSoftDeletes) {
     typeof RecipeChild
   >
 }
+```
 
-class RecipeChild extends compose(BaseModel, withSoftDeletes) {
+In `app/models/recipe_child.ts`:
+
+<!-- source: ../../examples/app/app/models/recipe_child.ts#RECIPE_CHILD -->
+
+```ts
+import { compose } from '@adonisjs/core/helpers'
+import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+
+export default class RecipeChild extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_children'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
   @column() declare parentId: number
   @column() declare label: string
 }
+```
 
-class CustomDeletionParent extends compose(BaseModel, withSoftDeletes) {
+In `app/models/custom_deletion_parent.ts`:
+
+<!-- source: ../../examples/app/app/models/custom_deletion_parent.ts#CUSTOM_DELETION_PARENT -->
+
+```ts
+import { compose } from '@adonisjs/core/helpers'
+import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { DateTime } from 'luxon'
+import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
+
+export default class CustomDeletionParent extends compose(BaseModel, withSoftDeletes) {
   static table = 'lifecycle_parents'
   @column({ isPrimary: true }) declare id: number
   @column() declare tenantId: number
@@ -76,6 +99,18 @@ class CustomDeletionParent extends compose(BaseModel, withSoftDeletes) {
   })
   declare deletedAt: DateTime | null
 }
+```
+
+In `app/services/soft_delete_recipes.ts`:
+
+<!-- source: ../../examples/app/app/services/soft_delete_recipes.ts#RECIPE_SETUP -->
+
+```ts
+import db from '@adonisjs/lucid/services/db'
+import { DateTime } from 'luxon'
+import RecipeParent from '#models/recipe_parent'
+import RecipeChild from '#models/recipe_child'
+import CustomDeletionParent from '#models/custom_deletion_parent'
 
 function uniqueLabel(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random()}`
