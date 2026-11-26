@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Disable production migration rollbacks in the example application and starter database configurations.
+
 - **Breaking:** Rename the `SoftDeletes` mixin to `withSoftDeletes`. In each soft-deletable model, replace `import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'` and `compose(BaseModel, SoftDeletes)` with:
 
   ```ts

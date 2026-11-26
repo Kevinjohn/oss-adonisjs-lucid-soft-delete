@@ -24,6 +24,7 @@ const dbConfig = defineConfig({
       useNullAsDefault: true,
 
       migrations: {
+        disableRollbacksInProduction: true,
         /**
          * Sort migration files naturally by filename.
          */
@@ -62,6 +63,7 @@ const dbConfig = defineConfig({
     //     database: env.get('DB_DATABASE'),
     //   },
     //   migrations: {
+    //     disableRollbacksInProduction: true,
     //     naturalSort: true,
     //     paths: ['database/migrations'],
     //   },
@@ -86,6 +88,7 @@ const dbConfig = defineConfig({
     //     database: env.get('DB_DATABASE'),
     //   },
     //   migrations: {
+    //     disableRollbacksInProduction: true,
     //     naturalSort: true,
     //     paths: ['database/migrations'],
     //   },
@@ -110,6 +113,7 @@ const dbConfig = defineConfig({
     //     database: env.get('DB_DATABASE'),
     //   },
     //   migrations: {
+    //     disableRollbacksInProduction: true,
     //     naturalSort: true,
     //     paths: ['database/migrations'],
     //   },
@@ -132,6 +136,7 @@ const dbConfig = defineConfig({
     //   },
     //   useNullAsDefault: true,
     //   migrations: {
+    //     disableRollbacksInProduction: true,
     //     naturalSort: true,
     //     paths: ['database/migrations'],
     //   },

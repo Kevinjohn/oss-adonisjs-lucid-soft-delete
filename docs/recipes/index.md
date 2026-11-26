@@ -27,9 +27,10 @@ The setup and models below are complete for the recipes. The parent table has `i
 table has `id`, `tenant_id`, `parent_id`, `label`, and nullable `deleted_at`. `lifecycle_notes`
 has `id`, `tenant_id`, `parent_id`, and `action`. `users` has `id`, unique `email`, `username`, and
 nullable `deleted_at`. These are the tables created by
-[`examples/app/database/migrations/0001_create_users_table.ts`](../../examples/app/database/migrations/0001_create_users_table.ts)
-and
-[`examples/app/database/migrations/0002_create_lifecycle_tables.ts`](../../examples/app/database/migrations/0002_create_lifecycle_tables.ts).
+[`examples/app/database/migrations/0001_create_users_table.ts`](../../examples/app/database/migrations/0001_create_users_table.ts),
+[`lifecycle_parents`](../../examples/app/database/migrations/0002_create_lifecycle_parents_table.ts),
+[`lifecycle_children`](../../examples/app/database/migrations/0003_create_lifecycle_children_table.ts),
+and [`lifecycle_notes`](../../examples/app/database/migrations/0004_create_lifecycle_notes_table.ts).
 In a new application, create equivalent columns and a database unique constraint for values that
 must remain unique; the recipes do not create tables or authorization rules.
 
@@ -555,7 +556,8 @@ Only publish notifications or other external effects after that transaction comm
 ### Schema and setup
 
 Keep the shared `lifecycle_parents` table above. Apply the example's
-[recovery migration](../../examples/app/database/migrations/0003_create_recovery_tables.ts)
+[recovery group migration](../../examples/app/database/migrations/0005_create_recovery_groups_table.ts)
+and [recovery record migration](../../examples/app/database/migrations/0006_create_recovery_records_table.ts)
 with the existing application migrations before invoking the service. It adds only:
 
 - `recovery_groups`: UUID primary key `id`, integer `tenant_id`, `label`, `status` and `created_at`.
@@ -563,6 +565,7 @@ with the existing application migrations before invoking the service. It adds on
 - `recovery_records`: integer `tenant_id` and `record_id` as a composite primary key, `group_id`
   referencing a recovery group, and the captured `deleted_at`. This is the **current** association,
   not an immutable history table. A new deletion replaces an earlier association for the same row.
+  The foreign key uses `ON DELETE RESTRICT`, so a group cannot be removed while records reference it.
 
 The fixture migrations run automatically in both installed-consumer gates. No new package
 configuration or installation command is needed; follow the [getting started setup](../guide/getting-started.md#prerequisites-and-source-checkout)
