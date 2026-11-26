@@ -23,7 +23,7 @@ test.group('soft delete in the browser', (group) => {
     await page.getByRole('link', { name: 'Deleted accounts' }).click()
     await page.waitForURL('**/admin/deleted-users')
     await page.getByRole('button', { name: 'Restore member@example.test' }).click()
-    await page.getByText('member@example.test is restored.').waitFor()
+    await page.getByText('member@example.test is restored.', { exact: true }).waitFor()
     assert.isNotNull(await User.find(member.id))
   })
   test('a signed-in member reaches account deletion from the dashboard', async ({
