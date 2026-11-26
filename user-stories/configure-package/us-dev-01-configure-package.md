@@ -35,6 +35,7 @@ Scope: configure hook registers provider; provider boot extends Lucid builder; m
 flowchart TD
     A["configure command"] --> B["createCodemods"] --> C["updateRcFile and addProvider"] --> D["Provider boot on application startup"] --> E["extendModelQueryBuilder"]
     F["Developer separately composes withSoftDeletes"] --> G["Declare hooks and lifecycle methods"]
+    H["Standalone Lucid caller"] --> E
 ```
 
 **Code references:** [configure](../../configure.ts), [provider boot](../../providers/lucid_soft_delete_provider.ts), [builder extension](../../src/bindings/model_query_builder.ts), [mixin hooks](../../src/mixin.ts), [getting started](../../docs/guide/getting-started.md).

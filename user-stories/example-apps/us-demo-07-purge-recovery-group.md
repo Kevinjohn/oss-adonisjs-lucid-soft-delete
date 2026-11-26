@@ -25,8 +25,8 @@ flowchart TD
     F -->|Yes| G{"Purge succeeds?"}
     G -->|No| C
     G -->|Yes| H{"Any associations remain?"}
-    H -->|Yes| I["Commit partial purge; group stays invalidated"]
-    H -->|No| J["Commit complete purge; group consumed"]
+    H -->|Yes| I["Return count; commit or roll back partial purge"]
+    H -->|No| J["Return count; commit or roll back consumed group"]
 ```
 
 ## Code flow
