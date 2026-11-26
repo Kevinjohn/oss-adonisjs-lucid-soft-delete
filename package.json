@@ -50,8 +50,8 @@
     "build": "pnpm compile",
     "docs:check": "node --import=@poppinss/ts-exec --enable-source-maps bin/docs_check.ts",
     "docs:api": "typedoc",
-    "docs:dev": "pnpm docs:api && vitepress dev docs",
-    "docs:build": "pnpm docs:api && vitepress build docs"
+    "docs:dev": "pnpm docs:api && vitepress dev",
+    "docs:build": "pnpm docs:api && vitepress build"
   },
   "c8": {
     "reporter": [

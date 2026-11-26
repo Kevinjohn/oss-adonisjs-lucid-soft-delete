@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitepress'
-import { registerGitHubLinkRewriter, repository } from './github_links.mjs'
-import { nav, sidebar } from './navigation.mjs'
+import { registerGitHubLinkRewriter, repository } from './github_links.ts'
+import { nav, sidebar } from './navigation.ts'
 
 export default defineConfig({
+  srcDir: 'docs',
+  outDir: 'docs/.vitepress/dist',
+  cacheDir: 'docs/.vitepress/cache',
   title: 'Lucid Soft Deletes',
   description: 'Soft deletes for AdonisJS 7 Lucid models',
   base: '/oss-adonisjs-lucid-soft-delete/',
