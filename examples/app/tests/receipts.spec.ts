@@ -14,19 +14,19 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { errors, withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 
-class Parent extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_parents'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare label: string
-  @column.dateTime() declare archivedAt: DateTime | null
-}
-
-async function seed(label: string) {
-  return Parent.create({ tenantId: 1, label, archivedAt: null })
-}
-
 test.group('Installed receipts', (group) => {
+  class Parent extends compose(BaseModel, withSoftDeletes) {
+    static table = 'lifecycle_parents'
+    @column({ isPrimary: true }) declare id: number
+    @column() declare tenantId: number
+    @column() declare label: string
+    @column.dateTime() declare archivedAt: DateTime | null
+  }
+
+  async function seed(label: string) {
+    return Parent.create({ tenantId: 1, label, archivedAt: null })
+  }
+
   group.each.setup(async () => {
     await db.from('lifecycle_notes').delete()
     await db.from('lifecycle_children').delete()

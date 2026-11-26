@@ -18,11 +18,11 @@ import {
 } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import User from '#models/user'
 
-class PlainUser extends BaseModel {
-  static table = 'users'
-}
-
 test('installed package exports and soft-delete lifecycle', async ({ assert }) => {
+  class PlainUser extends BaseModel {
+    static table = 'users'
+  }
+
   assert.isFunction(withSoftDeletes)
   assert.isFunction(ModelQueryBuilder.prototype.withTrashed)
   assert.isTrue(hasSoftDeletes(User))
@@ -83,14 +83,14 @@ test('installed bulk lifecycle macros return counts and preserve active rows whe
   await active.forceDelete()
 })
 
-class UtcUser extends User {
-  static table = 'users'
-
-  @column.dateTime({ serialize: (value: DateTime | null) => value?.toUTC().toISO() ?? null })
-  declare deletedAt: DateTime | null
-}
-
 test('installed model keeps a Luxon attribute and serializes UTC ISO', async ({ assert }) => {
+  class UtcUser extends User {
+    static table = 'users'
+
+    @column.dateTime({ serialize: (value: DateTime | null) => value?.toUTC().toISO() ?? null })
+    declare deletedAt: DateTime | null
+  }
+
   const user = await UtcUser.create({
     email: `utc-${Date.now()}-${Math.random()}@example.test`,
     username: 'utc-recipe',

@@ -13,55 +13,55 @@ import { DateTime, Settings } from 'luxon'
 import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
 import { deleteGroup, invalidateGroup, purgeGroup, restoreGroup } from '#services/group_recovery'
 
-class TestRecord extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_parents'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare label: string
-  @column.dateTime() declare archivedAt: DateTime | null
-  @column.dateTime() declare deletedAt: DateTime | null
-}
+test.group('Application-owned group recovery', (suite) => {
+  class TestRecord extends compose(BaseModel, withSoftDeletes) {
+    static table = 'lifecycle_parents'
+    @column({ isPrimary: true }) declare id: number
+    @column() declare tenantId: number
+    @column() declare label: string
+    @column.dateTime() declare archivedAt: DateTime | null
+    @column.dateTime() declare deletedAt: DateTime | null
+  }
 
-async function seed(tenantId: number, label: string, deletedAt: DateTime | null = null) {
-  return TestRecord.create({
-    tenantId,
-    label,
-    archivedAt: DateTime.fromISO('2026-01-02T03:04:05.000Z'),
-    deletedAt,
-  })
-}
+  async function seed(tenantId: number, label: string, deletedAt: DateTime | null = null) {
+    return TestRecord.create({
+      tenantId,
+      label,
+      archivedAt: DateTime.fromISO('2026-01-02T03:04:05.000Z'),
+      deletedAt,
+    })
+  }
 
-async function isTrashed(id: number) {
-  const record = await TestRecord.withTrashed().where('id', id).firstOrFail()
-  return record.trashed
-}
+  async function isTrashed(id: number) {
+    const record = await TestRecord.withTrashed().where('id', id).firstOrFail()
+    return record.trashed
+  }
 
-async function readDeletedTimestamp(id: number) {
-  const record = await TestRecord.withTrashed().where('id', id).firstOrFail()
-  return record.deletedAt!.toUTC().toISO()
-}
+  async function readDeletedTimestamp(id: number) {
+    const record = await TestRecord.withTrashed().where('id', id).firstOrFail()
+    return record.deletedAt!.toUTC().toISO()
+  }
 
-async function getRecoveryStatus(groupId: string) {
-  const group = await db.from('recovery_groups').where('id', groupId).first()
-  return group.status
-}
+  async function getRecoveryStatus(groupId: string) {
+    const group = await db.from('recovery_groups').where('id', groupId).first()
+    return group.status
+  }
 
-async function getCurrentGroup(id: number) {
-  const association = await db.from('recovery_records').where('record_id', id).first()
-  return association.group_id
-}
+  async function getCurrentGroup(id: number) {
+    const association = await db.from('recovery_records').where('record_id', id).first()
+    return association.group_id
+  }
 
-async function readCapturedDeletedAt(groupId: string, id: number) {
-  const association = await db
-    .from('recovery_records')
-    .where('group_id', groupId)
-    .where('record_id', id)
-    .first()
-  return association.deleted_at
-}
+  async function readCapturedDeletedAt(groupId: string, id: number) {
+    const association = await db
+      .from('recovery_records')
+      .where('group_id', groupId)
+      .where('record_id', id)
+      .first()
+    return association.deleted_at
+  }
 
-test.group('Application-owned group recovery', (group) => {
-  group.each.setup(async () => {
+  suite.each.setup(async () => {
     await db.from('recovery_records').delete()
     await db.from('recovery_groups').delete()
     await db.from('lifecycle_notes').delete()
@@ -499,7 +499,8 @@ test.group('Application-owned group recovery', (group) => {
     await db.transaction(async (trx) => {
       groupId = await deleteGroup(trx, { tenantId: 62, ids: [row.id], label: 'group' })
     })
-    await (await TestRecord.withTrashed().where('id', row.id).firstOrFail()).restore()
+    const deletedRecord = await TestRecord.withTrashed().where('id', row.id).firstOrFail()
+    await deletedRecord.restore()
 
     await assert.rejects(
       () => db.transaction((trx) => restoreGroup(trx, { tenantId: 62, groupId: emptyGroup })),

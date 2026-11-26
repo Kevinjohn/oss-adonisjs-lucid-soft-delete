@@ -8,43 +8,11 @@
  */
 
 // #region RECIPE_SETUP
-import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { withSoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete'
-
-class RecipeParent extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_parents'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare label: string
-  @column.dateTime() declare archivedAt: DateTime | null
-  @hasMany(() => RecipeChild, { foreignKey: 'parentId' }) declare children: HasMany<
-    typeof RecipeChild
-  >
-}
-
-class RecipeChild extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_children'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare parentId: number
-  @column() declare label: string
-}
-
-class CustomDeletionParent extends compose(BaseModel, withSoftDeletes) {
-  static table = 'lifecycle_parents'
-  @column({ isPrimary: true }) declare id: number
-  @column() declare tenantId: number
-  @column() declare label: string
-  @column.dateTime({
-    columnName: 'archived_at',
-    serialize: (value: DateTime | null) => value?.toUTC().toISO() ?? null,
-  })
-  declare deletedAt: DateTime | null
-}
+import RecipeParent from '#models/recipe_parent'
+import RecipeChild from '#models/recipe_child'
+import CustomDeletionParent from '#models/custom_deletion_parent'
 
 function uniqueLabel(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random()}`
