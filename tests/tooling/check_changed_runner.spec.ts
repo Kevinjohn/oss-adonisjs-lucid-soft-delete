@@ -246,7 +246,8 @@ async function runnerFixture(
       await writeFile(join(root, 'package.json'), '{"name":"fixture"}\n')
       break
     case 'docs':
-      await writeFile(join(root, 'notes.md'), '# Notes\n')
+      await mkdir(join(root, 'docs'))
+      await writeFile(join(root, 'docs/notes.md'), '# Notes\n')
       break
   }
 
@@ -498,8 +499,10 @@ test.group('check:changed runner test outcome', () => {
     cleanup,
   }) => {
     const run = await runnerFixture(cleanup, { change: 'docs' })
-    const result = await run.run('')
+    const result = await run.run('', ['--static', 'main'])
     assert.equal(result.status, 0, result.stdout + result.stderr)
+    assert.include(result.commands, 'docs:build')
+    assert.include(result.stdout, 'docs build: pass')
     assert.include(result.stdout, 'tests: skip (no tests affected)')
     assert.include(result.stdout, 'consumer: skip (no consumer inputs changed)')
     assert.include(result.commands, 'docs:check')

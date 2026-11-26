@@ -157,5 +157,7 @@ else if (plan.skipped.includes('consumer')) console.log('consumer: skip (--stati
 else console.log('consumer: skip (no consumer inputs changed)')
 
 await runCheckStep('docs', 'pnpm', ['docs:check'])
+if (plan.docsBuild) await runCheckStep('docs build', 'pnpm', ['docs:build'])
+else console.log('docs build: skip (no documentation inputs changed)')
 
 process.exit(failed ? 1 : 0)

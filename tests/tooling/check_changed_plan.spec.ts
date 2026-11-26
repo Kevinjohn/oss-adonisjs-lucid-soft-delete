@@ -19,6 +19,7 @@ test.group('check:changed plan', () => {
       typecheck: true,
       tests: ['tests/scope.spec.ts'],
       consumer: false,
+      docsBuild: false,
       builtExports: false,
       skipped: [],
     })
@@ -50,15 +51,34 @@ test.group('check:changed plan', () => {
     })
 
   test('docs and changelog select no code or consumer checks', ({ assert }) => {
-    assert.deepEqual(planChecks(changed('README.md', 'CHANGELOG.md', 'docs/upgrade.md')), {
+    assert.deepEqual(planChecks(changed('README.md', 'CHANGELOG.md')), {
       lint: [],
       typecheck: false,
       tests: [],
       consumer: false,
+      docsBuild: false,
       builtExports: false,
       skipped: [],
     })
   })
+
+  test('documentation inputs select a build in static mode, including deletions')
+    .with([
+      'docs/guide.md',
+      'docs/.vitepress/config.mts',
+      '.vitepress/config.ts',
+      'typedoc.json',
+      'package.json',
+      'pnpm-lock.yaml',
+    ])
+    .run(({ assert }, path) => {
+      for (const deleted of [false, true]) {
+        const plan = planChecks([{ path, deleted }], { staticOnly: true })
+        assert.isTrue(plan.docsBuild, path)
+        assert.isFalse(plan.consumer)
+        assert.notEqual(plan.tests, 'all')
+      }
+    })
 
   test('build, tmp and coverage output is ignored', ({ assert }) => {
     const plan = planChecks(changed('build/index.js', 'tmp/x.ts', 'coverage/lcov.info'))
@@ -67,6 +87,7 @@ test.group('check:changed plan', () => {
       typecheck: false,
       tests: [],
       consumer: false,
+      docsBuild: false,
       builtExports: false,
       skipped: [],
     })
@@ -80,6 +101,7 @@ test.group('check:changed plan', () => {
         typecheck: false,
         tests: [],
         consumer: true,
+        docsBuild: false,
         builtExports: false,
         skipped: [],
       })
