@@ -9,8 +9,8 @@
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { type Change, planChecks, readTestOutcome } from './check_changed_plan.js'
-import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.js'
+import { type Change, planChecks, readTestOutcome } from './check_changed_plan.ts'
+import { runStep, terminateStepForSignal, updateActiveChild } from './check_changed_process.ts'
 
 function git(args: string[]): string {
   const result = spawnSync('git', args, { encoding: 'utf8' })

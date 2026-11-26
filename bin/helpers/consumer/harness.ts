@@ -9,7 +9,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { relative } from 'node:path'
-import { repoRoot } from './settings.js'
+import { repoRoot } from './settings.ts'
 
 function redact(value: unknown) {
   const password = process.env.DB_PASSWORD

@@ -8,7 +8,7 @@
  */
 
 import { test } from '@japa/runner'
-import { planChecks, readTestOutcome } from '../../bin/check_changed_plan.js'
+import { planChecks, readTestOutcome } from '../../bin/check_changed_plan.ts'
 
 const changed = (...paths: string[]) => paths.map((path) => ({ path, deleted: false }))
 

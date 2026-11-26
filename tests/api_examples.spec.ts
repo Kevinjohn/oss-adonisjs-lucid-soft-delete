@@ -8,7 +8,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from '@japa/runner'
 import ts from 'typescript'
@@ -20,6 +20,7 @@ test.group('Public API examples', () => {
 
   test('type-checks the TSDoc examples against the built public exports', async ({ assert }) => {
     const examples = new Map<string, string>()
+    const model = join(root, 'tests/api_example_user.ts')
     const sources = [
       'src/mixin.ts',
       'src/guard.ts',
@@ -38,18 +39,19 @@ test.group('Public API examples', () => {
               'const builder = User.query()\n' +
               'if (!(builder instanceof ModelQueryBuilder)) throw new TypeError("Expected a Lucid model query")\n' +
               'const query: ModelQueryBuilder & { model: typeof User } = builder\n'
+        const example = join(root, `${source}-example-${line}.ts`)
+        const modelImport = relative(dirname(example), model).replaceAll('\\', '/')
         const preamble = snippet.startsWith('import ')
           ? ''
-          : 'import User from "#models/user"\n' +
+          : `import User from '${modelImport}'\n` +
             'declare const user: InstanceType<typeof User>\n' +
             queryContext
-        examples.set(join(root, `${source}-example-${line}.ts`), preamble + snippet)
+        examples.set(example, preamble + snippet)
       }
     }
     assert.isAbove(examples.size, 0)
 
     // Resolve the example model's package import as a self-reference in this checkout.
-    const model = join(root, 'tests/api-example-user.ts')
     examples.set(model, await readFile(join(root, 'examples/app/app/models/user.ts'), 'utf8'))
 
     const options: ts.CompilerOptions = {
@@ -59,6 +61,7 @@ test.group('Public API examples', () => {
       experimentalDecorators: true,
       skipLibCheck: true,
       noEmit: true,
+      rewriteRelativeImportExtensions: true,
       paths: {
         '#models/user': [model],
         '#database/schema': [join(root, 'examples/app/database/schema.ts')],

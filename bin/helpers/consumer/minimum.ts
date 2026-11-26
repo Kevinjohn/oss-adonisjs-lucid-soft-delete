@@ -7,7 +7,7 @@
  * file that was distributed with this source code.
  */
 
-import { runConsumerApp } from './consumer_app.js'
+import { runConsumerApp } from './consumer_app.ts'
 
 /** Exact minimum AdonisJS, Assembler and Lucid peers declared by the package. */
 export function runMinimum(archive: string) {
