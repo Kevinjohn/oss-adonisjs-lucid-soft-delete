@@ -16,37 +16,7 @@ import {
   E_BULK_RECEIPT_UNSUPPORTED,
 } from './errors.ts'
 import { parseTableAlias, qualifyColumnReference } from './table_reference.ts'
-
-/**
- * Raw driver value of the model's primary key. A bigint from the driver is converted with String().
- * Supported keys are numeric, string and binary; boolean primary keys are not supported.
- */
-export type PrimaryKeyValue = number | string | Uint8Array
-
-export interface BulkReceiptOptions {
-  /** When true, the method returns the changed primary keys rather than just the count. Requires a caller-owned transaction. */
-  receipt?: boolean
-}
-
-/** The mutation observed inside the caller's transaction; not durable until it commits. */
-export interface BulkReceipt {
-  /** Rows the write changed. Equals ids.length. */
-  count: number
-  /** Primary-key values of the changed rows. Set semantics: no defined order, no duplicates. */
-  ids: PrimaryKeyValue[]
-}
-
-export type RestoreReceipt = BulkReceipt
-export type ForceDeleteReceipt = BulkReceipt
-
-export interface SoftDeleteReceipt extends BulkReceipt {
-  /**
-   * The instant the written literal denotes in the Node process zone, truncated to the
-   * dialect's date-time format precision (milliseconds on PostgreSQL, seconds elsewhere).
-   * null when count is 0.
-   */
-  deletedAt: DateTime | null
-}
+import type { BulkReceipt, PrimaryKeyValue } from './types.ts'
 
 type Query = ModelQueryBuilderContract<LucidModel>
 type KnexLike = {

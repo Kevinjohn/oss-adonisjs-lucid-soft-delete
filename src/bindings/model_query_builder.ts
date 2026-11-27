@@ -3,7 +3,6 @@ import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/type
 // A standalone binding import also makes the registration visible to TypeScript.
 export type {} from '../types/querybuilder.ts'
 
-import type { BulkReceiptOptions } from '../receipts.ts'
 import {
   requireValidReceiptMode,
   assertReceiptSupported,
@@ -12,7 +11,8 @@ import {
   executeWithReceipt,
 } from '../receipts.ts'
 import { E_LIFECYCLE_WRITE_UNSUPPORTED, E_MODEL_SOFT_DELETE } from '../errors.ts'
-import { hasSoftDeletes, type SoftDeletesModel } from '../guard.ts'
+import { hasSoftDeletes } from '../guard.ts'
+import type { BulkReceiptOptions, SoftDeletesModel } from '../types.ts'
 import { getSoftDeletesMode, setSoftDeletesMode } from '../mode.ts'
 import { installModePropagation } from '../propagation.ts'
 import { installSubQueryScope } from '../sub_query_scope.ts'

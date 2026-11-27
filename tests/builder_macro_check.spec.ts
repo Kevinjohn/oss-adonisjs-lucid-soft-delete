@@ -14,7 +14,7 @@ import { errors } from '../index.ts'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 import { createDatabase, createTables } from './helpers.ts'
 
-/** A deletedAt column without withSoftDeletes, so only the capability guard can reject restore(). */
+/** A deletedAt column without withSoftDeletes, so only the capability check can reject restore(). */
 class PlainModel extends BaseModel {
   static table = 'users'
 
@@ -31,7 +31,7 @@ type SoftDeleteMacros = {
   restore(): Promise<number>
 }
 
-test.group('Builder macro runtime guard', (group) => {
+test.group('Builder macro runtime check', (group) => {
   group.setup(() => {
     extendModelQueryBuilder(ModelQueryBuilder)
   })

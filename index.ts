@@ -4,13 +4,7 @@ export * as errors from './src/errors.ts'
 
 export { configure } from './configure.ts'
 export { withSoftDeletes } from './src/mixin.ts'
-export type {
-  SoftDeletesInstance,
-  SoftDeletesStatics,
-  SoftDeletesConstructor,
-} from './src/mixin.ts'
 export { hasSoftDeletes, SOFT_DELETES } from './src/guard.ts'
-export type { SoftDeletesModel } from './src/guard.ts'
 export {
   LifecycleWriteUnsupportedException,
   E_LIFECYCLE_WRITE_UNSUPPORTED,
@@ -29,4 +23,8 @@ export type {
   PrimaryKeyValue,
   RestoreReceipt,
   SoftDeleteReceipt,
-} from './src/receipts.ts'
+  SoftDeletesConstructor,
+  SoftDeletesInstance,
+  SoftDeletesModel,
+  SoftDeletesStatics,
+} from './src/types.ts'

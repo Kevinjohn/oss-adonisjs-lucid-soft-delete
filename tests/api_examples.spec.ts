@@ -23,6 +23,7 @@ test.group('Public API examples', () => {
     const model = join(root, 'tests/api_example_user.ts')
     const sources = [
       'src/mixin.ts',
+      'src/types.ts',
       'src/guard.ts',
       'src/bindings/model_query_builder.ts',
       'providers/lucid_soft_delete_provider.ts',

@@ -34,7 +34,7 @@ Then restart the application so its provider boot sequence runs again. `withTras
 
 **Expected result:** A normal model query returns rows with `deleted_at IS NULL`; `Record.withTrashed()` includes both states, and `Record.onlyTrashed()` returns rows with a deletion timestamp.
 
-Source and tests: [provider](../../providers/lucid_soft_delete_provider.ts), [model builder bindings](../../src/bindings/model_query_builder.ts), [model API tests](../../tests/model.spec.ts), [builder guard tests](../../tests/builder_guard.spec.ts).
+Source and tests: [provider](../../providers/lucid_soft_delete_provider.ts), [model builder bindings](../../src/bindings/model_query_builder.ts), [model API tests](../../tests/model.spec.ts), [builder macro check tests](../../tests/builder_macro_check.spec.ts).
 
 ## Queries fail because `deleted_at` is missing or uses the wrong column
 

@@ -80,7 +80,7 @@ tests/                      Japa specs, flat
 tests/helpers/              shared test helpers
 tests/fixtures/              static fixtures
 tests/tooling/               specs for bin/
-tests/types/                 type-level tests (.ts), where they exist
+tests/types/                 type-level tests (.spec.ts), where they exist
 examples/                    example apps
 docs/                        guides, recipes, reference and maintainer records
 ```
