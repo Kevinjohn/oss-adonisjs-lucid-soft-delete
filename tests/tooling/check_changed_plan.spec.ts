@@ -212,6 +212,7 @@ test.group('check:changed plan', () => {
   test('shipped export inputs select the built exports gate after build')
     .with([
       'index.ts',
+      'src/types.ts',
       'src/types/querybuilder.ts',
       'src/receipts.ts',
       'src/mixin.ts',
