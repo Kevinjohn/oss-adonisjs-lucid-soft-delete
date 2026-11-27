@@ -112,10 +112,10 @@ test.group('Emitted declarations', () => {
   test('the mixed model declaration carries examples for the overridden Lucid methods', async ({
     assert,
   }) => {
-    const mixin = await readFile(new URL('../build/src/mixin.d.ts', import.meta.url), 'utf8')
+    const types = await readFile(new URL('../build/src/types.d.ts', import.meta.url), 'utf8')
     for (const method of ['delete', 'deleteQuietly']) {
       assert.match(
-        mixin,
+        types,
         new RegExp(
           `@example\\s+\\* \`\`\`ts\\s+\\* await user\\.${method}\\(\\)\\s+\\* \`\`\`\\s+\\*/\\s+${method}\\(`
         )

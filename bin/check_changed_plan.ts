@@ -56,7 +56,7 @@ const CONSUMER =
   /^(bin\/helpers\/consumer|examples\/app|src|providers)\/|^bin\/test_consumer\.ts$|^(index|configure)\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.json)$/
 /** Inputs whose package export shape is asserted against the compiled package. */
 const BUILT_EXPORTS =
-  /^(index\.ts|src\/types\/|src\/(receipts|mixin)\.ts|tests\/declarations\.spec\.ts$)/
+  /^(index\.ts|src\/types(\.ts$|\/)|src\/(receipts|mixin)\.ts|tests\/declarations\.spec\.ts$)/
 
 /**
  * Map changed files to the checks they can affect. `staticOnly` keeps changed spec files but

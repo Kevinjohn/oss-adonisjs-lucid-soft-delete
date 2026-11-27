@@ -392,12 +392,12 @@ The entry point loads the package's TypeScript module augmentations. They add `w
 
 Type the values in the model map as `LucidModel` (from `@adonisjs/lucid/types/model`) so a successful check yields a `SoftDeletesModel`. The example imports `hasSoftDeletes` and `SoftDeletesModel` from the package root:
 
-<!-- source: ../../tests/types/guard.ts#lucid_model_map -->
+<!-- source: ../../tests/types/model_check.spec.ts#lucid_model_map -->
 
 ```ts
 const modelsByName = new Map<string, LucidModel>()
 
-export function findSoftDeletesModel(name: string): SoftDeletesModel | undefined {
+function findSoftDeletesModel(name: string): SoftDeletesModel | undefined {
   const model = modelsByName.get(name)
   if (model && hasSoftDeletes(model)) {
     return model

@@ -3,8 +3,8 @@ import type {
   ForceDeleteReceipt,
   RestoreReceipt,
   SoftDeleteReceipt,
-} from '../src/receipts.ts'
-import type { SoftDeletesModel } from '../src/guard.ts'
+  SoftDeletesModel,
+} from '../src/types.ts'
 import type { ApplicationService } from '@adonisjs/core/types'
 import { extendModelQueryBuilder } from '../src/bindings/model_query_builder.ts'
 

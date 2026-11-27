@@ -7,7 +7,7 @@ As an application developer, I want to identify participating models so shared s
 **Entry:** Call `hasSoftDeletes(model)` with a candidate value. A shared service that already has a Lucid constructor can use the result to select a soft-delete integration.
 **Documentation:** [Package reference](../../docs/reference/README.md).
 **Source:** [index.ts](../../index.ts), [src/guard.ts](../../src/guard.ts), [src/mixin.ts](../../src/mixin.ts).
-**Coverage:** [tests/guard.spec.ts](../../tests/guard.spec.ts), [tests/types/guard.ts](../../tests/types/guard.ts) (type contract).
+**Coverage:** [tests/guard.spec.ts](../../tests/guard.spec.ts), [tests/types/model_check.spec.ts](../../tests/types/model_check.spec.ts) (type contract).
 
 ## Acceptance criteria
 

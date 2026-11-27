@@ -7,13 +7,9 @@
  * file that was distributed with this source code.
  */
 
-import type { LucidModel } from '@adonisjs/lucid/types/model'
+import type { SoftDeletesModel } from './types.ts'
 
 export const SOFT_DELETES = Symbol.for('@kevinjohn/adonisjs-lucid-soft-delete')
-
-export type SoftDeletesModel = LucidModel & {
-  readonly [SOFT_DELETES]: true
-}
 
 /**
  * Reports whether a value carries the soft-delete marker that the `withSoftDeletes` mixin sets. A value
