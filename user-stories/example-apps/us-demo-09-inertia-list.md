@@ -13,7 +13,7 @@ As a soft-delete administrator, I want to page through deleted accounts so I can
 
 - The administrator check precedes validation. A signed-in user without the grant receives 403 and guests encounter authentication middleware.
 - Page defaults to 1 and must be a positive integer at most 1,000,000. Select only trashed rows, up to 25 per page, newest deleted_at then highest id first.
-- The page receives id, email and ISO calendar date for each result plus currentPage and lastPage. A valid out-of-range page is empty. **Previous page** appears after page 1 and **Next page** appears before the last page.
+- The page receives id, email and ISO calendar date for each result plus currentPage and lastPage. A valid out-of-range page is empty. **First page** and **Previous page** appear after page 1; **Next page** appears before the last page. Empty pages say **No account is deleted.** on page 1 and **No deleted accounts on this page.** otherwise.
 
 ## User flow
 
@@ -24,7 +24,7 @@ flowchart TD
     B -->|Yes| D{"Page valid?"}
     D -->|No| E["Receive validation failure"]
     D -->|Yes| F["Inspect up to 25 deleted accounts; empty for out-of-range page"]
-    F -->|Previous or next page| A
+    F -->|First, previous or next page| A
 ```
 
 ## Code flow

@@ -21,15 +21,18 @@ As an application service, I want to soft-delete a persisted model so that ordin
 ## Acceptance criteria
 
 - `delete()` saves a deletion timestamp through Lucid's `beforeDelete`/`afterDelete` hooks and ordinary save hooks; `deleteQuietly()` uses `saveQuietly()`.
-- After deletion the model is marked not deleted in memory, while its stored `deletedAt` marks it as trashed; ordinary model fetches omit it.
+- A successful soft deletion leaves the row stored with `deletedAt` set, so ordinary model fetches omit it. A trashed instance without a dirty `deletedAt` is skipped; a physical-delete path delegates to Lucid.
 - Unsaved models are refused. A failed save restores the prior in-memory timestamp only if Lucid has not advanced the model's saved originals.
 
 ## User flow
 
 ```mermaid
 flowchart TD
-    A["Application loads a persisted model"] --> B{"Choose delete() or deleteQuietly()"}
-    B --> C["Lucid saves a deletion timestamp"]
+    A["Application calls delete() or deleteQuietly()"] --> B{"Deletion action?"}
+    B -->|Unsaved| G["Receive error"]
+    B -->|Already trashed and unchanged| H["Return without writing"]
+    B -->|Physical| I["Delegate to Lucid physical deletion"]
+    B -->|Soft| C["Lucid saves a deletion timestamp"]
     C --> D{"Does persistence complete?"}
     D -->|No| E["Application receives the failure; inspect model state before retry"]
     D -->|Yes| F["Ordinary model queries hide the row"]

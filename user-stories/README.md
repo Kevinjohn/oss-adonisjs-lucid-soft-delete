@@ -4,7 +4,7 @@ Application developer journeys for adding recoverable deletion to Lucid models a
 
 The catalogue records source-reviewed API availability; “Current” does not claim that a runtime journey was tested.
 
-Source baseline: source commit [`c110bc17a02dd96ceafc917717e3eb98983a31ae`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/c110bc17a02dd96ceafc917717e3eb98983a31ae). The catalogue was reconciled against the public package and embedded starter source at that commit.
+Source baseline: source commit [`c6dc3ef2566ded09217a0a9484020fb1d74ab677`](https://github.com/Kevinjohn/oss-adonisjs-lucid-soft-delete/commit/c6dc3ef2566ded09217a0a9484020fb1d74ab677). The catalogue was reconciled against package and embedded starter source at that commit. This source includes the unreleased `withSoftDeletes` rename; the v0.4.0 archive exports `SoftDeletes` instead (see the [upgrade notes](../CHANGELOG.md#unreleased)).
 
 ## Index
 

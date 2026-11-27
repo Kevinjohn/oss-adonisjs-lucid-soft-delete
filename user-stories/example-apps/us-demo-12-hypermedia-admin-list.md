@@ -14,7 +14,7 @@ As a soft-delete administrator of the hypermedia starter, I want to page through
 - The dashboard navigation shows **Deleted accounts** only when the server evaluates the signed-in account as an enrolled administrator. The list route sits behind `middleware.auth()`; a non-administrator receives `403` before validation or the recycle-bin query runs.
 - `index` renders `pages/deleted_users` with `User.onlyTrashed()` ordered by `deleted_at` then `id`, both descending, each as `id`, `email` and an ISO-date `deletedAt`.
 - Page defaults to 1 and must be a positive whole number at most 1,000,000. Each page holds up to 25 rows. A valid page beyond the result set is empty. The view receives current and last page numbers.
-- **Previous page** appears after page 1 and **Next page** appears before the last page. Empty pages show **No account is deleted.** on the first page and **No deleted accounts on this page.** otherwise.
+- **First page** and **Previous page** appear after page 1 and **Next page** appears before the last page. Empty pages show **No account is deleted.** on the first page and **No deleted accounts on this page.** otherwise.
 - Choose a deleted account from the result before [restoring it](us-demo-04-hypermedia-admin-restore.md).
 
 ## User flow
@@ -26,7 +26,7 @@ flowchart TD
     B -->|Yes| D{"Valid page?"}
     D -->|No| E["Receive validation failure"]
     D -->|Yes| F["Inspect up to 25 deleted accounts or an empty page"]
-    F -->|Another page| A
+    F -->|First, previous or next page| A
 ```
 
 ## Code flow

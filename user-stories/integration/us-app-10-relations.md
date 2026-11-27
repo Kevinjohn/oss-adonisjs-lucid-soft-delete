@@ -28,9 +28,11 @@ flowchart TD
     A["Construct related query and set its own mode"] --> B{"Read path?"}
     B -->|Load, preload or direct fetch| C["Marked related model runs ignoreDeleted before fetch"]
     C --> E["applyScope adds or removes read filter; grouped fetch uses inner builder"]
+    E -->|Missing mapped deletion column when filter required| X["Throw E_MODEL_SOFT_DELETE"]
     E --> F["Lucid fetches related records"]
     B -->|Aggregate or existence| D{"Non-child relation subquery for a marked model?"}
     D -->|Yes| G["applySubQueryScope adds or removes read filter"]
+    G -->|Missing mapped deletion column when filter required| X
     G --> H["Lucid applyWhere renders related subquery"]
     D -->|No| H
 ```
